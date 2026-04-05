@@ -1,0 +1,600 @@
+{
+  "summary": {
+    "artifact_type": "factor_backtest",
+    "market": "CN",
+    "runtime_mode": "FACTOR_BACKTEST",
+    "start_date": "2026-01-02",
+    "end_date": "2026-03-31",
+    "holding_sessions": 5,
+    "selected_factors": [
+      "rel_ret_20",
+      "rel_ret_60",
+      "trend",
+      "liquidity",
+      "profitability",
+      "volatility",
+      "drawdown"
+    ],
+    "selected_factor_labels": [
+      "20日相对强度",
+      "60日相对强度",
+      "趋势强度",
+      "流动性",
+      "盈利能力",
+      "波动率",
+      "回撤"
+    ],
+    "average_return": "0.0068",
+    "average_excess_return": "0.0124",
+    "average_win_rate": "0.4524",
+    "observations": 56,
+    "best_trade_date": "2026-02-05",
+    "best_return": "0.0891",
+    "worst_trade_date": "2026-01-05",
+    "worst_return": "-0.0560",
+    "total_return": "0.0068",
+    "final_nav": "56 samples"
+  },
+  "daily": [
+    {
+      "trade_date": "2026-01-05",
+      "exit_date": "2026-01-12",
+      "equal_weight_return": "-0.0560",
+      "excess_return": "-0.0713",
+      "win_rate": "0.0000",
+      "selected_count": 4,
+      "best_name": "宁德时代",
+      "worst_name": "新易盛"
+    },
+    {
+      "trade_date": "2026-01-06",
+      "exit_date": "2026-01-13",
+      "equal_weight_return": "-0.0466",
+      "excess_return": "-0.0404",
+      "win_rate": "0.0000",
+      "selected_count": 3,
+      "best_name": "中际旭创",
+      "worst_name": "阳光电源"
+    },
+    {
+      "trade_date": "2026-01-07",
+      "exit_date": "2026-01-14",
+      "equal_weight_return": "-0.0446",
+      "excess_return": "-0.0373",
+      "win_rate": "0.0000",
+      "selected_count": 3,
+      "best_name": "中际旭创",
+      "worst_name": "宁德时代"
+    },
+    {
+      "trade_date": "2026-01-08",
+      "exit_date": "2026-01-15",
+      "equal_weight_return": "-0.0124",
+      "excess_return": "-0.0153",
+      "win_rate": "0.2500",
+      "selected_count": 4,
+      "best_name": "中际旭创",
+      "worst_name": "宁德时代"
+    },
+    {
+      "trade_date": "2026-01-09",
+      "exit_date": "2026-01-16",
+      "equal_weight_return": "0.0053",
+      "excess_return": "0.0109",
+      "win_rate": "0.5000",
+      "selected_count": 4,
+      "best_name": "中际旭创",
+      "worst_name": "宁德时代"
+    },
+    {
+      "trade_date": "2026-01-12",
+      "exit_date": "2026-01-19",
+      "equal_weight_return": "0.0186",
+      "excess_return": "0.0301",
+      "win_rate": "0.7500",
+      "selected_count": 4,
+      "best_name": "阳光电源",
+      "worst_name": "宁德时代"
+    },
+    {
+      "trade_date": "2026-01-13",
+      "exit_date": "2026-01-20",
+      "equal_weight_return": "-0.0039",
+      "excess_return": "0.0049",
+      "win_rate": "0.3333",
+      "selected_count": 3,
+      "best_name": "阳光电源",
+      "worst_name": "宁德时代"
+    },
+    {
+      "trade_date": "2026-01-14",
+      "exit_date": "2026-01-21",
+      "equal_weight_return": "-0.0174",
+      "excess_return": "-0.0134",
+      "win_rate": "0.0000",
+      "selected_count": 3,
+      "best_name": "宁德时代",
+      "worst_name": "阳光电源"
+    },
+    {
+      "trade_date": "2026-01-15",
+      "exit_date": "2026-01-22",
+      "equal_weight_return": "-0.0088",
+      "excess_return": "-0.0030",
+      "win_rate": "0.2500",
+      "selected_count": 4,
+      "best_name": "新易盛",
+      "worst_name": "阳光电源"
+    },
+    {
+      "trade_date": "2026-01-16",
+      "exit_date": "2026-01-23",
+      "equal_weight_return": "-0.0378",
+      "excess_return": "-0.0316",
+      "win_rate": "0.0000",
+      "selected_count": 3,
+      "best_name": "宁德时代",
+      "worst_name": "中际旭创"
+    },
+    {
+      "trade_date": "2026-01-19",
+      "exit_date": "2026-01-26",
+      "equal_weight_return": "-0.0392",
+      "excess_return": "-0.0334",
+      "win_rate": "0.0000",
+      "selected_count": 4,
+      "best_name": "宁德时代",
+      "worst_name": "阳光电源"
+    },
+    {
+      "trade_date": "2026-01-20",
+      "exit_date": "2026-01-27",
+      "equal_weight_return": "-0.0021",
+      "excess_return": "0.0006",
+      "win_rate": "0.3333",
+      "selected_count": 3,
+      "best_name": "中际旭创",
+      "worst_name": "阳光电源"
+    },
+    {
+      "trade_date": "2026-01-21",
+      "exit_date": "2026-01-28",
+      "equal_weight_return": "-0.0018",
+      "excess_return": "-0.0008",
+      "win_rate": "0.3333",
+      "selected_count": 3,
+      "best_name": "中际旭创",
+      "worst_name": "阳光电源"
+    },
+    {
+      "trade_date": "2026-01-22",
+      "exit_date": "2026-01-29",
+      "equal_weight_return": "-0.0369",
+      "excess_return": "-0.0433",
+      "win_rate": "0.0000",
+      "selected_count": 3,
+      "best_name": "宁德时代",
+      "worst_name": "阳光电源"
+    },
+    {
+      "trade_date": "2026-01-23",
+      "exit_date": "2026-01-30",
+      "equal_weight_return": "0.0147",
+      "excess_return": "0.0139",
+      "win_rate": "0.6667",
+      "selected_count": 3,
+      "best_name": "中际旭创",
+      "worst_name": "阳光电源"
+    },
+    {
+      "trade_date": "2026-01-26",
+      "exit_date": "2026-02-02",
+      "equal_weight_return": "-0.0148",
+      "excess_return": "0.0066",
+      "win_rate": "0.6667",
+      "selected_count": 3,
+      "best_name": "宁德时代",
+      "worst_name": "阳光电源"
+    },
+    {
+      "trade_date": "2026-01-27",
+      "exit_date": "2026-02-03",
+      "equal_weight_return": "0.0540",
+      "excess_return": "0.0636",
+      "win_rate": "0.5000",
+      "selected_count": 4,
+      "best_name": "天孚通信",
+      "worst_name": "阳光电源"
+    },
+    {
+      "trade_date": "2026-01-28",
+      "exit_date": "2026-02-04",
+      "equal_weight_return": "0.0439",
+      "excess_return": "0.0480",
+      "win_rate": "0.5000",
+      "selected_count": 4,
+      "best_name": "天孚通信",
+      "worst_name": "中际旭创"
+    },
+    {
+      "trade_date": "2026-01-29",
+      "exit_date": "2026-02-05",
+      "equal_weight_return": "0.0249",
+      "excess_return": "0.0425",
+      "win_rate": "0.5000",
+      "selected_count": 4,
+      "best_name": "天孚通信",
+      "worst_name": "中际旭创"
+    },
+    {
+      "trade_date": "2026-01-30",
+      "exit_date": "2026-02-06",
+      "equal_weight_return": "-0.0345",
+      "excess_return": "-0.0212",
+      "win_rate": "0.5000",
+      "selected_count": 4,
+      "best_name": "宁德时代",
+      "worst_name": "中际旭创"
+    },
+    {
+      "trade_date": "2026-02-02",
+      "exit_date": "2026-02-09",
+      "equal_weight_return": "0.0559",
+      "excess_return": "0.0314",
+      "win_rate": "0.7500",
+      "selected_count": 4,
+      "best_name": "天孚通信",
+      "worst_name": "新易盛"
+    },
+    {
+      "trade_date": "2026-02-03",
+      "exit_date": "2026-02-10",
+      "equal_weight_return": "0.0238",
+      "excess_return": "0.0100",
+      "win_rate": "0.7500",
+      "selected_count": 4,
+      "best_name": "天孚通信",
+      "worst_name": "中际旭创"
+    },
+    {
+      "trade_date": "2026-02-04",
+      "exit_date": "2026-02-11",
+      "equal_weight_return": "0.0099",
+      "excess_return": "0.0066",
+      "win_rate": "0.5000",
+      "selected_count": 4,
+      "best_name": "天孚通信",
+      "worst_name": "中际旭创"
+    },
+    {
+      "trade_date": "2026-02-05",
+      "exit_date": "2026-02-12",
+      "equal_weight_return": "0.0891",
+      "excess_return": "0.0786",
+      "win_rate": "0.7500",
+      "selected_count": 4,
+      "best_name": "天孚通信",
+      "worst_name": "中际旭创"
+    },
+    {
+      "trade_date": "2026-02-06",
+      "exit_date": "2026-02-13",
+      "equal_weight_return": "0.0593",
+      "excess_return": "0.0556",
+      "win_rate": "0.5000",
+      "selected_count": 4,
+      "best_name": "天孚通信",
+      "worst_name": "中际旭创"
+    },
+    {
+      "trade_date": "2026-02-09",
+      "exit_date": "2026-02-24",
+      "equal_weight_return": "0.0302",
+      "excess_return": "0.0327",
+      "win_rate": "0.2500",
+      "selected_count": 4,
+      "best_name": "天孚通信",
+      "worst_name": "中际旭创"
+    },
+    {
+      "trade_date": "2026-02-10",
+      "exit_date": "2026-02-25",
+      "equal_weight_return": "0.0354",
+      "excess_return": "0.0329",
+      "win_rate": "0.2500",
+      "selected_count": 4,
+      "best_name": "天孚通信",
+      "worst_name": "新易盛"
+    },
+    {
+      "trade_date": "2026-02-11",
+      "exit_date": "2026-02-26",
+      "equal_weight_return": "0.0570",
+      "excess_return": "0.0542",
+      "win_rate": "0.5000",
+      "selected_count": 4,
+      "best_name": "天孚通信",
+      "worst_name": "宁德时代"
+    },
+    {
+      "trade_date": "2026-02-12",
+      "exit_date": "2026-02-27",
+      "equal_weight_return": "-0.0093",
+      "excess_return": "-0.0075",
+      "win_rate": "0.5000",
+      "selected_count": 4,
+      "best_name": "天孚通信",
+      "worst_name": "宁德时代"
+    },
+    {
+      "trade_date": "2026-02-13",
+      "exit_date": "2026-03-02",
+      "equal_weight_return": "0.0326",
+      "excess_return": "0.0180",
+      "win_rate": "0.7500",
+      "selected_count": 4,
+      "best_name": "天孚通信",
+      "worst_name": "宁德时代"
+    },
+    {
+      "trade_date": "2026-02-24",
+      "exit_date": "2026-03-03",
+      "equal_weight_return": "-0.0198",
+      "excess_return": "-0.0089",
+      "win_rate": "0.2500",
+      "selected_count": 4,
+      "best_name": "中际旭创",
+      "worst_name": "宁德时代"
+    },
+    {
+      "trade_date": "2026-02-25",
+      "exit_date": "2026-03-04",
+      "equal_weight_return": "-0.0411",
+      "excess_return": "-0.0130",
+      "win_rate": "0.0000",
+      "selected_count": 4,
+      "best_name": "天孚通信",
+      "worst_name": "宁德时代"
+    },
+    {
+      "trade_date": "2026-02-26",
+      "exit_date": "2026-03-05",
+      "equal_weight_return": "-0.0176",
+      "excess_return": "-0.0008",
+      "win_rate": "0.5000",
+      "selected_count": 4,
+      "best_name": "阳光电源",
+      "worst_name": "天孚通信"
+    },
+    {
+      "trade_date": "2026-02-27",
+      "exit_date": "2026-03-06",
+      "equal_weight_return": "-0.0072",
+      "excess_return": "0.0035",
+      "win_rate": "0.7500",
+      "selected_count": 4,
+      "best_name": "宁德时代",
+      "worst_name": "天孚通信"
+    },
+    {
+      "trade_date": "2026-03-02",
+      "exit_date": "2026-03-09",
+      "equal_weight_return": "-0.0268",
+      "excess_return": "-0.0029",
+      "win_rate": "0.5000",
+      "selected_count": 4,
+      "best_name": "宁德时代",
+      "worst_name": "天孚通信"
+    },
+    {
+      "trade_date": "2026-03-03",
+      "exit_date": "2026-03-10",
+      "equal_weight_return": "0.0297",
+      "excess_return": "0.0257",
+      "win_rate": "0.7500",
+      "selected_count": 4,
+      "best_name": "宁德时代",
+      "worst_name": "中际旭创"
+    },
+    {
+      "trade_date": "2026-03-04",
+      "exit_date": "2026-03-11",
+      "equal_weight_return": "0.0839",
+      "excess_return": "0.0618",
+      "win_rate": "0.7500",
+      "selected_count": 4,
+      "best_name": "宁德时代",
+      "worst_name": "天孚通信"
+    },
+    {
+      "trade_date": "2026-03-05",
+      "exit_date": "2026-03-12",
+      "equal_weight_return": "0.0633",
+      "excess_return": "0.0547",
+      "win_rate": "0.5000",
+      "selected_count": 4,
+      "best_name": "阳光电源",
+      "worst_name": "中际旭创"
+    },
+    {
+      "trade_date": "2026-03-06",
+      "exit_date": "2026-03-13",
+      "equal_weight_return": "0.0725",
+      "excess_return": "0.0707",
+      "win_rate": "0.7500",
+      "selected_count": 4,
+      "best_name": "阳光电源",
+      "worst_name": "中际旭创"
+    },
+    {
+      "trade_date": "2026-03-09",
+      "exit_date": "2026-03-16",
+      "equal_weight_return": "0.0836",
+      "excess_return": "0.0714",
+      "win_rate": "1.0000",
+      "selected_count": 4,
+      "best_name": "宁德时代",
+      "worst_name": "天孚通信"
+    },
+    {
+      "trade_date": "2026-03-10",
+      "exit_date": "2026-03-17",
+      "equal_weight_return": "-0.0105",
+      "excess_return": "-0.0026",
+      "win_rate": "0.5000",
+      "selected_count": 4,
+      "best_name": "宁德时代",
+      "worst_name": "天孚通信"
+    },
+    {
+      "trade_date": "2026-03-11",
+      "exit_date": "2026-03-18",
+      "equal_weight_return": "-0.0126",
+      "excess_return": "-0.0027",
+      "win_rate": "0.5000",
+      "selected_count": 4,
+      "best_name": "中际旭创",
+      "worst_name": "天孚通信"
+    },
+    {
+      "trade_date": "2026-03-12",
+      "exit_date": "2026-03-19",
+      "equal_weight_return": "-0.0090",
+      "excess_return": "0.0132",
+      "win_rate": "0.5000",
+      "selected_count": 4,
+      "best_name": "中际旭创",
+      "worst_name": "天孚通信"
+    },
+    {
+      "trade_date": "2026-03-13",
+      "exit_date": "2026-03-20",
+      "equal_weight_return": "0.0298",
+      "excess_return": "0.0517",
+      "win_rate": "0.5000",
+      "selected_count": 4,
+      "best_name": "中际旭创",
+      "worst_name": "天孚通信"
+    },
+    {
+      "trade_date": "2026-03-16",
+      "exit_date": "2026-03-23",
+      "equal_weight_return": "-0.0516",
+      "excess_return": "0.0026",
+      "win_rate": "0.0000",
+      "selected_count": 4,
+      "best_name": "宁德时代",
+      "worst_name": "亨通光电"
+    },
+    {
+      "trade_date": "2026-03-17",
+      "exit_date": "2026-03-24",
+      "equal_weight_return": "0.0267",
+      "excess_return": "0.0618",
+      "win_rate": "0.5000",
+      "selected_count": 4,
+      "best_name": "中际旭创",
+      "worst_name": "宁德时代"
+    },
+    {
+      "trade_date": "2026-03-18",
+      "exit_date": "2026-03-25",
+      "equal_weight_return": "0.0395",
+      "excess_return": "0.0655",
+      "win_rate": "0.7500",
+      "selected_count": 4,
+      "best_name": "中际旭创",
+      "worst_name": "宁德时代"
+    },
+    {
+      "trade_date": "2026-03-19",
+      "exit_date": "2026-03-26",
+      "equal_weight_return": "0.0397",
+      "excess_return": "0.0628",
+      "win_rate": "1.0000",
+      "selected_count": 4,
+      "best_name": "亨通光电",
+      "worst_name": "宁德时代"
+    },
+    {
+      "trade_date": "2026-03-20",
+      "exit_date": "2026-03-27",
+      "equal_weight_return": "0.0064",
+      "excess_return": "0.0205",
+      "win_rate": "0.5000",
+      "selected_count": 4,
+      "best_name": "亨通光电",
+      "worst_name": "新易盛"
+    },
+    {
+      "trade_date": "2026-03-23",
+      "exit_date": "2026-03-30",
+      "equal_weight_return": "0.0643",
+      "excess_return": "0.0475",
+      "win_rate": "0.5000",
+      "selected_count": 4,
+      "best_name": "亨通光电",
+      "worst_name": "阳光电源"
+    },
+    {
+      "trade_date": "2026-03-24",
+      "exit_date": "2026-03-31",
+      "equal_weight_return": "0.0151",
+      "excess_return": "0.0206",
+      "win_rate": "0.5000",
+      "selected_count": 4,
+      "best_name": "亨通光电",
+      "worst_name": "阳光电源"
+    },
+    {
+      "trade_date": "2026-03-25",
+      "exit_date": "2026-04-01",
+      "equal_weight_return": "-0.0347",
+      "excess_return": "-0.0322",
+      "win_rate": "0.5000",
+      "selected_count": 4,
+      "best_name": "亨通光电",
+      "worst_name": "阳光电源"
+    },
+    {
+      "trade_date": "2026-03-26",
+      "exit_date": "2026-04-02",
+      "equal_weight_return": "-0.0435",
+      "excess_return": "-0.0438",
+      "win_rate": "0.2500",
+      "selected_count": 4,
+      "best_name": "亨通光电",
+      "worst_name": "阳光电源"
+    },
+    {
+      "trade_date": "2026-03-27",
+      "exit_date": "2026-04-03",
+      "equal_weight_return": "-0.0291",
+      "excess_return": "-0.0154",
+      "win_rate": "0.5000",
+      "selected_count": 4,
+      "best_name": "亨通光电",
+      "worst_name": "阳光电源"
+    },
+    {
+      "trade_date": "2026-03-30",
+      "exit_date": "2026-04-03",
+      "equal_weight_return": "-0.0429",
+      "excess_return": "-0.0315",
+      "win_rate": "0.5000",
+      "selected_count": 4,
+      "best_name": "亨通光电",
+      "worst_name": "阳光电源"
+    },
+    {
+      "trade_date": "2026-03-31",
+      "exit_date": "2026-04-03",
+      "equal_weight_return": "-0.0131",
+      "excess_return": "-0.0110",
+      "win_rate": "0.5000",
+      "selected_count": 4,
+      "best_name": "亨通光电",
+      "worst_name": "阳光电源"
+    }
+  ]
+}

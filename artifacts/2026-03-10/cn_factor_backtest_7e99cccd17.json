@@ -1,0 +1,102 @@
+{
+  "summary": {
+    "artifact_type": "factor_backtest",
+    "market": "CN",
+    "runtime_mode": "FACTOR_BACKTEST",
+    "start_date": "2026-03-02",
+    "end_date": "2026-03-10",
+    "holding_sessions": 3,
+    "selected_factors": [
+      "rel_ret_20",
+      "rel_ret_60",
+      "trend"
+    ],
+    "selected_factor_labels": [
+      "20日相对强度",
+      "60日相对强度",
+      "趋势强度"
+    ],
+    "average_return": "0.0151",
+    "average_excess_return": "0.0127",
+    "average_win_rate": "0.5714",
+    "observations": 7,
+    "best_trade_date": "2026-03-09",
+    "best_return": "0.0704",
+    "worst_trade_date": "2026-03-04",
+    "worst_return": "-0.0182",
+    "total_return": "0.0151",
+    "final_nav": "7 samples"
+  },
+  "daily": [
+    {
+      "trade_date": "2026-03-02",
+      "exit_date": "2026-03-05",
+      "equal_weight_return": "-0.0126",
+      "excess_return": "0.0045",
+      "win_rate": "0.3333",
+      "selected_count": 3,
+      "best_name": "宁德时代",
+      "worst_name": "天孚通信"
+    },
+    {
+      "trade_date": "2026-03-03",
+      "exit_date": "2026-03-06",
+      "equal_weight_return": "-0.0121",
+      "excess_return": "-0.0131",
+      "win_rate": "0.3333",
+      "selected_count": 3,
+      "best_name": "宁德时代",
+      "worst_name": "天孚通信"
+    },
+    {
+      "trade_date": "2026-03-04",
+      "exit_date": "2026-03-09",
+      "equal_weight_return": "-0.0182",
+      "excess_return": "-0.0210",
+      "win_rate": "0.3333",
+      "selected_count": 3,
+      "best_name": "宁德时代",
+      "worst_name": "天孚通信"
+    },
+    {
+      "trade_date": "2026-03-05",
+      "exit_date": "2026-03-10",
+      "equal_weight_return": "0.0245",
+      "excess_return": "0.0186",
+      "win_rate": "0.6667",
+      "selected_count": 3,
+      "best_name": "宁德时代",
+      "worst_name": "中际旭创"
+    },
+    {
+      "trade_date": "2026-03-06",
+      "exit_date": "2026-03-11",
+      "equal_weight_return": "0.0535",
+      "excess_return": "0.0440",
+      "win_rate": "1.0000",
+      "selected_count": 3,
+      "best_name": "宁德时代",
+      "worst_name": "中际旭创"
+    },
+    {
+      "trade_date": "2026-03-09",
+      "exit_date": "2026-03-12",
+      "equal_weight_return": "0.0704",
+      "excess_return": "0.0548",
+      "win_rate": "1.0000",
+      "selected_count": 3,
+      "best_name": "宁德时代",
+      "worst_name": "中际旭创"
+    },
+    {
+      "trade_date": "2026-03-10",
+      "exit_date": "2026-03-13",
+      "equal_weight_return": "0.0001",
+      "excess_return": "0.0013",
+      "win_rate": "0.3333",
+      "selected_count": 3,
+      "best_name": "宁德时代",
+      "worst_name": "天孚通信"
+    }
+  ]
+}

@@ -1,0 +1,637 @@
+{
+  "market": "CN",
+  "scenario_set": "ablation",
+  "start_date": "2026-01-02",
+  "end_date": "2026-03-31",
+  "holding_sessions": 5,
+  "split": {
+    "train": {
+      "label": "train",
+      "start_date": "2026-01-05",
+      "end_date": "2026-02-26",
+      "session_count": 33
+    },
+    "validate": {
+      "label": "validate",
+      "start_date": "2026-02-27",
+      "end_date": "2026-03-13",
+      "session_count": 11
+    },
+    "test": {
+      "label": "test",
+      "start_date": "2026-03-16",
+      "end_date": "2026-03-31",
+      "session_count": 12
+    }
+  },
+  "walk_forward": {
+    "windows": [
+      {
+        "window_index": 1,
+        "train": {
+          "label": "train",
+          "start_date": "2026-01-05",
+          "end_date": "2026-02-26",
+          "session_count": 33
+        },
+        "validate": {
+          "label": "validate",
+          "start_date": "2026-02-27",
+          "end_date": "2026-03-12",
+          "session_count": 10
+        },
+        "test": {
+          "label": "test",
+          "start_date": "2026-03-13",
+          "end_date": "2026-03-26",
+          "session_count": 10
+        }
+      }
+    ],
+    "scenario_summaries": [
+      {
+        "scenario_name": "group_momentum_only",
+        "window_count": 1,
+        "average_train_return": "0.0017",
+        "average_validate_return": "0.0126",
+        "average_test_return": "0.0153",
+        "average_train_excess_return": "0.0045",
+        "average_validate_excess_return": "0.0152",
+        "average_test_excess_return": "0.0318",
+        "average_train_win_rate": "0.3586",
+        "average_validate_win_rate": "0.6000",
+        "average_test_win_rate": "0.5000",
+        "test_return_std": "0.0000",
+        "validate_test_gap": "-0.0027"
+      },
+      {
+        "scenario_name": "drop_profitability",
+        "window_count": 1,
+        "average_train_return": "0.0046",
+        "average_validate_return": "0.0062",
+        "average_test_return": "0.0140",
+        "average_train_excess_return": "0.0074",
+        "average_validate_excess_return": "0.0088",
+        "average_test_excess_return": "0.0305",
+        "average_train_win_rate": "0.3864",
+        "average_validate_win_rate": "0.5750",
+        "average_test_win_rate": "0.5000",
+        "test_return_std": "0.0000",
+        "validate_test_gap": "-0.0078"
+      },
+      {
+        "scenario_name": "group_liquidity_only",
+        "window_count": 1,
+        "average_train_return": "-0.0141",
+        "average_validate_return": "0.0391",
+        "average_test_return": "0.0110",
+        "average_train_excess_return": "-0.0114",
+        "average_validate_excess_return": "0.0416",
+        "average_test_excess_return": "0.0276",
+        "average_train_win_rate": "0.3409",
+        "average_validate_win_rate": "0.7250",
+        "average_test_win_rate": "0.4500",
+        "test_return_std": "0.0000",
+        "validate_test_gap": "0.0280"
+      },
+      {
+        "scenario_name": "drop_drawdown",
+        "window_count": 1,
+        "average_train_return": "0.0012",
+        "average_validate_return": "0.0222",
+        "average_test_return": "-0.0015",
+        "average_train_excess_return": "0.0039",
+        "average_validate_excess_return": "0.0248",
+        "average_test_excess_return": "0.0150",
+        "average_train_win_rate": "0.3611",
+        "average_validate_win_rate": "0.6500",
+        "average_test_win_rate": "0.4750",
+        "test_return_std": "0.0000",
+        "validate_test_gap": "0.0237"
+      },
+      {
+        "scenario_name": "baseline",
+        "window_count": 1,
+        "average_train_return": "0.0033",
+        "average_validate_return": "0.0106",
+        "average_test_return": "-0.0058",
+        "average_train_excess_return": "0.0061",
+        "average_validate_excess_return": "0.0132",
+        "average_test_excess_return": "0.0108",
+        "average_train_win_rate": "0.3737",
+        "average_validate_win_rate": "0.5750",
+        "average_test_win_rate": "0.4500",
+        "test_return_std": "0.0000",
+        "validate_test_gap": "0.0164"
+      },
+      {
+        "scenario_name": "drop_rel_ret_20",
+        "window_count": 1,
+        "average_train_return": "-0.0062",
+        "average_validate_return": "0.0205",
+        "average_test_return": "-0.0058",
+        "average_train_excess_return": "-0.0034",
+        "average_validate_excess_return": "0.0231",
+        "average_test_excess_return": "0.0108",
+        "average_train_win_rate": "0.3611",
+        "average_validate_win_rate": "0.6250",
+        "average_test_win_rate": "0.4500",
+        "test_return_std": "0.0000",
+        "validate_test_gap": "0.0263"
+      },
+      {
+        "scenario_name": "drop_trend",
+        "window_count": 1,
+        "average_train_return": "0.0038",
+        "average_validate_return": "0.0095",
+        "average_test_return": "-0.0058",
+        "average_train_excess_return": "0.0065",
+        "average_validate_excess_return": "0.0121",
+        "average_test_excess_return": "0.0108",
+        "average_train_win_rate": "0.3788",
+        "average_validate_win_rate": "0.5750",
+        "average_test_win_rate": "0.4500",
+        "test_return_std": "0.0000",
+        "validate_test_gap": "0.0153"
+      },
+      {
+        "scenario_name": "drop_liquidity",
+        "window_count": 1,
+        "average_train_return": "0.0037",
+        "average_validate_return": "0.0151",
+        "average_test_return": "-0.0058",
+        "average_train_excess_return": "0.0064",
+        "average_validate_excess_return": "0.0177",
+        "average_test_excess_return": "0.0108",
+        "average_train_win_rate": "0.3788",
+        "average_validate_win_rate": "0.6000",
+        "average_test_win_rate": "0.4500",
+        "test_return_std": "0.0000",
+        "validate_test_gap": "0.0208"
+      },
+      {
+        "scenario_name": "drop_volatility",
+        "window_count": 1,
+        "average_train_return": "0.0044",
+        "average_validate_return": "0.0033",
+        "average_test_return": "-0.0058",
+        "average_train_excess_return": "0.0071",
+        "average_validate_excess_return": "0.0058",
+        "average_test_excess_return": "0.0108",
+        "average_train_win_rate": "0.3763",
+        "average_validate_win_rate": "0.5250",
+        "average_test_win_rate": "0.4500",
+        "test_return_std": "0.0000",
+        "validate_test_gap": "0.0090"
+      },
+      {
+        "scenario_name": "group_quality_only",
+        "window_count": 1,
+        "average_train_return": "-0.0148",
+        "average_validate_return": "0.0544",
+        "average_test_return": "-0.0116",
+        "average_train_excess_return": "-0.0121",
+        "average_validate_excess_return": "0.0570",
+        "average_test_excess_return": "0.0049",
+        "average_train_win_rate": "0.3232",
+        "average_validate_win_rate": "0.7667",
+        "average_test_win_rate": "0.4333",
+        "test_return_std": "0.0000",
+        "validate_test_gap": "0.0660"
+      },
+      {
+        "scenario_name": "group_risk_only",
+        "window_count": 1,
+        "average_train_return": "-0.0029",
+        "average_validate_return": "0.0405",
+        "average_test_return": "-0.0169",
+        "average_train_excess_return": "-0.0002",
+        "average_validate_excess_return": "0.0430",
+        "average_test_excess_return": "-0.0003",
+        "average_train_win_rate": "0.3864",
+        "average_validate_win_rate": "0.7000",
+        "average_test_win_rate": "0.4000",
+        "test_return_std": "0.0000",
+        "validate_test_gap": "0.0573"
+      },
+      {
+        "scenario_name": "drop_rel_ret_60",
+        "window_count": 1,
+        "average_train_return": "-0.0156",
+        "average_validate_return": "0.0370",
+        "average_test_return": "-0.0179",
+        "average_train_excess_return": "-0.0129",
+        "average_validate_excess_return": "0.0396",
+        "average_test_excess_return": "-0.0014",
+        "average_train_win_rate": "0.3258",
+        "average_validate_win_rate": "0.6917",
+        "average_test_win_rate": "0.4000",
+        "test_return_std": "0.0000",
+        "validate_test_gap": "0.0549"
+      }
+    ]
+  },
+  "parameter_stability": {
+    "recommended_scenario": "group_momentum_only",
+    "scenarios": [
+      {
+        "scenario_name": "group_momentum_only",
+        "average_validate_return": "0.0126",
+        "average_test_return": "0.0153",
+        "average_validate_excess_return": "0.0152",
+        "average_test_excess_return": "0.0318",
+        "validate_test_gap": "-0.0027",
+        "test_return_std": "0.0000",
+        "average_test_win_rate": "0.5000",
+        "positive_test_windows": 1,
+        "total_windows": 1,
+        "stability_score": "0.0626"
+      },
+      {
+        "scenario_name": "drop_profitability",
+        "average_validate_return": "0.0062",
+        "average_test_return": "0.0140",
+        "average_validate_excess_return": "0.0088",
+        "average_test_excess_return": "0.0305",
+        "validate_test_gap": "-0.0078",
+        "test_return_std": "0.0000",
+        "average_test_win_rate": "0.5000",
+        "positive_test_windows": 1,
+        "total_windows": 1,
+        "stability_score": "0.0562"
+      },
+      {
+        "scenario_name": "drop_volatility",
+        "average_validate_return": "0.0033",
+        "average_test_return": "-0.0058",
+        "average_validate_excess_return": "0.0058",
+        "average_test_excess_return": "0.0108",
+        "validate_test_gap": "0.0090",
+        "test_return_std": "0.0000",
+        "average_test_win_rate": "0.4500",
+        "positive_test_windows": 0,
+        "total_windows": 1,
+        "stability_score": "0.0302"
+      },
+      {
+        "scenario_name": "group_liquidity_only",
+        "average_validate_return": "0.0391",
+        "average_test_return": "0.0110",
+        "average_validate_excess_return": "0.0416",
+        "average_test_excess_return": "0.0276",
+        "validate_test_gap": "0.0280",
+        "test_return_std": "0.0000",
+        "average_test_win_rate": "0.4500",
+        "positive_test_windows": 1,
+        "total_windows": 1,
+        "stability_score": "0.0280"
+      },
+      {
+        "scenario_name": "drop_trend",
+        "average_validate_return": "0.0095",
+        "average_test_return": "-0.0058",
+        "average_validate_excess_return": "0.0121",
+        "average_test_excess_return": "0.0108",
+        "validate_test_gap": "0.0153",
+        "test_return_std": "0.0000",
+        "average_test_win_rate": "0.4500",
+        "positive_test_windows": 0,
+        "total_windows": 1,
+        "stability_score": "0.0239"
+      },
+      {
+        "scenario_name": "baseline",
+        "average_validate_return": "0.0106",
+        "average_test_return": "-0.0058",
+        "average_validate_excess_return": "0.0132",
+        "average_test_excess_return": "0.0108",
+        "validate_test_gap": "0.0164",
+        "test_return_std": "0.0000",
+        "average_test_win_rate": "0.4500",
+        "positive_test_windows": 0,
+        "total_windows": 1,
+        "stability_score": "0.0228"
+      },
+      {
+        "scenario_name": "drop_drawdown",
+        "average_validate_return": "0.0222",
+        "average_test_return": "-0.0015",
+        "average_validate_excess_return": "0.0248",
+        "average_test_excess_return": "0.0150",
+        "validate_test_gap": "0.0237",
+        "test_return_std": "0.0000",
+        "average_test_win_rate": "0.4750",
+        "positive_test_windows": 0,
+        "total_windows": 1,
+        "stability_score": "0.0223"
+      },
+      {
+        "scenario_name": "drop_liquidity",
+        "average_validate_return": "0.0151",
+        "average_test_return": "-0.0058",
+        "average_validate_excess_return": "0.0177",
+        "average_test_excess_return": "0.0108",
+        "validate_test_gap": "0.0208",
+        "test_return_std": "0.0000",
+        "average_test_win_rate": "0.4500",
+        "positive_test_windows": 0,
+        "total_windows": 1,
+        "stability_score": "0.0184"
+      },
+      {
+        "scenario_name": "drop_rel_ret_20",
+        "average_validate_return": "0.0205",
+        "average_test_return": "-0.0058",
+        "average_validate_excess_return": "0.0231",
+        "average_test_excess_return": "0.0108",
+        "validate_test_gap": "0.0263",
+        "test_return_std": "0.0000",
+        "average_test_win_rate": "0.4500",
+        "positive_test_windows": 0,
+        "total_windows": 1,
+        "stability_score": "0.0130"
+      },
+      {
+        "scenario_name": "drop_rel_ret_60",
+        "average_validate_return": "0.0370",
+        "average_test_return": "-0.0179",
+        "average_validate_excess_return": "0.0396",
+        "average_test_excess_return": "-0.0014",
+        "validate_test_gap": "0.0549",
+        "test_return_std": "0.0000",
+        "average_test_win_rate": "0.4000",
+        "positive_test_windows": 0,
+        "total_windows": 1,
+        "stability_score": "-0.0328"
+      },
+      {
+        "scenario_name": "group_risk_only",
+        "average_validate_return": "0.0405",
+        "average_test_return": "-0.0169",
+        "average_validate_excess_return": "0.0430",
+        "average_test_excess_return": "-0.0003",
+        "validate_test_gap": "0.0573",
+        "test_return_std": "0.0000",
+        "average_test_win_rate": "0.4000",
+        "positive_test_windows": 0,
+        "total_windows": 1,
+        "stability_score": "-0.0342"
+      },
+      {
+        "scenario_name": "group_quality_only",
+        "average_validate_return": "0.0544",
+        "average_test_return": "-0.0116",
+        "average_validate_excess_return": "0.0570",
+        "average_test_excess_return": "0.0049",
+        "validate_test_gap": "0.0660",
+        "test_return_std": "0.0000",
+        "average_test_win_rate": "0.4333",
+        "positive_test_windows": 0,
+        "total_windows": 1,
+        "stability_score": "-0.0343"
+      }
+    ]
+  },
+  "segment_summaries": {
+    "baseline": {
+      "train": {
+        "average_return": "0.0033",
+        "average_excess_return": "0.0061",
+        "average_win_rate": "0.3737",
+        "observations": 33
+      },
+      "validate": {
+        "average_return": "0.0090",
+        "average_excess_return": "0.0133",
+        "average_win_rate": "0.5455",
+        "observations": 11
+      },
+      "test": {
+        "average_return": "-0.0153",
+        "average_excess_return": "-0.0011",
+        "average_win_rate": "0.4375",
+        "observations": 12
+      }
+    },
+    "drop_rel_ret_20": {
+      "train": {
+        "average_return": "-0.0062",
+        "average_excess_return": "-0.0034",
+        "average_win_rate": "0.3611",
+        "observations": 33
+      },
+      "validate": {
+        "average_return": "0.0179",
+        "average_excess_return": "0.0222",
+        "average_win_rate": "0.5909",
+        "observations": 11
+      },
+      "test": {
+        "average_return": "-0.0153",
+        "average_excess_return": "-0.0011",
+        "average_win_rate": "0.4375",
+        "observations": 12
+      }
+    },
+    "drop_rel_ret_60": {
+      "train": {
+        "average_return": "-0.0156",
+        "average_excess_return": "-0.0129",
+        "average_win_rate": "0.3258",
+        "observations": 33
+      },
+      "validate": {
+        "average_return": "0.0367",
+        "average_excess_return": "0.0411",
+        "average_win_rate": "0.6742",
+        "observations": 11
+      },
+      "test": {
+        "average_return": "-0.0342",
+        "average_excess_return": "-0.0200",
+        "average_win_rate": "0.3542",
+        "observations": 12
+      }
+    },
+    "drop_trend": {
+      "train": {
+        "average_return": "0.0038",
+        "average_excess_return": "0.0065",
+        "average_win_rate": "0.3788",
+        "observations": 33
+      },
+      "validate": {
+        "average_return": "0.0079",
+        "average_excess_return": "0.0123",
+        "average_win_rate": "0.5455",
+        "observations": 11
+      },
+      "test": {
+        "average_return": "-0.0153",
+        "average_excess_return": "-0.0011",
+        "average_win_rate": "0.4375",
+        "observations": 12
+      }
+    },
+    "drop_liquidity": {
+      "train": {
+        "average_return": "0.0037",
+        "average_excess_return": "0.0064",
+        "average_win_rate": "0.3788",
+        "observations": 33
+      },
+      "validate": {
+        "average_return": "0.0130",
+        "average_excess_return": "0.0173",
+        "average_win_rate": "0.5682",
+        "observations": 11
+      },
+      "test": {
+        "average_return": "-0.0153",
+        "average_excess_return": "-0.0011",
+        "average_win_rate": "0.4375",
+        "observations": 12
+      }
+    },
+    "drop_profitability": {
+      "train": {
+        "average_return": "0.0046",
+        "average_excess_return": "0.0074",
+        "average_win_rate": "0.3864",
+        "observations": 33
+      },
+      "validate": {
+        "average_return": "0.0081",
+        "average_excess_return": "0.0124",
+        "average_win_rate": "0.5682",
+        "observations": 11
+      },
+      "test": {
+        "average_return": "0.0132",
+        "average_excess_return": "0.0274",
+        "average_win_rate": "0.5000",
+        "observations": 12
+      }
+    },
+    "drop_volatility": {
+      "train": {
+        "average_return": "0.0044",
+        "average_excess_return": "0.0071",
+        "average_win_rate": "0.3763",
+        "observations": 33
+      },
+      "validate": {
+        "average_return": "0.0022",
+        "average_excess_return": "0.0066",
+        "average_win_rate": "0.5000",
+        "observations": 11
+      },
+      "test": {
+        "average_return": "-0.0153",
+        "average_excess_return": "-0.0011",
+        "average_win_rate": "0.4375",
+        "observations": 12
+      }
+    },
+    "drop_drawdown": {
+      "train": {
+        "average_return": "0.0012",
+        "average_excess_return": "0.0039",
+        "average_win_rate": "0.3611",
+        "observations": 33
+      },
+      "validate": {
+        "average_return": "0.0233",
+        "average_excess_return": "0.0276",
+        "average_win_rate": "0.6364",
+        "observations": 11
+      },
+      "test": {
+        "average_return": "-0.0142",
+        "average_excess_return": "0.0000",
+        "average_win_rate": "0.4375",
+        "observations": 12
+      }
+    },
+    "group_momentum_only": {
+      "train": {
+        "average_return": "0.0017",
+        "average_excess_return": "0.0045",
+        "average_win_rate": "0.3586",
+        "observations": 33
+      },
+      "validate": {
+        "average_return": "0.0139",
+        "average_excess_return": "0.0182",
+        "average_win_rate": "0.5909",
+        "observations": 11
+      },
+      "test": {
+        "average_return": "0.0135",
+        "average_excess_return": "0.0277",
+        "average_win_rate": "0.5000",
+        "observations": 12
+      }
+    },
+    "group_quality_only": {
+      "train": {
+        "average_return": "-0.0148",
+        "average_excess_return": "-0.0121",
+        "average_win_rate": "0.3232",
+        "observations": 33
+      },
+      "validate": {
+        "average_return": "0.0543",
+        "average_excess_return": "0.0586",
+        "average_win_rate": "0.7576",
+        "observations": 11
+      },
+      "test": {
+        "average_return": "-0.0337",
+        "average_excess_return": "-0.0195",
+        "average_win_rate": "0.3889",
+        "observations": 12
+      }
+    },
+    "group_risk_only": {
+      "train": {
+        "average_return": "-0.0029",
+        "average_excess_return": "-0.0002",
+        "average_win_rate": "0.3864",
+        "observations": 33
+      },
+      "validate": {
+        "average_return": "0.0363",
+        "average_excess_return": "0.0407",
+        "average_win_rate": "0.6818",
+        "observations": 11
+      },
+      "test": {
+        "average_return": "-0.0190",
+        "average_excess_return": "-0.0047",
+        "average_win_rate": "0.4167",
+        "observations": 12
+      }
+    },
+    "group_liquidity_only": {
+      "train": {
+        "average_return": "-0.0141",
+        "average_excess_return": "-0.0114",
+        "average_win_rate": "0.3409",
+        "observations": 33
+      },
+      "validate": {
+        "average_return": "0.0439",
+        "average_excess_return": "0.0483",
+        "average_win_rate": "0.7273",
+        "observations": 11
+      },
+      "test": {
+        "average_return": "-0.0008",
+        "average_excess_return": "0.0134",
+        "average_win_rate": "0.4375",
+        "observations": 12
+      }
+    }
+  }
+}

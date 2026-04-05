@@ -1,0 +1,2467 @@
+{
+  "summary": {
+    "market": "US",
+    "start_date": "2026-03-02",
+    "end_date": "2026-03-31",
+    "runtime_mode": "BACKTEST",
+    "universe_scope": "FULL",
+    "detail_limit": 20,
+    "history_limit": 90,
+    "top_n": 10,
+    "initial_cash": "100000",
+    "final_nav": "96533.3717",
+    "total_return": "-0.0347",
+    "trading_days": 22,
+    "days_with_fills": 21,
+    "buy_fill_count": 60,
+    "sell_fill_count": 43,
+    "final_cash": "8382.9117",
+    "final_positions": [
+      {
+        "instrument_id": "US.CVX",
+        "qty": 79,
+        "last_price": "206.9000",
+        "market_value": "16345.1000"
+      },
+      {
+        "instrument_id": "US.LITE",
+        "qty": 14,
+        "last_price": "702.7600",
+        "market_value": "9838.6400"
+      },
+      {
+        "instrument_id": "US.MRVL",
+        "qty": 132,
+        "last_price": "99.0500",
+        "market_value": "13074.6000"
+      },
+      {
+        "instrument_id": "US.PLTR",
+        "qty": 5,
+        "last_price": "146.2800",
+        "market_value": "731.4000"
+      },
+      {
+        "instrument_id": "US.SNDK",
+        "qty": 40,
+        "last_price": "635.3400",
+        "market_value": "25413.6000"
+      },
+      {
+        "instrument_id": "US.WDC",
+        "qty": 22,
+        "last_price": "270.4900",
+        "market_value": "5950.7800"
+      },
+      {
+        "instrument_id": "US.XOM",
+        "qty": 99,
+        "last_price": "169.6600",
+        "market_value": "16796.3400"
+      }
+    ]
+  },
+  "daily": [
+    {
+      "trade_date": "2026-03-02",
+      "fills": [],
+      "approved_orders": [],
+      "end_of_day_nav": "100000.0000",
+      "cash": "100000.0000",
+      "positions": []
+    },
+    {
+      "trade_date": "2026-03-03",
+      "fills": [
+        {
+          "instrument_id": "US.LITE",
+          "name": "Lumentum Holdings Inc. Common Stock",
+          "side": "BUY",
+          "filled_qty": 35,
+          "price": "732.8664",
+          "cash_delta": "-25663.1492",
+          "fees": "12.8252"
+        },
+        {
+          "instrument_id": "US.MU",
+          "name": "Micron Technology Inc. Common Stock",
+          "side": "BUY",
+          "filled_qty": 19,
+          "price": "389.6424",
+          "cash_delta": "-7406.9072",
+          "fees": "3.7016"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "name": "Sandisk Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 45,
+          "price": "586.2931",
+          "cash_delta": "-26396.3820",
+          "fees": "13.1916"
+        },
+        {
+          "instrument_id": "US.WDC",
+          "name": "Western Digital Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 2,
+          "price": "256.6015",
+          "cash_delta": "-514.2030",
+          "fees": "1.0000"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "US.LITE",
+          "side": "BUY",
+          "qty": 35
+        },
+        {
+          "instrument_id": "US.MU",
+          "side": "BUY",
+          "qty": 19
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "side": "BUY",
+          "qty": 45
+        },
+        {
+          "instrument_id": "US.WDC",
+          "side": "BUY",
+          "qty": 2
+        }
+      ],
+      "end_of_day_nav": "97482.9986",
+      "cash": "40019.3586",
+      "positions": [
+        {
+          "instrument_id": "US.LITE",
+          "qty": 35,
+          "last_price": "694.4300",
+          "market_value": "24305.0500"
+        },
+        {
+          "instrument_id": "US.MU",
+          "qty": 19,
+          "last_price": "379.6800",
+          "market_value": "7213.9200"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "qty": 45,
+          "last_price": "565.4100",
+          "market_value": "25443.4500"
+        },
+        {
+          "instrument_id": "US.WDC",
+          "qty": 2,
+          "last_price": "250.6100",
+          "market_value": "501.2200"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-04",
+      "fills": [
+        {
+          "instrument_id": "US.MU",
+          "name": "Micron Technology Inc. Common Stock",
+          "side": "SELL",
+          "filled_qty": 19,
+          "price": "390.4859",
+          "cash_delta": "7415.5229",
+          "fees": "3.7096"
+        },
+        {
+          "instrument_id": "US.LITE",
+          "name": "Lumentum Holdings Inc. Common Stock",
+          "side": "BUY",
+          "filled_qty": 4,
+          "price": "731.8080",
+          "cash_delta": "-2928.6956",
+          "fees": "1.4636"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "name": "Sandisk Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 3,
+          "price": "591.5347",
+          "cash_delta": "-1775.6042",
+          "fees": "1.0000"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "US.MU",
+          "side": "SELL",
+          "qty": 19
+        },
+        {
+          "instrument_id": "US.LITE",
+          "side": "BUY",
+          "qty": 4
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "side": "BUY",
+          "qty": 3
+        }
+      ],
+      "end_of_day_nav": "98559.2617",
+      "cash": "42730.5817",
+      "positions": [
+        {
+          "instrument_id": "US.LITE",
+          "qty": 39,
+          "last_price": "680.8000",
+          "market_value": "26551.2000"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "qty": 48,
+          "last_price": "599.0600",
+          "market_value": "28754.8800"
+        },
+        {
+          "instrument_id": "US.WDC",
+          "qty": 2,
+          "last_price": "261.3000",
+          "market_value": "522.6000"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-05",
+      "fills": [
+        {
+          "instrument_id": "US.SNDK",
+          "name": "Sandisk Corporation Common Stock",
+          "side": "SELL",
+          "filled_qty": 2,
+          "price": "589.6299",
+          "cash_delta": "1178.2598",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.LITE",
+          "name": "Lumentum Holdings Inc. Common Stock",
+          "side": "BUY",
+          "filled_qty": 1,
+          "price": "649.8727",
+          "cash_delta": "-650.8727",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.MU",
+          "name": "Micron Technology Inc. Common Stock",
+          "side": "BUY",
+          "filled_qty": 19,
+          "price": "401.7888",
+          "cash_delta": "-7637.8042",
+          "fees": "3.8170"
+        },
+        {
+          "instrument_id": "US.WDC",
+          "name": "Western Digital Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 1,
+          "price": "259.1064",
+          "cash_delta": "-260.1064",
+          "fees": "1.0000"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "US.SNDK",
+          "side": "SELL",
+          "qty": 2
+        },
+        {
+          "instrument_id": "US.LITE",
+          "side": "BUY",
+          "qty": 1
+        },
+        {
+          "instrument_id": "US.MU",
+          "side": "BUY",
+          "qty": 19
+        },
+        {
+          "instrument_id": "US.WDC",
+          "side": "BUY",
+          "qty": 1
+        }
+      ],
+      "end_of_day_nav": "95731.0382",
+      "cash": "35360.0582",
+      "positions": [
+        {
+          "instrument_id": "US.LITE",
+          "qty": 40,
+          "last_price": "650.8200",
+          "market_value": "26032.8000"
+        },
+        {
+          "instrument_id": "US.MU",
+          "qty": 19,
+          "last_price": "397.0500",
+          "market_value": "7543.9500"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "qty": 46,
+          "last_price": "565.5900",
+          "market_value": "26017.1400"
+        },
+        {
+          "instrument_id": "US.WDC",
+          "qty": 3,
+          "last_price": "259.0300",
+          "market_value": "777.0900"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-06",
+      "fills": [
+        {
+          "instrument_id": "US.SNDK",
+          "name": "Sandisk Corporation Common Stock",
+          "side": "SELL",
+          "filled_qty": 10,
+          "price": "543.8640",
+          "cash_delta": "5435.9207",
+          "fees": "2.7193"
+        },
+        {
+          "instrument_id": "US.LITE",
+          "name": "Lumentum Holdings Inc. Common Stock",
+          "side": "BUY",
+          "filled_qty": 1,
+          "price": "615.3286",
+          "cash_delta": "-616.3286",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.MU",
+          "name": "Micron Technology Inc. Common Stock",
+          "side": "BUY",
+          "filled_qty": 4,
+          "price": "383.1811",
+          "cash_delta": "-1533.7245",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.NVDA",
+          "name": "NVIDIA Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 32,
+          "price": "181.2787",
+          "cash_delta": "-5803.8195",
+          "fees": "2.9005"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "US.SNDK",
+          "side": "SELL",
+          "qty": 10
+        },
+        {
+          "instrument_id": "US.LITE",
+          "side": "BUY",
+          "qty": 1
+        },
+        {
+          "instrument_id": "US.MU",
+          "side": "BUY",
+          "qty": 4
+        },
+        {
+          "instrument_id": "US.NVDA",
+          "side": "BUY",
+          "qty": 32
+        }
+      ],
+      "end_of_day_nav": "89664.9164",
+      "cash": "32842.1064",
+      "positions": [
+        {
+          "instrument_id": "US.LITE",
+          "qty": 41,
+          "last_price": "558.4400",
+          "market_value": "22896.0400"
+        },
+        {
+          "instrument_id": "US.MU",
+          "qty": 23,
+          "last_price": "370.3000",
+          "market_value": "8516.9000"
+        },
+        {
+          "instrument_id": "US.NVDA",
+          "qty": 32,
+          "last_price": "177.8200",
+          "market_value": "5690.2400"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "qty": 36,
+          "last_price": "527.3300",
+          "market_value": "18983.8800"
+        },
+        {
+          "instrument_id": "US.WDC",
+          "qty": 3,
+          "last_price": "245.2500",
+          "market_value": "735.7500"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-09",
+      "fills": [
+        {
+          "instrument_id": "US.MU",
+          "name": "Micron Technology Inc. Common Stock",
+          "side": "SELL",
+          "filled_qty": 11,
+          "price": "361.0483",
+          "cash_delta": "3969.5458",
+          "fees": "1.9858"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "name": "Sandisk Corporation Common Stock",
+          "side": "SELL",
+          "filled_qty": 5,
+          "price": "512.8640",
+          "cash_delta": "2563.0378",
+          "fees": "1.2822"
+        },
+        {
+          "instrument_id": "US.LITE",
+          "name": "Lumentum Holdings Inc. Common Stock",
+          "side": "BUY",
+          "filled_qty": 3,
+          "price": "582.6240",
+          "cash_delta": "-1748.8720",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.MRVL",
+          "name": "Marvell Technology Inc. Common Stock",
+          "side": "BUY",
+          "filled_qty": 56,
+          "price": "88.6284",
+          "cash_delta": "-4965.6720",
+          "fees": "2.4816"
+        },
+        {
+          "instrument_id": "US.NVDA",
+          "name": "NVIDIA Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 6,
+          "price": "178.2446",
+          "cash_delta": "-1070.4678",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "name": "Palantir Technologies Inc. Class A Common Stock",
+          "side": "BUY",
+          "filled_qty": 54,
+          "price": "156.9355",
+          "cash_delta": "-8478.7553",
+          "fees": "4.2373"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "US.MU",
+          "side": "SELL",
+          "qty": 11
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "side": "SELL",
+          "qty": 5
+        },
+        {
+          "instrument_id": "US.LITE",
+          "side": "BUY",
+          "qty": 3
+        },
+        {
+          "instrument_id": "US.MRVL",
+          "side": "BUY",
+          "qty": 56
+        },
+        {
+          "instrument_id": "US.NVDA",
+          "side": "BUY",
+          "qty": 6
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "side": "BUY",
+          "qty": 54
+        }
+      ],
+      "end_of_day_nav": "95586.2528",
+      "cash": "23110.9228",
+      "positions": [
+        {
+          "instrument_id": "US.LITE",
+          "qty": 44,
+          "last_price": "640.6900",
+          "market_value": "28190.3600"
+        },
+        {
+          "instrument_id": "US.MRVL",
+          "qty": 56,
+          "last_price": "92.6500",
+          "market_value": "5188.4000"
+        },
+        {
+          "instrument_id": "US.MU",
+          "qty": 12,
+          "last_price": "389.3200",
+          "market_value": "4671.8400"
+        },
+        {
+          "instrument_id": "US.NVDA",
+          "qty": 38,
+          "last_price": "182.6500",
+          "market_value": "6940.7000"
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "qty": 54,
+          "last_price": "156.4300",
+          "market_value": "8447.2200"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "qty": 31,
+          "last_price": "588.7300",
+          "market_value": "18250.6300"
+        },
+        {
+          "instrument_id": "US.WDC",
+          "qty": 3,
+          "last_price": "262.0600",
+          "market_value": "786.1800"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-10",
+      "fills": [
+        {
+          "instrument_id": "US.LITE",
+          "name": "Lumentum Holdings Inc. Common Stock",
+          "side": "SELL",
+          "filled_qty": 3,
+          "price": "673.5779",
+          "cash_delta": "2019.7234",
+          "fees": "1.0104"
+        },
+        {
+          "instrument_id": "US.MU",
+          "name": "Micron Technology Inc. Common Stock",
+          "side": "SELL",
+          "filled_qty": 1,
+          "price": "390.8579",
+          "cash_delta": "389.8579",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.NVDA",
+          "name": "NVIDIA Corporation Common Stock",
+          "side": "SELL",
+          "filled_qty": 34,
+          "price": "181.1608",
+          "cash_delta": "6156.3866",
+          "fees": "3.0797"
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "name": "Palantir Technologies Inc. Class A Common Stock",
+          "side": "SELL",
+          "filled_qty": 2,
+          "price": "154.7421",
+          "cash_delta": "308.4842",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "name": "Sandisk Corporation Common Stock",
+          "side": "SELL",
+          "filled_qty": 1,
+          "price": "594.4362",
+          "cash_delta": "593.4362",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.WDC",
+          "name": "Western Digital Corporation Common Stock",
+          "side": "SELL",
+          "filled_qty": 3,
+          "price": "266.3024",
+          "cash_delta": "797.9072",
+          "fees": "1.0000"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "US.LITE",
+          "side": "SELL",
+          "qty": 3
+        },
+        {
+          "instrument_id": "US.MU",
+          "side": "SELL",
+          "qty": 1
+        },
+        {
+          "instrument_id": "US.NVDA",
+          "side": "SELL",
+          "qty": 34
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "side": "SELL",
+          "qty": 2
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "side": "SELL",
+          "qty": 1
+        },
+        {
+          "instrument_id": "US.WDC",
+          "side": "SELL",
+          "qty": 3
+        }
+      ],
+      "end_of_day_nav": "97752.7882",
+      "cash": "33376.7182",
+      "positions": [
+        {
+          "instrument_id": "US.LITE",
+          "qty": 41,
+          "last_price": "672.0000",
+          "market_value": "27552.0000"
+        },
+        {
+          "instrument_id": "US.MRVL",
+          "qty": 56,
+          "last_price": "93.3000",
+          "market_value": "5224.8000"
+        },
+        {
+          "instrument_id": "US.MU",
+          "qty": 11,
+          "last_price": "403.1100",
+          "market_value": "4434.2100"
+        },
+        {
+          "instrument_id": "US.NVDA",
+          "qty": 4,
+          "last_price": "184.7700",
+          "market_value": "739.0800"
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "qty": 52,
+          "last_price": "151.1400",
+          "market_value": "7859.2800"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "qty": 30,
+          "last_price": "618.8900",
+          "market_value": "18566.7000"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-11",
+      "fills": [
+        {
+          "instrument_id": "US.LITE",
+          "name": "Lumentum Holdings Inc. Common Stock",
+          "side": "SELL",
+          "filled_qty": 1,
+          "price": "645.8614",
+          "cash_delta": "644.8614",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "name": "Palantir Technologies Inc. Class A Common Stock",
+          "side": "SELL",
+          "filled_qty": 52,
+          "price": "150.3006",
+          "cash_delta": "7811.7218",
+          "fees": "3.9078"
+        },
+        {
+          "instrument_id": "US.MRVL",
+          "name": "Marvell Technology Inc. Common Stock",
+          "side": "BUY",
+          "filled_qty": 10,
+          "price": "94.3488",
+          "cash_delta": "-944.4880",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.MU",
+          "name": "Micron Technology Inc. Common Stock",
+          "side": "BUY",
+          "filled_qty": 2,
+          "price": "414.0562",
+          "cash_delta": "-829.1123",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "name": "Sandisk Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 5,
+          "price": "630.9576",
+          "cash_delta": "-3156.3654",
+          "fees": "1.5774"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "US.LITE",
+          "side": "SELL",
+          "qty": 1
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "side": "SELL",
+          "qty": 52
+        },
+        {
+          "instrument_id": "US.MRVL",
+          "side": "BUY",
+          "qty": 10
+        },
+        {
+          "instrument_id": "US.MU",
+          "side": "BUY",
+          "qty": 2
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "side": "BUY",
+          "qty": 5
+        }
+      ],
+      "end_of_day_nav": "98879.5157",
+      "cash": "36903.3357",
+      "positions": [
+        {
+          "instrument_id": "US.LITE",
+          "qty": 40,
+          "last_price": "672.0000",
+          "market_value": "26880.0000"
+        },
+        {
+          "instrument_id": "US.MRVL",
+          "qty": 66,
+          "last_price": "90.4400",
+          "market_value": "5969.0400"
+        },
+        {
+          "instrument_id": "US.MU",
+          "qty": 13,
+          "last_price": "418.6900",
+          "market_value": "5442.9700"
+        },
+        {
+          "instrument_id": "US.NVDA",
+          "qty": 4,
+          "last_price": "186.0300",
+          "market_value": "744.1200"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "qty": 35,
+          "last_price": "655.4300",
+          "market_value": "22940.0500"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-12",
+      "fills": [
+        {
+          "instrument_id": "US.MRVL",
+          "name": "Marvell Technology Inc. Common Stock",
+          "side": "SELL",
+          "filled_qty": 66,
+          "price": "89.1312",
+          "cash_delta": "5879.7179",
+          "fees": "2.9413"
+        },
+        {
+          "instrument_id": "US.LITE",
+          "name": "Lumentum Holdings Inc. Common Stock",
+          "side": "BUY",
+          "filled_qty": 1,
+          "price": "648.6934",
+          "cash_delta": "-649.6934",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.MU",
+          "name": "Micron Technology Inc. Common Stock",
+          "side": "BUY",
+          "filled_qty": 3,
+          "price": "413.2750",
+          "cash_delta": "-1240.8249",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "name": "Sandisk Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 7,
+          "price": "652.1760",
+          "cash_delta": "-4567.5146",
+          "fees": "2.2826"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "US.MRVL",
+          "side": "SELL",
+          "qty": 66
+        },
+        {
+          "instrument_id": "US.LITE",
+          "side": "BUY",
+          "qty": 1
+        },
+        {
+          "instrument_id": "US.MU",
+          "side": "BUY",
+          "qty": 3
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "side": "BUY",
+          "qty": 7
+        }
+      ],
+      "end_of_day_nav": "94793.3108",
+      "cash": "36325.0208",
+      "positions": [
+        {
+          "instrument_id": "US.LITE",
+          "qty": 41,
+          "last_price": "616.0900",
+          "market_value": "25259.6900"
+        },
+        {
+          "instrument_id": "US.MU",
+          "qty": 16,
+          "last_price": "405.3500",
+          "market_value": "6485.6000"
+        },
+        {
+          "instrument_id": "US.NVDA",
+          "qty": 4,
+          "last_price": "183.1400",
+          "market_value": "732.5600"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "qty": 42,
+          "last_price": "618.8200",
+          "market_value": "25990.4400"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-13",
+      "fills": [
+        {
+          "instrument_id": "US.CVX",
+          "name": "Chevron Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 35,
+          "price": "196.8889",
+          "cash_delta": "-6894.5569",
+          "fees": "3.4456"
+        },
+        {
+          "instrument_id": "US.LITE",
+          "name": "Lumentum Holdings Inc. Common Stock",
+          "side": "BUY",
+          "filled_qty": 2,
+          "price": "639.8885",
+          "cash_delta": "-1280.7770",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.MU",
+          "name": "Micron Technology Inc. Common Stock",
+          "side": "BUY",
+          "filled_qty": 4,
+          "price": "417.0600",
+          "cash_delta": "-1669.2400",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "name": "Palantir Technologies Inc. Class A Common Stock",
+          "side": "BUY",
+          "filled_qty": 55,
+          "price": "154.5264",
+          "cash_delta": "-8503.2015",
+          "fees": "4.2495"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "US.CVX",
+          "side": "BUY",
+          "qty": 35
+        },
+        {
+          "instrument_id": "US.LITE",
+          "side": "BUY",
+          "qty": 2
+        },
+        {
+          "instrument_id": "US.MU",
+          "side": "BUY",
+          "qty": 4
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "side": "BUY",
+          "qty": 55
+        }
+      ],
+      "end_of_day_nav": "96967.3354",
+      "cash": "17977.2454",
+      "positions": [
+        {
+          "instrument_id": "US.CVX",
+          "qty": 35,
+          "last_price": "196.8200",
+          "market_value": "6888.7000"
+        },
+        {
+          "instrument_id": "US.LITE",
+          "qty": 43,
+          "last_price": "622.5000",
+          "market_value": "26767.5000"
+        },
+        {
+          "instrument_id": "US.MU",
+          "qty": 20,
+          "last_price": "426.1300",
+          "market_value": "8522.6000"
+        },
+        {
+          "instrument_id": "US.NVDA",
+          "qty": 4,
+          "last_price": "180.2500",
+          "market_value": "721.0000"
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "qty": 55,
+          "last_price": "150.9500",
+          "market_value": "8302.2500"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "qty": 42,
+          "last_price": "661.6200",
+          "market_value": "27788.0400"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-16",
+      "fills": [
+        {
+          "instrument_id": "US.LITE",
+          "name": "Lumentum Holdings Inc. Common Stock",
+          "side": "SELL",
+          "filled_qty": 12,
+          "price": "650.7520",
+          "cash_delta": "7805.1195",
+          "fees": "3.9045"
+        },
+        {
+          "instrument_id": "US.MU",
+          "name": "Micron Technology Inc. Common Stock",
+          "side": "SELL",
+          "filled_qty": 1,
+          "price": "442.5907",
+          "cash_delta": "441.5907",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.NVDA",
+          "name": "NVIDIA Corporation Common Stock",
+          "side": "SELL",
+          "filled_qty": 4,
+          "price": "181.5062",
+          "cash_delta": "725.0250",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "name": "Palantir Technologies Inc. Class A Common Stock",
+          "side": "SELL",
+          "filled_qty": 3,
+          "price": "151.6567",
+          "cash_delta": "453.9702",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "name": "Sandisk Corporation Common Stock",
+          "side": "SELL",
+          "filled_qty": 2,
+          "price": "682.0198",
+          "cash_delta": "1363.0397",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.CVX",
+          "name": "Chevron Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 5,
+          "price": "197.3229",
+          "cash_delta": "-987.6143",
+          "fees": "1.0000"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "US.LITE",
+          "side": "SELL",
+          "qty": 12
+        },
+        {
+          "instrument_id": "US.MU",
+          "side": "SELL",
+          "qty": 1
+        },
+        {
+          "instrument_id": "US.NVDA",
+          "side": "SELL",
+          "qty": 4
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "side": "SELL",
+          "qty": 3
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "side": "SELL",
+          "qty": 2
+        },
+        {
+          "instrument_id": "US.CVX",
+          "side": "BUY",
+          "qty": 5
+        }
+      ],
+      "end_of_day_nav": "99502.8561",
+      "cash": "27778.3761",
+      "positions": [
+        {
+          "instrument_id": "US.CVX",
+          "qty": 40,
+          "last_price": "196.8400",
+          "market_value": "7873.6000"
+        },
+        {
+          "instrument_id": "US.LITE",
+          "qty": 31,
+          "last_price": "624.8400",
+          "market_value": "19370.0400"
+        },
+        {
+          "instrument_id": "US.MU",
+          "qty": 19,
+          "last_price": "441.8000",
+          "market_value": "8394.2000"
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "qty": 52,
+          "last_price": "152.7200",
+          "market_value": "7941.4400"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "qty": 40,
+          "last_price": "703.6300",
+          "market_value": "28145.2000"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-17",
+      "fills": [
+        {
+          "instrument_id": "US.CVX",
+          "name": "Chevron Corporation Common Stock",
+          "side": "SELL",
+          "filled_qty": 31,
+          "price": "196.2994",
+          "cash_delta": "6082.2389",
+          "fees": "3.0426"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "name": "Sandisk Corporation Common Stock",
+          "side": "SELL",
+          "filled_qty": 1,
+          "price": "710.2720",
+          "cash_delta": "709.2720",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.LITE",
+          "name": "Lumentum Holdings Inc. Common Stock",
+          "side": "BUY",
+          "filled_qty": 9,
+          "price": "601.7760",
+          "cash_delta": "-5418.6920",
+          "fees": "2.7080"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "US.CVX",
+          "side": "SELL",
+          "qty": 31
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "side": "SELL",
+          "qty": 1
+        },
+        {
+          "instrument_id": "US.LITE",
+          "side": "BUY",
+          "qty": 9
+        }
+      ],
+      "end_of_day_nav": "101838.2251",
+      "cash": "29151.1951",
+      "positions": [
+        {
+          "instrument_id": "US.CVX",
+          "qty": 9,
+          "last_price": "197.9700",
+          "market_value": "1781.7300"
+        },
+        {
+          "instrument_id": "US.LITE",
+          "qty": 40,
+          "last_price": "649.5600",
+          "market_value": "25982.4000"
+        },
+        {
+          "instrument_id": "US.MU",
+          "qty": 19,
+          "last_price": "461.6900",
+          "market_value": "8772.1100"
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "qty": 52,
+          "last_price": "155.0800",
+          "market_value": "8064.1600"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "qty": 39,
+          "last_price": "720.1700",
+          "market_value": "28086.6300"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-18",
+      "fills": [
+        {
+          "instrument_id": "US.LITE",
+          "name": "Lumentum Holdings Inc. Common Stock",
+          "side": "SELL",
+          "filled_qty": 16,
+          "price": "703.4768",
+          "cash_delta": "11250.0010",
+          "fees": "5.6278"
+        },
+        {
+          "instrument_id": "US.CVX",
+          "name": "Chevron Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 2,
+          "price": "199.9361",
+          "cash_delta": "-400.8722",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.WDC",
+          "name": "Western Digital Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 23,
+          "price": "312.0264",
+          "cash_delta": "-7180.1955",
+          "fees": "3.5883"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "US.LITE",
+          "side": "SELL",
+          "qty": 16
+        },
+        {
+          "instrument_id": "US.CVX",
+          "side": "BUY",
+          "qty": 2
+        },
+        {
+          "instrument_id": "US.WDC",
+          "side": "BUY",
+          "qty": 23
+        }
+      ],
+      "end_of_day_nav": "104947.7984",
+      "cash": "32820.1284",
+      "positions": [
+        {
+          "instrument_id": "US.CVX",
+          "qty": 11,
+          "last_price": "198.6100",
+          "market_value": "2184.7100"
+        },
+        {
+          "instrument_id": "US.LITE",
+          "qty": 24,
+          "last_price": "700.8100",
+          "market_value": "16819.4400"
+        },
+        {
+          "instrument_id": "US.MU",
+          "qty": 19,
+          "last_price": "461.7300",
+          "market_value": "8772.8700"
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "qty": 52,
+          "last_price": "152.7700",
+          "market_value": "7944.0400"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "qty": 39,
+          "last_price": "753.6900",
+          "market_value": "29393.9100"
+        },
+        {
+          "instrument_id": "US.WDC",
+          "qty": 23,
+          "last_price": "304.9000",
+          "market_value": "7012.7000"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-19",
+      "fills": [
+        {
+          "instrument_id": "US.MU",
+          "name": "Micron Technology Inc. Common Stock",
+          "side": "SELL",
+          "filled_qty": 3,
+          "price": "421.5702",
+          "cash_delta": "1263.7107",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "name": "Palantir Technologies Inc. Class A Common Stock",
+          "side": "SELL",
+          "filled_qty": 49,
+          "price": "151.8752",
+          "cash_delta": "7438.1639",
+          "fees": "3.7209"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "name": "Sandisk Corporation Common Stock",
+          "side": "SELL",
+          "filled_qty": 5,
+          "price": "701.4928",
+          "cash_delta": "3505.7103",
+          "fees": "1.7537"
+        },
+        {
+          "instrument_id": "US.WDC",
+          "name": "Western Digital Corporation Common Stock",
+          "side": "SELL",
+          "filled_qty": 3,
+          "price": "289.7334",
+          "cash_delta": "868.2003",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.CVX",
+          "name": "Chevron Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 4,
+          "price": "200.8028",
+          "cash_delta": "-804.2112",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.LITE",
+          "name": "Lumentum Holdings Inc. Common Stock",
+          "side": "BUY",
+          "filled_qty": 9,
+          "price": "684.4169",
+          "cash_delta": "-6162.8318",
+          "fees": "3.0799"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "US.MU",
+          "side": "SELL",
+          "qty": 3
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "side": "SELL",
+          "qty": 49
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "side": "SELL",
+          "qty": 5
+        },
+        {
+          "instrument_id": "US.WDC",
+          "side": "SELL",
+          "qty": 3
+        },
+        {
+          "instrument_id": "US.CVX",
+          "side": "BUY",
+          "qty": 4
+        },
+        {
+          "instrument_id": "US.LITE",
+          "side": "BUY",
+          "qty": 9
+        }
+      ],
+      "end_of_day_nav": "107595.7805",
+      "cash": "38928.8705",
+      "positions": [
+        {
+          "instrument_id": "US.CVX",
+          "qty": 15,
+          "last_price": "201.4400",
+          "market_value": "3021.6000"
+        },
+        {
+          "instrument_id": "US.LITE",
+          "qty": 33,
+          "last_price": "772.1300",
+          "market_value": "25480.2900"
+        },
+        {
+          "instrument_id": "US.MU",
+          "qty": 16,
+          "last_price": "444.2700",
+          "market_value": "7108.3200"
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "qty": 3,
+          "last_price": "155.6800",
+          "market_value": "467.0400"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "qty": 34,
+          "last_price": "772.0900",
+          "market_value": "26251.0600"
+        },
+        {
+          "instrument_id": "US.WDC",
+          "qty": 20,
+          "last_price": "316.9300",
+          "market_value": "6338.6000"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-20",
+      "fills": [
+        {
+          "instrument_id": "US.CVX",
+          "name": "Chevron Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 7,
+          "price": "202.5795",
+          "cash_delta": "-1419.0562",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.LITE",
+          "name": "Lumentum Holdings Inc. Common Stock",
+          "side": "BUY",
+          "filled_qty": 6,
+          "price": "791.7739",
+          "cash_delta": "-4753.0188",
+          "fees": "2.3753"
+        },
+        {
+          "instrument_id": "US.MU",
+          "name": "Micron Technology Inc. Common Stock",
+          "side": "BUY",
+          "filled_qty": 3,
+          "price": "447.4663",
+          "cash_delta": "-1343.3990",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "name": "Sandisk Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 5,
+          "price": "778.8816",
+          "cash_delta": "-3896.3552",
+          "fees": "1.9472"
+        },
+        {
+          "instrument_id": "US.WDC",
+          "name": "Western Digital Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 4,
+          "price": "311.9911",
+          "cash_delta": "-1248.9645",
+          "fees": "1.0000"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "US.CVX",
+          "side": "BUY",
+          "qty": 7
+        },
+        {
+          "instrument_id": "US.LITE",
+          "side": "BUY",
+          "qty": 6
+        },
+        {
+          "instrument_id": "US.MU",
+          "side": "BUY",
+          "qty": 3
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "side": "BUY",
+          "qty": 5
+        },
+        {
+          "instrument_id": "US.WDC",
+          "side": "BUY",
+          "qty": 4
+        }
+      ],
+      "end_of_day_nav": "101454.0168",
+      "cash": "26268.0768",
+      "positions": [
+        {
+          "instrument_id": "US.CVX",
+          "qty": 22,
+          "last_price": "201.7300",
+          "market_value": "4438.0600"
+        },
+        {
+          "instrument_id": "US.LITE",
+          "qty": 39,
+          "last_price": "706.3500",
+          "market_value": "27547.6500"
+        },
+        {
+          "instrument_id": "US.MU",
+          "qty": 19,
+          "last_price": "422.9000",
+          "market_value": "8035.1000"
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "qty": 3,
+          "last_price": "150.6800",
+          "market_value": "452.0400"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "qty": 39,
+          "last_price": "709.7100",
+          "market_value": "27678.6900"
+        },
+        {
+          "instrument_id": "US.WDC",
+          "qty": 24,
+          "last_price": "293.1000",
+          "market_value": "7034.4000"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-23",
+      "fills": [
+        {
+          "instrument_id": "US.LITE",
+          "name": "Lumentum Holdings Inc. Common Stock",
+          "side": "SELL",
+          "filled_qty": 10,
+          "price": "736.8030",
+          "cash_delta": "7364.3464",
+          "fees": "3.6840"
+        },
+        {
+          "instrument_id": "US.CVX",
+          "name": "Chevron Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 6,
+          "price": "200.2140",
+          "cash_delta": "-1202.2840",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.MU",
+          "name": "Micron Technology Inc. Common Stock",
+          "side": "BUY",
+          "filled_qty": 1,
+          "price": "429.5542",
+          "cash_delta": "-430.5542",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "name": "Sandisk Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 1,
+          "price": "721.7280",
+          "cash_delta": "-722.7280",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.WDC",
+          "name": "Western Digital Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 1,
+          "price": "300.9989",
+          "cash_delta": "-301.9989",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.XOM",
+          "name": "Exxon Mobil Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 54,
+          "price": "157.3639",
+          "cash_delta": "-8501.9005",
+          "fees": "4.2488"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "US.LITE",
+          "side": "SELL",
+          "qty": 10
+        },
+        {
+          "instrument_id": "US.CVX",
+          "side": "BUY",
+          "qty": 6
+        },
+        {
+          "instrument_id": "US.MU",
+          "side": "BUY",
+          "qty": 1
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "side": "BUY",
+          "qty": 1
+        },
+        {
+          "instrument_id": "US.WDC",
+          "side": "BUY",
+          "qty": 1
+        },
+        {
+          "instrument_id": "US.XOM",
+          "side": "BUY",
+          "qty": 54
+        }
+      ],
+      "end_of_day_nav": "102098.2776",
+      "cash": "22472.9576",
+      "positions": [
+        {
+          "instrument_id": "US.CVX",
+          "qty": 28,
+          "last_price": "205.2100",
+          "market_value": "5745.8800"
+        },
+        {
+          "instrument_id": "US.LITE",
+          "qty": 29,
+          "last_price": "728.9500",
+          "market_value": "21139.5500"
+        },
+        {
+          "instrument_id": "US.MU",
+          "qty": 20,
+          "last_price": "404.3500",
+          "market_value": "8087.0000"
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "qty": 3,
+          "last_price": "160.8400",
+          "market_value": "482.5200"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "qty": 40,
+          "last_price": "702.4900",
+          "market_value": "28099.6000"
+        },
+        {
+          "instrument_id": "US.WDC",
+          "qty": 25,
+          "last_price": "294.7900",
+          "market_value": "7369.7500"
+        },
+        {
+          "instrument_id": "US.XOM",
+          "qty": 54,
+          "last_price": "161.1300",
+          "market_value": "8701.0200"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-24",
+      "fills": [
+        {
+          "instrument_id": "US.MU",
+          "name": "Micron Technology Inc. Common Stock",
+          "side": "SELL",
+          "filled_qty": 19,
+          "price": "398.0698",
+          "cash_delta": "7559.5438",
+          "fees": "3.7817"
+        },
+        {
+          "instrument_id": "US.CVX",
+          "name": "Chevron Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 6,
+          "price": "207.2063",
+          "cash_delta": "-1244.2378",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.LITE",
+          "name": "Lumentum Holdings Inc. Common Stock",
+          "side": "BUY",
+          "filled_qty": 6,
+          "price": "734.6808",
+          "cash_delta": "-4410.2888",
+          "fees": "2.2040"
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "name": "Palantir Technologies Inc. Class A Common Stock",
+          "side": "BUY",
+          "filled_qty": 50,
+          "price": "161.3506",
+          "cash_delta": "-8071.5618",
+          "fees": "4.0338"
+        },
+        {
+          "instrument_id": "US.WDC",
+          "name": "Western Digital Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 1,
+          "price": "296.8711",
+          "cash_delta": "-297.8711",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.XOM",
+          "name": "Exxon Mobil Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 11,
+          "price": "163.0037",
+          "cash_delta": "-1794.0405",
+          "fees": "1.0000"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "US.MU",
+          "side": "SELL",
+          "qty": 19
+        },
+        {
+          "instrument_id": "US.CVX",
+          "side": "BUY",
+          "qty": 6
+        },
+        {
+          "instrument_id": "US.LITE",
+          "side": "BUY",
+          "qty": 6
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "side": "BUY",
+          "qty": 50
+        },
+        {
+          "instrument_id": "US.WDC",
+          "side": "BUY",
+          "qty": 1
+        },
+        {
+          "instrument_id": "US.XOM",
+          "side": "BUY",
+          "qty": 11
+        }
+      ],
+      "end_of_day_nav": "104590.0814",
+      "cash": "14214.5014",
+      "positions": [
+        {
+          "instrument_id": "US.CVX",
+          "qty": 34,
+          "last_price": "206.7900",
+          "market_value": "7030.8600"
+        },
+        {
+          "instrument_id": "US.LITE",
+          "qty": 35,
+          "last_price": "801.9900",
+          "market_value": "28069.6500"
+        },
+        {
+          "instrument_id": "US.MU",
+          "qty": 1,
+          "last_price": "395.5300",
+          "market_value": "395.5300"
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "qty": 53,
+          "last_price": "154.7800",
+          "market_value": "8203.3400"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "qty": 40,
+          "last_price": "702.4800",
+          "market_value": "28099.2000"
+        },
+        {
+          "instrument_id": "US.WDC",
+          "qty": 26,
+          "last_price": "301.0500",
+          "market_value": "7827.3000"
+        },
+        {
+          "instrument_id": "US.XOM",
+          "qty": 65,
+          "last_price": "165.3800",
+          "market_value": "10749.7000"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-25",
+      "fills": [
+        {
+          "instrument_id": "US.MU",
+          "name": "Micron Technology Inc. Common Stock",
+          "side": "SELL",
+          "filled_qty": 1,
+          "price": "379.9360",
+          "cash_delta": "378.9360",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.CVX",
+          "name": "Chevron Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 3,
+          "price": "206.8225",
+          "cash_delta": "-621.4676",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.LITE",
+          "name": "Lumentum Holdings Inc. Common Stock",
+          "side": "BUY",
+          "filled_qty": 1,
+          "price": "801.8640",
+          "cash_delta": "-802.8640",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "name": "Palantir Technologies Inc. Class A Common Stock",
+          "side": "BUY",
+          "filled_qty": 3,
+          "price": "158.6794",
+          "cash_delta": "-477.0381",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "name": "Sandisk Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 1,
+          "price": "656.2080",
+          "cash_delta": "-657.2080",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.WDC",
+          "name": "Western Digital Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 1,
+          "price": "294.3360",
+          "cash_delta": "-295.3360",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.XOM",
+          "name": "Exxon Mobil Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 6,
+          "price": "164.5205",
+          "cash_delta": "-988.1233",
+          "fees": "1.0000"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "US.MU",
+          "side": "SELL",
+          "qty": 1
+        },
+        {
+          "instrument_id": "US.CVX",
+          "side": "BUY",
+          "qty": 3
+        },
+        {
+          "instrument_id": "US.LITE",
+          "side": "BUY",
+          "qty": 1
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "side": "BUY",
+          "qty": 3
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "side": "BUY",
+          "qty": 1
+        },
+        {
+          "instrument_id": "US.WDC",
+          "side": "BUY",
+          "qty": 1
+        },
+        {
+          "instrument_id": "US.XOM",
+          "side": "BUY",
+          "qty": 6
+        }
+      ],
+      "end_of_day_nav": "102377.3304",
+      "cash": "10751.4004",
+      "positions": [
+        {
+          "instrument_id": "US.CVX",
+          "qty": 37,
+          "last_price": "205.1500",
+          "market_value": "7590.5500"
+        },
+        {
+          "instrument_id": "US.LITE",
+          "qty": 36,
+          "last_price": "777.1700",
+          "market_value": "27978.1200"
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "qty": 56,
+          "last_price": "154.9600",
+          "market_value": "8677.7600"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "qty": 41,
+          "last_price": "677.8600",
+          "market_value": "27792.2600"
+        },
+        {
+          "instrument_id": "US.WDC",
+          "qty": 27,
+          "last_price": "296.1400",
+          "market_value": "7995.7800"
+        },
+        {
+          "instrument_id": "US.XOM",
+          "qty": 71,
+          "last_price": "163.2600",
+          "market_value": "11591.4600"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-26",
+      "fills": [
+        {
+          "instrument_id": "US.PLTR",
+          "name": "Palantir Technologies Inc. Class A Common Stock",
+          "side": "SELL",
+          "filled_qty": 39,
+          "price": "151.8306",
+          "cash_delta": "5918.4311",
+          "fees": "2.9607"
+        },
+        {
+          "instrument_id": "US.MRVL",
+          "name": "Marvell Technology Inc. Common Stock",
+          "side": "BUY",
+          "filled_qty": 94,
+          "price": "98.7437",
+          "cash_delta": "-9286.5469",
+          "fees": "4.6410"
+        },
+        {
+          "instrument_id": "US.XOM",
+          "name": "Exxon Mobil Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 3,
+          "price": "165.1189",
+          "cash_delta": "-496.3568",
+          "fees": "1.0000"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "US.PLTR",
+          "side": "SELL",
+          "qty": 39
+        },
+        {
+          "instrument_id": "US.MRVL",
+          "side": "BUY",
+          "qty": 94
+        },
+        {
+          "instrument_id": "US.XOM",
+          "side": "BUY",
+          "qty": 3
+        }
+      ],
+      "end_of_day_nav": "95414.6378",
+      "cash": "6886.9278",
+      "positions": [
+        {
+          "instrument_id": "US.CVX",
+          "qty": 37,
+          "last_price": "207.7900",
+          "market_value": "7688.2300"
+        },
+        {
+          "instrument_id": "US.LITE",
+          "qty": 36,
+          "last_price": "688.8000",
+          "market_value": "24796.8000"
+        },
+        {
+          "instrument_id": "US.MRVL",
+          "qty": 94,
+          "last_price": "97.6800",
+          "market_value": "9181.9200"
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "qty": 17,
+          "last_price": "147.5600",
+          "market_value": "2508.5200"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "qty": 41,
+          "last_price": "603.1700",
+          "market_value": "24729.9700"
+        },
+        {
+          "instrument_id": "US.WDC",
+          "qty": 27,
+          "last_price": "273.3500",
+          "market_value": "7380.4500"
+        },
+        {
+          "instrument_id": "US.XOM",
+          "qty": 74,
+          "last_price": "165.4300",
+          "market_value": "12241.8200"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-27",
+      "fills": [
+        {
+          "instrument_id": "US.LITE",
+          "name": "Lumentum Holdings Inc. Common Stock",
+          "side": "SELL",
+          "filled_qty": 1,
+          "price": "700.7587",
+          "cash_delta": "699.7587",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "name": "Palantir Technologies Inc. Class A Common Stock",
+          "side": "SELL",
+          "filled_qty": 2,
+          "price": "144.7130",
+          "cash_delta": "288.4259",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "name": "Sandisk Corporation Common Stock",
+          "side": "SELL",
+          "filled_qty": 3,
+          "price": "594.9520",
+          "cash_delta": "1783.8560",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.WDC",
+          "name": "Western Digital Corporation Common Stock",
+          "side": "SELL",
+          "filled_qty": 2,
+          "price": "272.7008",
+          "cash_delta": "544.4016",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.XOM",
+          "name": "Exxon Mobil Corporation Common Stock",
+          "side": "SELL",
+          "filled_qty": 2,
+          "price": "164.2554",
+          "cash_delta": "327.5107",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.MRVL",
+          "name": "Marvell Technology Inc. Common Stock",
+          "side": "BUY",
+          "filled_qty": 52,
+          "price": "99.5702",
+          "cash_delta": "-5180.2413",
+          "fees": "2.5888"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "US.LITE",
+          "side": "SELL",
+          "qty": 1
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "side": "SELL",
+          "qty": 2
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "side": "SELL",
+          "qty": 3
+        },
+        {
+          "instrument_id": "US.WDC",
+          "side": "SELL",
+          "qty": 2
+        },
+        {
+          "instrument_id": "US.XOM",
+          "side": "SELL",
+          "qty": 2
+        },
+        {
+          "instrument_id": "US.MRVL",
+          "side": "BUY",
+          "qty": 52
+        }
+      ],
+      "end_of_day_nav": "96353.4395",
+      "cash": "5350.6395",
+      "positions": [
+        {
+          "instrument_id": "US.CVX",
+          "qty": 37,
+          "last_price": "211.1500",
+          "market_value": "7812.5500"
+        },
+        {
+          "instrument_id": "US.LITE",
+          "qty": 35,
+          "last_price": "702.7300",
+          "market_value": "24595.5500"
+        },
+        {
+          "instrument_id": "US.MRVL",
+          "qty": 146,
+          "last_price": "94.8800",
+          "market_value": "13852.4800"
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "qty": 15,
+          "last_price": "143.0600",
+          "market_value": "2145.9000"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "qty": 38,
+          "last_price": "615.8300",
+          "market_value": "23401.5400"
+        },
+        {
+          "instrument_id": "US.WDC",
+          "qty": 25,
+          "last_price": "275.3400",
+          "market_value": "6883.5000"
+        },
+        {
+          "instrument_id": "US.XOM",
+          "qty": 72,
+          "last_price": "170.9900",
+          "market_value": "12311.2800"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-30",
+      "fills": [
+        {
+          "instrument_id": "US.LITE",
+          "name": "Lumentum Holdings Inc. Common Stock",
+          "side": "SELL",
+          "filled_qty": 1,
+          "price": "719.9936",
+          "cash_delta": "718.9936",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.MRVL",
+          "name": "Marvell Technology Inc. Common Stock",
+          "side": "SELL",
+          "filled_qty": 14,
+          "price": "94.3590",
+          "cash_delta": "1320.0266",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "name": "Palantir Technologies Inc. Class A Common Stock",
+          "side": "SELL",
+          "filled_qty": 2,
+          "price": "142.1238",
+          "cash_delta": "283.2477",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "name": "Sandisk Corporation Common Stock",
+          "side": "SELL",
+          "filled_qty": 4,
+          "price": "636.9830",
+          "cash_delta": "2546.6582",
+          "fees": "1.2740"
+        },
+        {
+          "instrument_id": "US.WDC",
+          "name": "Western Digital Corporation Common Stock",
+          "side": "SELL",
+          "filled_qty": 3,
+          "price": "280.1706",
+          "cash_delta": "839.5117",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.XOM",
+          "name": "Exxon Mobil Corporation Common Stock",
+          "side": "SELL",
+          "filled_qty": 2,
+          "price": "171.1250",
+          "cash_delta": "341.2499",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.CVX",
+          "name": "Chevron Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 26,
+          "price": "214.5491",
+          "cash_delta": "-5581.0668",
+          "fees": "2.7891"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "US.LITE",
+          "side": "SELL",
+          "qty": 1
+        },
+        {
+          "instrument_id": "US.MRVL",
+          "side": "SELL",
+          "qty": 14
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "side": "SELL",
+          "qty": 2
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "side": "SELL",
+          "qty": 4
+        },
+        {
+          "instrument_id": "US.WDC",
+          "side": "SELL",
+          "qty": 3
+        },
+        {
+          "instrument_id": "US.XOM",
+          "side": "SELL",
+          "qty": 2
+        },
+        {
+          "instrument_id": "US.CVX",
+          "side": "BUY",
+          "qty": 26
+        }
+      ],
+      "end_of_day_nav": "91740.5604",
+      "cash": "5819.2604",
+      "positions": [
+        {
+          "instrument_id": "US.CVX",
+          "qty": 63,
+          "last_price": "210.7100",
+          "market_value": "13274.7300"
+        },
+        {
+          "instrument_id": "US.LITE",
+          "qty": 34,
+          "last_price": "654.7900",
+          "market_value": "22262.8600"
+        },
+        {
+          "instrument_id": "US.MRVL",
+          "qty": 132,
+          "last_price": "87.8100",
+          "market_value": "11590.9200"
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "qty": 13,
+          "last_price": "137.5500",
+          "market_value": "1788.1500"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "qty": 34,
+          "last_price": "572.5000",
+          "market_value": "19465.0000"
+        },
+        {
+          "instrument_id": "US.WDC",
+          "qty": 22,
+          "last_price": "251.6700",
+          "market_value": "5536.7400"
+        },
+        {
+          "instrument_id": "US.XOM",
+          "qty": 70,
+          "last_price": "171.4700",
+          "market_value": "12002.9000"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-31",
+      "fills": [
+        {
+          "instrument_id": "US.LITE",
+          "name": "Lumentum Holdings Inc. Common Stock",
+          "side": "SELL",
+          "filled_qty": 20,
+          "price": "673.5680",
+          "cash_delta": "13464.6243",
+          "fees": "6.7357"
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "name": "Palantir Technologies Inc. Class A Common Stock",
+          "side": "SELL",
+          "filled_qty": 8,
+          "price": "138.8998",
+          "cash_delta": "1110.1987",
+          "fees": "1.0000"
+        },
+        {
+          "instrument_id": "US.CVX",
+          "name": "Chevron Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 16,
+          "price": "212.5872",
+          "cash_delta": "-3403.0959",
+          "fees": "1.7007"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "name": "Sandisk Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 6,
+          "price": "592.7141",
+          "cash_delta": "-3558.0626",
+          "fees": "1.7781"
+        },
+        {
+          "instrument_id": "US.XOM",
+          "name": "Exxon Mobil Corporation Common Stock",
+          "side": "BUY",
+          "filled_qty": 29,
+          "price": "174.0514",
+          "cash_delta": "-5050.0132",
+          "fees": "2.5237"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "US.LITE",
+          "side": "SELL",
+          "qty": 20
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "side": "SELL",
+          "qty": 8
+        },
+        {
+          "instrument_id": "US.CVX",
+          "side": "BUY",
+          "qty": 16
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "side": "BUY",
+          "qty": 6
+        },
+        {
+          "instrument_id": "US.XOM",
+          "side": "BUY",
+          "qty": 29
+        }
+      ],
+      "end_of_day_nav": "96533.3717",
+      "cash": "8382.9117",
+      "positions": [
+        {
+          "instrument_id": "US.CVX",
+          "qty": 79,
+          "last_price": "206.9000",
+          "market_value": "16345.1000"
+        },
+        {
+          "instrument_id": "US.LITE",
+          "qty": 14,
+          "last_price": "702.7600",
+          "market_value": "9838.6400"
+        },
+        {
+          "instrument_id": "US.MRVL",
+          "qty": 132,
+          "last_price": "99.0500",
+          "market_value": "13074.6000"
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "qty": 5,
+          "last_price": "146.2800",
+          "market_value": "731.4000"
+        },
+        {
+          "instrument_id": "US.SNDK",
+          "qty": 40,
+          "last_price": "635.3400",
+          "market_value": "25413.6000"
+        },
+        {
+          "instrument_id": "US.WDC",
+          "qty": 22,
+          "last_price": "270.4900",
+          "market_value": "5950.7800"
+        },
+        {
+          "instrument_id": "US.XOM",
+          "qty": 99,
+          "last_price": "169.6600",
+          "market_value": "16796.3400"
+        }
+      ]
+    }
+  ]
+}

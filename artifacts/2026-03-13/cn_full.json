@@ -1,0 +1,991 @@
+{
+  "market": "CN",
+  "requested_as_of_date": "2026-03-15",
+  "trade_date": "2026-03-13",
+  "runtime_mode": "PAPER",
+  "universe_scope": "FULL",
+  "symbols": [],
+  "resolved_symbol_count": 21,
+  "benchmark": {
+    "benchmark_id": "CSI300_PROXY",
+    "constituent_count": 300,
+    "matched_symbol_count": 7
+  },
+  "data_coverage": {
+    "fundamental_coverage": "20/21"
+  },
+  "strategy_id": "cn_index_enhancement",
+  "research_highlights": [
+    "top_candidates=CN.000988,CN.600498,CN.002202",
+    "signal_count=10"
+  ],
+  "portfolio_diagnostics": {
+    "gross_exposure": "0.9064878832946972788869784254",
+    "cash_buffer": "0.0935121167053027211130215746",
+    "turnover": "0",
+    "selected_count": 10,
+    "sector_exposure": {
+      "Information Technology": "0.03879148294267811557205848224",
+      "UNKNOWN": "0.5502143279531151993823111133",
+      "Industrials": "0.3174820723989039639326088298"
+    }
+  },
+  "recommended_stocks": [
+    {
+      "instrument_id": "CN.000988",
+      "name": "华工科技",
+      "sector": "UNKNOWN",
+      "score": "0.7047",
+      "beta": {
+        "beta": "2.5130",
+        "correlation": "0.4822",
+        "sample_size": "20"
+      },
+      "target_weight": "0.2328",
+      "qty": 100,
+      "buy_price": "118.9867",
+      "reason": "alpha(rel_ret_20:0.6646, rel_ret_60:0.1109, profitability:-0.0939)"
+    },
+    {
+      "instrument_id": "CN.600498",
+      "name": "烽火通信",
+      "sector": "UNKNOWN",
+      "score": "0.4703",
+      "beta": {
+        "beta": "1.5130",
+        "correlation": "0.2297",
+        "sample_size": "20"
+      },
+      "target_weight": "0.1554",
+      "qty": 200,
+      "buy_price": "52.4909",
+      "reason": "alpha(rel_ret_60:0.3884, rel_ret_20:0.2390, profitability:-0.1465)"
+    },
+    {
+      "instrument_id": "CN.002202",
+      "name": "金风科技",
+      "sector": "Industrials",
+      "score": "0.4112",
+      "beta": {
+        "beta": "1.6248",
+        "correlation": "0.4759",
+        "sample_size": "20"
+      },
+      "target_weight": "0.1505",
+      "qty": 400,
+      "buy_price": "31.5086",
+      "reason": "alpha(rel_ret_60:0.3414, rel_ret_20:0.1134, profitability:0.0813)"
+    },
+    {
+      "instrument_id": "CN.002384",
+      "name": "东山精密",
+      "sector": "UNKNOWN",
+      "score": "0.2760",
+      "beta": {
+        "beta": "0.5701",
+        "correlation": "0.1260",
+        "sample_size": "20"
+      },
+      "target_weight": "0.0912",
+      "qty": 0,
+      "buy_price": "",
+      "reason": "alpha(rel_ret_20:0.5301, profitability:-0.1748, drawdown:-0.1231)"
+    },
+    {
+      "instrument_id": "CN.300274",
+      "name": "阳光电源",
+      "sector": "Industrials",
+      "score": "0.1964",
+      "beta": {
+        "beta": "1.6847",
+        "correlation": "0.4323",
+        "sample_size": "20"
+      },
+      "target_weight": "0.0869",
+      "qty": 0,
+      "buy_price": "",
+      "reason": "alpha(profitability:0.4264, rel_ret_60:-0.1176, drawdown:-0.0718)"
+    },
+    {
+      "instrument_id": "CN.300750",
+      "name": "宁德时代",
+      "sector": "Industrials",
+      "score": "-0.0413",
+      "beta": {
+        "beta": "1.0887",
+        "correlation": "0.3931",
+        "sample_size": "20"
+      },
+      "target_weight": "0.0801",
+      "qty": 0,
+      "buy_price": "",
+      "reason": "alpha(profitability:0.2674, rel_ret_20:-0.1800, rel_ret_60:-0.0828)"
+    },
+    {
+      "instrument_id": "CN.300394",
+      "name": "天孚通信",
+      "sector": "UNKNOWN",
+      "score": "0.2057",
+      "beta": {
+        "beta": "4.7129",
+        "correlation": "0.5797",
+        "sample_size": "20"
+      },
+      "target_weight": "0.0680",
+      "qty": 0,
+      "buy_price": "",
+      "reason": "alpha(drawdown:0.2188, profitability:-0.1829, rel_ret_20:0.1540)"
+    },
+    {
+      "instrument_id": "CN.300308",
+      "name": "中际旭创",
+      "sector": "Information Technology",
+      "score": "-0.7058",
+      "beta": {
+        "beta": "2.8046",
+        "correlation": "0.6590",
+        "sample_size": "20"
+      },
+      "target_weight": "0.0185",
+      "qty": 0,
+      "buy_price": "",
+      "reason": "alpha(rel_ret_20:-0.4001, rel_ret_60:-0.1383, profitability:-0.0683)"
+    },
+    {
+      "instrument_id": "CN.601138",
+      "name": "工业富联",
+      "sector": "Information Technology",
+      "score": "-0.4587",
+      "beta": {
+        "beta": "1.5477",
+        "correlation": "0.6637",
+        "sample_size": "20"
+      },
+      "target_weight": "0.0138",
+      "qty": 0,
+      "buy_price": "",
+      "reason": "alpha(rel_ret_20:-0.3835, rel_ret_60:-0.1891, profitability:0.1757)"
+    },
+    {
+      "instrument_id": "CN.688256",
+      "name": "寒武纪",
+      "sector": "Information Technology",
+      "score": "-0.2772",
+      "beta": {
+        "beta": "1.3636",
+        "correlation": "0.3613",
+        "sample_size": "20"
+      },
+      "target_weight": "0.0065",
+      "qty": 0,
+      "buy_price": "",
+      "reason": "alpha(liquidity:0.4763, rel_ret_20:-0.2789, profitability:-0.2193)"
+    }
+  ],
+  "backtest_report": {
+    "summary": {
+      "selection_date": "2026-03-13",
+      "exit_date": "2026-03-20",
+      "holding_sessions": 5,
+      "selected_count": 10,
+      "positive_count": 3,
+      "negative_count": 7,
+      "win_rate": "0.3000",
+      "equal_weight_return": "-0.0196",
+      "benchmark_return": "-0.0219",
+      "excess_return": "0.0023",
+      "average_return": "-0.0196",
+      "median_return": "-0.0322",
+      "average_excess_return": "0.0023",
+      "best_instrument_id": "CN.300308",
+      "best_name": "中际旭创",
+      "best_return": "0.1291",
+      "worst_instrument_id": "CN.600498",
+      "worst_name": "烽火通信",
+      "worst_return": "-0.1568",
+      "ic": "-0.5103",
+      "rank_ic": "-0.3697",
+      "ic_sample_size": 10
+    },
+    "rows": [
+      {
+        "instrument_id": "CN.300308",
+        "name": "中际旭创",
+        "sector": "Information Technology",
+        "entry_date": "2026-03-13",
+        "exit_date": "2026-03-20",
+        "entry_price": "542.0200",
+        "exit_price": "612.0000",
+        "holding_sessions": 5,
+        "forward_return": "0.1291",
+        "benchmark_return": "-0.0219",
+        "excess_return": "0.1510",
+        "target_weight": "0.0185",
+        "qty": 0,
+        "buy_price": null,
+        "score": "-0.7058",
+        "reason": "alpha(rel_ret_20:-0.4001, rel_ret_60:-0.1383, profitability:-0.0683)"
+      },
+      {
+        "instrument_id": "CN.002384",
+        "name": "东山精密",
+        "sector": "UNKNOWN",
+        "entry_date": "2026-03-13",
+        "exit_date": "2026-03-20",
+        "entry_price": "110.9300",
+        "exit_price": "116.0600",
+        "holding_sessions": 5,
+        "forward_return": "0.0462",
+        "benchmark_return": "-0.0219",
+        "excess_return": "0.0681",
+        "target_weight": "0.0912",
+        "qty": 0,
+        "buy_price": null,
+        "score": "0.2760",
+        "reason": "alpha(rel_ret_20:0.5301, profitability:-0.1748, drawdown:-0.1231)"
+      },
+      {
+        "instrument_id": "CN.300750",
+        "name": "宁德时代",
+        "sector": "Industrials",
+        "entry_date": "2026-03-13",
+        "exit_date": "2026-03-20",
+        "entry_price": "397.0000",
+        "exit_price": "413.0000",
+        "holding_sessions": 5,
+        "forward_return": "0.0403",
+        "benchmark_return": "-0.0219",
+        "excess_return": "0.0622",
+        "target_weight": "0.0801",
+        "qty": 0,
+        "buy_price": null,
+        "score": "-0.0413",
+        "reason": "alpha(profitability:0.2674, rel_ret_20:-0.1800, rel_ret_60:-0.0828)"
+      },
+      {
+        "instrument_id": "CN.300274",
+        "name": "阳光电源",
+        "sector": "Industrials",
+        "entry_date": "2026-03-13",
+        "exit_date": "2026-03-20",
+        "entry_price": "175.3900",
+        "exit_price": "173.6000",
+        "holding_sessions": 5,
+        "forward_return": "-0.0102",
+        "benchmark_return": "-0.0219",
+        "excess_return": "0.0117",
+        "target_weight": "0.0869",
+        "qty": 0,
+        "buy_price": null,
+        "score": "0.1964",
+        "reason": "alpha(profitability:0.4264, rel_ret_60:-0.1176, drawdown:-0.0718)"
+      },
+      {
+        "instrument_id": "CN.000988",
+        "name": "华工科技",
+        "sector": "UNKNOWN",
+        "entry_date": "2026-03-13",
+        "exit_date": "2026-03-20",
+        "entry_price": "118.6900",
+        "exit_price": "116.0800",
+        "holding_sessions": 5,
+        "forward_return": "-0.0244",
+        "benchmark_return": "-0.0219",
+        "excess_return": "-0.0026",
+        "target_weight": "0.2328",
+        "qty": 100,
+        "buy_price": "118.9867",
+        "score": "0.7047",
+        "reason": "alpha(rel_ret_20:0.6646, rel_ret_60:0.1109, profitability:-0.0939)"
+      },
+      {
+        "instrument_id": "CN.300394",
+        "name": "天孚通信",
+        "sector": "UNKNOWN",
+        "entry_date": "2026-03-13",
+        "exit_date": "2026-03-20",
+        "entry_price": "325.0000",
+        "exit_price": "312.0000",
+        "holding_sessions": 5,
+        "forward_return": "-0.0400",
+        "benchmark_return": "-0.0219",
+        "excess_return": "-0.0181",
+        "target_weight": "0.0680",
+        "qty": 0,
+        "buy_price": null,
+        "score": "0.2057",
+        "reason": "alpha(drawdown:0.2188, profitability:-0.1829, rel_ret_20:0.1540)"
+      },
+      {
+        "instrument_id": "CN.601138",
+        "name": "工业富联",
+        "sector": "Information Technology",
+        "entry_date": "2026-03-13",
+        "exit_date": "2026-03-20",
+        "entry_price": "52.4900",
+        "exit_price": "50.3000",
+        "holding_sessions": 5,
+        "forward_return": "-0.0417",
+        "benchmark_return": "-0.0219",
+        "excess_return": "-0.0199",
+        "target_weight": "0.0138",
+        "qty": 0,
+        "buy_price": null,
+        "score": "-0.4587",
+        "reason": "alpha(rel_ret_20:-0.3835, rel_ret_60:-0.1891, profitability:0.1757)"
+      },
+      {
+        "instrument_id": "CN.688256",
+        "name": "寒武纪",
+        "sector": "Information Technology",
+        "entry_date": "2026-03-13",
+        "exit_date": "2026-03-20",
+        "entry_price": "1096.1000",
+        "exit_price": "1025.0000",
+        "holding_sessions": 5,
+        "forward_return": "-0.0649",
+        "benchmark_return": "-0.0219",
+        "excess_return": "-0.0430",
+        "target_weight": "0.0065",
+        "qty": 0,
+        "buy_price": null,
+        "score": "-0.2772",
+        "reason": "alpha(liquidity:0.4763, rel_ret_20:-0.2789, profitability:-0.2193)"
+      },
+      {
+        "instrument_id": "CN.002202",
+        "name": "金风科技",
+        "sector": "Industrials",
+        "entry_date": "2026-03-13",
+        "exit_date": "2026-03-20",
+        "entry_price": "31.4300",
+        "exit_price": "29.2000",
+        "holding_sessions": 5,
+        "forward_return": "-0.0733",
+        "benchmark_return": "-0.0219",
+        "excess_return": "-0.0514",
+        "target_weight": "0.1505",
+        "qty": 400,
+        "buy_price": "31.5086",
+        "score": "0.4112",
+        "reason": "alpha(rel_ret_60:0.3414, rel_ret_20:0.1134, profitability:0.0813)"
+      },
+      {
+        "instrument_id": "CN.600498",
+        "name": "烽火通信",
+        "sector": "UNKNOWN",
+        "entry_date": "2026-03-13",
+        "exit_date": "2026-03-20",
+        "entry_price": "52.3600",
+        "exit_price": "44.2600",
+        "holding_sessions": 5,
+        "forward_return": "-0.1568",
+        "benchmark_return": "-0.0219",
+        "excess_return": "-0.1349",
+        "target_weight": "0.1554",
+        "qty": 200,
+        "buy_price": "52.4909",
+        "score": "0.4703",
+        "reason": "alpha(rel_ret_60:0.3884, rel_ret_20:0.2390, profitability:-0.1465)"
+      }
+    ]
+  },
+  "ranked_candidates": [
+    {
+      "rank": 1,
+      "instrument_id": "CN.000988",
+      "name": "华工科技",
+      "sector": "UNKNOWN",
+      "score": "0.7047",
+      "target_weight": "0.2328",
+      "selected": true,
+      "beta": {
+        "beta": "2.5130",
+        "correlation": "0.4822",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 2,
+      "instrument_id": "CN.600498",
+      "name": "烽火通信",
+      "sector": "UNKNOWN",
+      "score": "0.4703",
+      "target_weight": "0.1554",
+      "selected": true,
+      "beta": {
+        "beta": "1.5130",
+        "correlation": "0.2297",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 3,
+      "instrument_id": "CN.002202",
+      "name": "金风科技",
+      "sector": "Industrials",
+      "score": "0.4112",
+      "target_weight": "0.1505",
+      "selected": true,
+      "beta": {
+        "beta": "1.6248",
+        "correlation": "0.4759",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 4,
+      "instrument_id": "CN.002384",
+      "name": "东山精密",
+      "sector": "UNKNOWN",
+      "score": "0.2760",
+      "target_weight": "0.0912",
+      "selected": true,
+      "beta": {
+        "beta": "0.5701",
+        "correlation": "0.1260",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 5,
+      "instrument_id": "CN.300394",
+      "name": "天孚通信",
+      "sector": "UNKNOWN",
+      "score": "0.2057",
+      "target_weight": "0.0680",
+      "selected": true,
+      "beta": {
+        "beta": "4.7129",
+        "correlation": "0.5797",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 6,
+      "instrument_id": "CN.300274",
+      "name": "阳光电源",
+      "sector": "Industrials",
+      "score": "0.1964",
+      "target_weight": "0.0869",
+      "selected": true,
+      "beta": {
+        "beta": "1.6847",
+        "correlation": "0.4323",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 7,
+      "instrument_id": "CN.300750",
+      "name": "宁德时代",
+      "sector": "Industrials",
+      "score": "-0.0413",
+      "target_weight": "0.0801",
+      "selected": true,
+      "beta": {
+        "beta": "1.0887",
+        "correlation": "0.3931",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 8,
+      "instrument_id": "CN.300476",
+      "name": "胜宏科技",
+      "sector": "UNKNOWN",
+      "score": "-0.2515",
+      "target_weight": "0.0000",
+      "selected": false,
+      "beta": {
+        "beta": "2.4882",
+        "correlation": "0.5343",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 9,
+      "instrument_id": "CN.688256",
+      "name": "寒武纪",
+      "sector": "Information Technology",
+      "score": "-0.2772",
+      "target_weight": "0.0065",
+      "selected": true,
+      "beta": {
+        "beta": "1.3636",
+        "correlation": "0.3613",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 10,
+      "instrument_id": "CN.601138",
+      "name": "工业富联",
+      "sector": "Information Technology",
+      "score": "-0.4587",
+      "target_weight": "0.0138",
+      "selected": true,
+      "beta": {
+        "beta": "1.5477",
+        "correlation": "0.6637",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 11,
+      "instrument_id": "CN.300502",
+      "name": "新易盛",
+      "sector": "UNKNOWN",
+      "score": "-0.5299",
+      "target_weight": "0.0000",
+      "selected": false,
+      "beta": {
+        "beta": "2.9957",
+        "correlation": "0.6076",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 12,
+      "instrument_id": "CN.300308",
+      "name": "中际旭创",
+      "sector": "Information Technology",
+      "score": "-0.7058",
+      "target_weight": "0.0185",
+      "selected": true,
+      "beta": {
+        "beta": "2.8046",
+        "correlation": "0.6590",
+        "sample_size": "20"
+      }
+    }
+  ],
+  "candidate_buckets": {
+    "defensive_alpha": [
+      {
+        "instrument_id": "CN.002384",
+        "name": "东山精密",
+        "sector": "UNKNOWN",
+        "score": "0.2760",
+        "beta": {
+          "beta": "0.5701",
+          "correlation": "0.1260",
+          "sample_size": "20"
+        }
+      }
+    ],
+    "balanced_alpha": [
+      {
+        "instrument_id": "CN.300750",
+        "name": "宁德时代",
+        "sector": "Industrials",
+        "score": "-0.0413",
+        "beta": {
+          "beta": "1.0887",
+          "correlation": "0.3931",
+          "sample_size": "20"
+        }
+      }
+    ],
+    "aggressive_alpha": [
+      {
+        "instrument_id": "CN.000988",
+        "name": "华工科技",
+        "sector": "UNKNOWN",
+        "score": "0.7047",
+        "beta": {
+          "beta": "2.5130",
+          "correlation": "0.4822",
+          "sample_size": "20"
+        }
+      },
+      {
+        "instrument_id": "CN.600498",
+        "name": "烽火通信",
+        "sector": "UNKNOWN",
+        "score": "0.4703",
+        "beta": {
+          "beta": "1.5130",
+          "correlation": "0.2297",
+          "sample_size": "20"
+        }
+      },
+      {
+        "instrument_id": "CN.002202",
+        "name": "金风科技",
+        "sector": "Industrials",
+        "score": "0.4112",
+        "beta": {
+          "beta": "1.6248",
+          "correlation": "0.4759",
+          "sample_size": "20"
+        }
+      },
+      {
+        "instrument_id": "CN.300394",
+        "name": "天孚通信",
+        "sector": "UNKNOWN",
+        "score": "0.2057",
+        "beta": {
+          "beta": "4.7129",
+          "correlation": "0.5797",
+          "sample_size": "20"
+        }
+      },
+      {
+        "instrument_id": "CN.300274",
+        "name": "阳光电源",
+        "sector": "Industrials",
+        "score": "0.1964",
+        "beta": {
+          "beta": "1.6847",
+          "correlation": "0.4323",
+          "sample_size": "20"
+        }
+      }
+    ],
+    "sector_leaders": [
+      {
+        "instrument_id": "CN.000988",
+        "name": "华工科技",
+        "sector": "UNKNOWN",
+        "score": "0.7047",
+        "beta": {
+          "beta": "2.5130",
+          "correlation": "0.4822",
+          "sample_size": "20"
+        }
+      },
+      {
+        "instrument_id": "CN.002202",
+        "name": "金风科技",
+        "sector": "Industrials",
+        "score": "0.4112",
+        "beta": {
+          "beta": "1.6248",
+          "correlation": "0.4759",
+          "sample_size": "20"
+        }
+      },
+      {
+        "instrument_id": "CN.688256",
+        "name": "寒武纪",
+        "sector": "Information Technology",
+        "score": "-0.2772",
+        "beta": {
+          "beta": "1.3636",
+          "correlation": "0.3613",
+          "sample_size": "20"
+        }
+      }
+    ]
+  },
+  "beta_extremes": {
+    "lowest_beta": [
+      {
+        "instrument_id": "CN.002384",
+        "name": "东山精密",
+        "beta": "0.5701",
+        "correlation": "0.1260",
+        "sample_size": "20"
+      },
+      {
+        "instrument_id": "CN.300750",
+        "name": "宁德时代",
+        "beta": "1.0887",
+        "correlation": "0.3931",
+        "sample_size": "20"
+      },
+      {
+        "instrument_id": "CN.688256",
+        "name": "寒武纪",
+        "beta": "1.3636",
+        "correlation": "0.3613",
+        "sample_size": "20"
+      },
+      {
+        "instrument_id": "CN.600498",
+        "name": "烽火通信",
+        "beta": "1.5130",
+        "correlation": "0.2297",
+        "sample_size": "20"
+      },
+      {
+        "instrument_id": "CN.601138",
+        "name": "工业富联",
+        "beta": "1.5477",
+        "correlation": "0.6637",
+        "sample_size": "20"
+      }
+    ],
+    "highest_beta": [
+      {
+        "instrument_id": "CN.300394",
+        "name": "天孚通信",
+        "beta": "4.7129",
+        "correlation": "0.5797",
+        "sample_size": "20"
+      },
+      {
+        "instrument_id": "CN.300502",
+        "name": "新易盛",
+        "beta": "2.9957",
+        "correlation": "0.6076",
+        "sample_size": "20"
+      },
+      {
+        "instrument_id": "CN.300308",
+        "name": "中际旭创",
+        "beta": "2.8046",
+        "correlation": "0.6590",
+        "sample_size": "20"
+      },
+      {
+        "instrument_id": "CN.000988",
+        "name": "华工科技",
+        "beta": "2.5130",
+        "correlation": "0.4822",
+        "sample_size": "20"
+      },
+      {
+        "instrument_id": "CN.300476",
+        "name": "胜宏科技",
+        "beta": "2.4882",
+        "correlation": "0.5343",
+        "sample_size": "20"
+      }
+    ]
+  },
+  "signals": [
+    {
+      "instrument_id": "CN.000988",
+      "name": "华工科技",
+      "score": "0.7047",
+      "reason": "alpha(rel_ret_20:0.6646, rel_ret_60:0.1109, profitability:-0.0939)",
+      "beta": {
+        "beta": "2.5130",
+        "correlation": "0.4822",
+        "sample_size": "20"
+      }
+    },
+    {
+      "instrument_id": "CN.600498",
+      "name": "烽火通信",
+      "score": "0.4703",
+      "reason": "alpha(rel_ret_60:0.3884, rel_ret_20:0.2390, profitability:-0.1465)",
+      "beta": {
+        "beta": "1.5130",
+        "correlation": "0.2297",
+        "sample_size": "20"
+      }
+    },
+    {
+      "instrument_id": "CN.002202",
+      "name": "金风科技",
+      "score": "0.4112",
+      "reason": "alpha(rel_ret_60:0.3414, rel_ret_20:0.1134, profitability:0.0813)",
+      "beta": {
+        "beta": "1.6248",
+        "correlation": "0.4759",
+        "sample_size": "20"
+      }
+    },
+    {
+      "instrument_id": "CN.002384",
+      "name": "东山精密",
+      "score": "0.2760",
+      "reason": "alpha(rel_ret_20:0.5301, profitability:-0.1748, drawdown:-0.1231)",
+      "beta": {
+        "beta": "0.5701",
+        "correlation": "0.1260",
+        "sample_size": "20"
+      }
+    },
+    {
+      "instrument_id": "CN.300274",
+      "name": "阳光电源",
+      "score": "0.1964",
+      "reason": "alpha(profitability:0.4264, rel_ret_60:-0.1176, drawdown:-0.0718)",
+      "beta": {
+        "beta": "1.6847",
+        "correlation": "0.4323",
+        "sample_size": "20"
+      }
+    },
+    {
+      "instrument_id": "CN.300750",
+      "name": "宁德时代",
+      "score": "-0.0413",
+      "reason": "alpha(profitability:0.2674, rel_ret_20:-0.1800, rel_ret_60:-0.0828)",
+      "beta": {
+        "beta": "1.0887",
+        "correlation": "0.3931",
+        "sample_size": "20"
+      }
+    },
+    {
+      "instrument_id": "CN.300394",
+      "name": "天孚通信",
+      "score": "0.2057",
+      "reason": "alpha(drawdown:0.2188, profitability:-0.1829, rel_ret_20:0.1540)",
+      "beta": {
+        "beta": "4.7129",
+        "correlation": "0.5797",
+        "sample_size": "20"
+      }
+    },
+    {
+      "instrument_id": "CN.300308",
+      "name": "中际旭创",
+      "score": "-0.7058",
+      "reason": "alpha(rel_ret_20:-0.4001, rel_ret_60:-0.1383, profitability:-0.0683)",
+      "beta": {
+        "beta": "2.8046",
+        "correlation": "0.6590",
+        "sample_size": "20"
+      }
+    },
+    {
+      "instrument_id": "CN.601138",
+      "name": "工业富联",
+      "score": "-0.4587",
+      "reason": "alpha(rel_ret_20:-0.3835, rel_ret_60:-0.1891, profitability:0.1757)",
+      "beta": {
+        "beta": "1.5477",
+        "correlation": "0.6637",
+        "sample_size": "20"
+      }
+    },
+    {
+      "instrument_id": "CN.688256",
+      "name": "寒武纪",
+      "score": "-0.2772",
+      "reason": "alpha(liquidity:0.4763, rel_ret_20:-0.2789, profitability:-0.2193)",
+      "beta": {
+        "beta": "1.3636",
+        "correlation": "0.3613",
+        "sample_size": "20"
+      }
+    }
+  ],
+  "trade_suggestions": [
+    {
+      "account_id": "cn-default",
+      "instrument_id": "CN.000988",
+      "name": "华工科技",
+      "side": "BUY",
+      "qty": 100,
+      "rationale": "rebalance_to_0.2328"
+    },
+    {
+      "account_id": "cn-default",
+      "instrument_id": "CN.600498",
+      "name": "烽火通信",
+      "side": "BUY",
+      "qty": 200,
+      "rationale": "rebalance_to_0.1554"
+    },
+    {
+      "account_id": "cn-default",
+      "instrument_id": "CN.002202",
+      "name": "金风科技",
+      "side": "BUY",
+      "qty": 400,
+      "rationale": "rebalance_to_0.1505"
+    }
+  ],
+  "approved_order_intents": [
+    {
+      "instrument_id": "CN.000988",
+      "name": "华工科技",
+      "side": "BUY",
+      "qty": 100,
+      "manual": true
+    },
+    {
+      "instrument_id": "CN.600498",
+      "name": "烽火通信",
+      "side": "BUY",
+      "qty": 200,
+      "manual": true
+    },
+    {
+      "instrument_id": "CN.002202",
+      "name": "金风科技",
+      "side": "BUY",
+      "qty": 400,
+      "manual": true
+    }
+  ],
+  "risk_results": [
+    {
+      "order_intent_id": "cn-default:CN.000988:2026-03-13T15:00:00",
+      "passed": true,
+      "violations": []
+    },
+    {
+      "order_intent_id": "cn-default:CN.600498:2026-03-13T15:00:00",
+      "passed": true,
+      "violations": []
+    },
+    {
+      "order_intent_id": "cn-default:CN.002202:2026-03-13T15:00:00",
+      "passed": true,
+      "violations": []
+    }
+  ],
+  "execution_results": [
+    {
+      "account_id": "cn-default",
+      "fills": [
+        {
+          "instrument_id": "CN.000988",
+          "status": "FILLED",
+          "requested_qty": 100,
+          "filled_qty": 100,
+          "estimated_price": "118.9867",
+          "cash_delta": "-11903.6725",
+          "estimated_cash_delta": "-11903.6725"
+        },
+        {
+          "instrument_id": "CN.600498",
+          "status": "FILLED",
+          "requested_qty": 200,
+          "filled_qty": 200,
+          "estimated_price": "52.4909",
+          "cash_delta": "-10503.1800",
+          "estimated_cash_delta": "-10503.1800"
+        },
+        {
+          "instrument_id": "CN.002202",
+          "status": "FILLED",
+          "requested_qty": 400,
+          "filled_qty": 400,
+          "estimated_price": "31.5086",
+          "cash_delta": "-12608.4300",
+          "estimated_cash_delta": "-12608.4300"
+        }
+      ]
+    }
+  ],
+  "review": {
+    "verdict": "PASS",
+    "comments": [
+      "signal_count=10",
+      "signal_spread=1.4105",
+      "signal_average=0.0781",
+      "top_candidate=CN.000988",
+      "target_count=10",
+      "target_hhi=0.1285",
+      "max_target_weight=0.2328",
+      "planned_turnover=0",
+      "planned_selected_count=10",
+      "trade_suggestion_count=3",
+      "rebalance_qty=700",
+      "rebalance_ratio=1.0000",
+      "drift_ratio=1.0000",
+      "account_count=1",
+      "position_count=0"
+    ]
+  }
+}

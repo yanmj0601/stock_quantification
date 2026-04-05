@@ -1,0 +1,188 @@
+{
+  "market": "CN",
+  "trade_date": "2026-04-03",
+  "runtime_mode": "PAPER",
+  "universe_scope": "DEFAULT",
+  "symbols": [
+    "600000",
+    "000001",
+    "600036",
+    "600519",
+    "000333"
+  ],
+  "resolved_symbol_count": 6,
+  "benchmark": {
+    "benchmark_id": "CSI300_PROXY",
+    "constituent_count": 300,
+    "matched_symbol_count": 5
+  },
+  "data_coverage": {
+    "fundamental_coverage": "5/6"
+  },
+  "strategy_id": "cn_index_enhancement",
+  "research_highlights": [
+    "top_candidates=CN.600519,CN.600036",
+    "signal_count=2"
+  ],
+  "portfolio_diagnostics": {
+    "gross_exposure": "0.5288281792454153751997587939",
+    "cash_buffer": "0.4711718207545846248002412061",
+    "turnover": "0",
+    "selected_count": 2,
+    "sector_exposure": {
+      "Consumer Staples": "0.30",
+      "Financials": "0.2063965412908077733403111592",
+      "Consumer Discretionary": "0.02243163795460760185944763468"
+    }
+  },
+  "ranked_candidates": [
+    {
+      "rank": 1,
+      "instrument_id": "CN.600519",
+      "sector": "Consumer Staples",
+      "score": "0.7410",
+      "target_weight": "0.3000",
+      "selected": true,
+      "beta": null
+    },
+    {
+      "rank": 2,
+      "instrument_id": "CN.600036",
+      "sector": "Financials",
+      "score": "0.1887",
+      "target_weight": "0.1928",
+      "selected": true,
+      "beta": null
+    },
+    {
+      "rank": 3,
+      "instrument_id": "CN.000001",
+      "sector": "Financials",
+      "score": "-0.1460",
+      "target_weight": "0.0075",
+      "selected": true,
+      "beta": null
+    },
+    {
+      "rank": 4,
+      "instrument_id": "CN.600000",
+      "sector": "Financials",
+      "score": "-0.3228",
+      "target_weight": "0.0061",
+      "selected": true,
+      "beta": null
+    },
+    {
+      "rank": 5,
+      "instrument_id": "CN.000333",
+      "sector": "Consumer Discretionary",
+      "score": "-0.4609",
+      "target_weight": "0.0224",
+      "selected": true,
+      "beta": null
+    }
+  ],
+  "candidate_buckets": {
+    "defensive_alpha": [],
+    "balanced_alpha": [],
+    "aggressive_alpha": [],
+    "sector_leaders": [
+      {
+        "instrument_id": "CN.600519",
+        "sector": "Consumer Staples",
+        "score": "0.7410",
+        "beta": null
+      },
+      {
+        "instrument_id": "CN.600036",
+        "sector": "Financials",
+        "score": "0.1887",
+        "beta": null
+      },
+      {
+        "instrument_id": "CN.000333",
+        "sector": "Consumer Discretionary",
+        "score": "-0.4609",
+        "beta": null
+      }
+    ]
+  },
+  "beta_extremes": {
+    "lowest_beta": [],
+    "highest_beta": []
+  },
+  "signals": [
+    {
+      "instrument_id": "CN.600519",
+      "score": "0.7410",
+      "reason": "alpha(rel_ret_20:0.5959, rel_ret_60:0.3405, profitability:-0.2511)",
+      "beta": null
+    },
+    {
+      "instrument_id": "CN.600036",
+      "score": "0.1887",
+      "reason": "alpha(profitability:0.0886, liquidity:0.0551, rel_ret_20:0.0353)",
+      "beta": null
+    }
+  ],
+  "trade_suggestions": [
+    {
+      "account_id": "cn-default",
+      "instrument_id": "CN.600036",
+      "side": "BUY",
+      "qty": 400,
+      "rationale": "rebalance_to_0.1928"
+    }
+  ],
+  "approved_order_intents": [
+    {
+      "instrument_id": "CN.600036",
+      "side": "BUY",
+      "qty": 400,
+      "manual": true
+    }
+  ],
+  "risk_results": [
+    {
+      "order_intent_id": "cn-default:CN.600036:2026-04-03T15:00:00",
+      "passed": true,
+      "violations": []
+    }
+  ],
+  "execution_results": [
+    {
+      "account_id": "cn-default",
+      "fills": [
+        {
+          "instrument_id": "CN.600036",
+          "status": "FILLED",
+          "requested_qty": 400,
+          "filled_qty": 400,
+          "estimated_price": "39.4711",
+          "cash_delta": "-15793.4367",
+          "estimated_cash_delta": "-15793.4367"
+        }
+      ]
+    }
+  ],
+  "review": {
+    "verdict": "PASS",
+    "comments": [
+      "signal_count=2",
+      "signal_spread=0.5523",
+      "signal_average=0.4648",
+      "top_candidate=CN.600519",
+      "target_count=2",
+      "target_hhi=0.1272",
+      "max_target_weight=0.3000",
+      "planned_turnover=0",
+      "planned_selected_count=2",
+      "trade_suggestion_count=1",
+      "rebalance_qty=400",
+      "rebalance_ratio=1.0000",
+      "drift_ratio=1.0000",
+      "account_count=1",
+      "position_count=0"
+    ]
+  }
+}

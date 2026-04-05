@@ -1,0 +1,1322 @@
+{
+  "market": "US",
+  "requested_as_of_date": "2026-03-15",
+  "trade_date": "2026-03-13",
+  "runtime_mode": "PAPER",
+  "universe_scope": "FULL",
+  "symbols": [],
+  "resolved_symbol_count": 21,
+  "benchmark": {
+    "benchmark_id": "SP500_PROXY",
+    "constituent_count": 0,
+    "matched_symbol_count": 0
+  },
+  "data_coverage": {
+    "fundamental_coverage": "20/21"
+  },
+  "strategy_id": "us_quality_momentum",
+  "research_highlights": [
+    "top_candidates=US.SNDK,US.LITE,US.PLTR",
+    "signal_count=9"
+  ],
+  "portfolio_diagnostics": {
+    "gross_exposure": "0.7423665212423392541809494131",
+    "cash_buffer": "0.2576334787576607458190505869",
+    "turnover": "0",
+    "selected_count": 10,
+    "sector_exposure": {
+      "Technology": "0.4500000000000000000000000000",
+      "Telecommunications": "0.1503895294484263010283577439",
+      "Energy": "0.1116819881583047678404487379",
+      "Consumer Discretionary": "0.03029500363560818531214293134"
+    }
+  },
+  "recommended_stocks": [
+    {
+      "instrument_id": "US.SNDK",
+      "name": "Sandisk Corporation Common Stock",
+      "sector": "Technology",
+      "score": "0.9202",
+      "beta": {
+        "beta": "3.3131",
+        "correlation": "0.4373",
+        "sample_size": "20"
+      },
+      "target_weight": "0.1553",
+      "qty": 23,
+      "buy_price": "663.2740",
+      "reason": "alpha(rel_ret_60:0.5336, rel_ret_20:0.2006, drawdown:0.0826)"
+    },
+    {
+      "instrument_id": "US.LITE",
+      "name": "Lumentum Holdings Inc. Common Stock",
+      "sector": "Telecommunications",
+      "score": "0.6096",
+      "beta": {
+        "beta": "6.4439",
+        "correlation": "0.6421",
+        "sample_size": "20"
+      },
+      "target_weight": "0.1504",
+      "qty": 24,
+      "buy_price": "624.0562",
+      "reason": "alpha(rel_ret_20:0.2738, rel_ret_60:0.1669, drawdown:0.1411)"
+    },
+    {
+      "instrument_id": "US.PLTR",
+      "name": "Palantir Technologies Inc. Class A Common Stock",
+      "sector": "Technology",
+      "score": "0.7881",
+      "beta": {
+        "beta": "0.5990",
+        "correlation": "0.1851",
+        "sample_size": "20"
+      },
+      "target_weight": "0.1330",
+      "qty": 88,
+      "buy_price": "151.3274",
+      "reason": "alpha(rel_ret_20:0.7080, trend:0.2360, rel_ret_60:-0.1012)"
+    },
+    {
+      "instrument_id": "US.MRVL",
+      "name": "Marvell Technology Inc. Common Stock",
+      "sector": "Technology",
+      "score": "0.5321",
+      "beta": {
+        "beta": "-0.3505",
+        "correlation": "-0.0544",
+        "sample_size": "20"
+      },
+      "target_weight": "0.0898",
+      "qty": 102,
+      "buy_price": "88.0796",
+      "reason": "alpha(rel_ret_20:0.5128, trend:0.1709, liquidity:-0.0886)"
+    },
+    {
+      "instrument_id": "US.CVX",
+      "name": "Chevron Corporation Common Stock",
+      "sector": "Energy",
+      "score": "0.3187",
+      "beta": {
+        "beta": "-0.6324",
+        "correlation": "-0.3398",
+        "sample_size": "20"
+      },
+      "target_weight": "0.0786",
+      "qty": 39,
+      "buy_price": "197.2319",
+      "reason": "alpha(rel_ret_20:0.3255, trend:0.1085, liquidity:-0.0817)"
+    },
+    {
+      "instrument_id": "US.MU",
+      "name": "Micron Technology Inc. Common Stock",
+      "sector": "Technology",
+      "score": "0.3776",
+      "beta": {
+        "beta": "3.5899",
+        "correlation": "0.6627",
+        "sample_size": "20"
+      },
+      "target_weight": "0.0637",
+      "qty": 14,
+      "buy_price": "427.1953",
+      "reason": "alpha(rel_ret_60:0.1499, rel_ret_20:0.1141, liquidity:0.0468)"
+    },
+    {
+      "instrument_id": "US.XOM",
+      "name": "Exxon Mobil Corporation Common Stock",
+      "sector": "Energy",
+      "score": "0.1340",
+      "beta": {
+        "beta": "-0.7926",
+        "correlation": "-0.3551",
+        "sample_size": "20"
+      },
+      "target_weight": "0.0331",
+      "qty": 21,
+      "buy_price": "156.5103",
+      "reason": "alpha(rel_ret_20:0.1648, liquidity:-0.0704, trend:0.0549)"
+    },
+    {
+      "instrument_id": "US.AMZN",
+      "name": "Amazon.com Inc. Common Stock",
+      "sector": "Consumer Discretionary",
+      "score": "0.1228",
+      "beta": {
+        "beta": "1.6319",
+        "correlation": "0.7375",
+        "sample_size": "20"
+      },
+      "target_weight": "0.0303",
+      "qty": 14,
+      "buy_price": "208.1892",
+      "reason": "alpha(rel_ret_20:0.1612, rel_ret_60:-0.0729, trend:0.0537)"
+    },
+    {
+      "instrument_id": "US.NVDA",
+      "name": "NVIDIA Corporation Common Stock",
+      "sector": "Technology",
+      "score": "0.0477",
+      "beta": {
+        "beta": "1.8571",
+        "correlation": "0.5996",
+        "sample_size": "20"
+      },
+      "target_weight": "0.0081",
+      "qty": 4,
+      "buy_price": "180.7006",
+      "reason": "alpha(liquidity:0.3182, rel_ret_20:-0.1631, trend:-0.0544)"
+    }
+  ],
+  "backtest_report": {
+    "summary": {
+      "selection_date": "2026-03-13",
+      "exit_date": "2026-03-20",
+      "holding_sessions": 5,
+      "selected_count": 9,
+      "positive_count": 4,
+      "negative_count": 5,
+      "win_rate": "0.4444",
+      "equal_weight_return": "0.0190",
+      "benchmark_return": "-0.0207",
+      "excess_return": "0.0397",
+      "average_return": "0.0190",
+      "median_return": "-0.0019",
+      "average_excess_return": "0.0397",
+      "best_instrument_id": "US.LITE",
+      "best_name": "Lumentum Holdings Inc. Common Stock",
+      "best_return": "0.1319",
+      "worst_instrument_id": "US.NVDA",
+      "worst_name": "NVIDIA Corporation Common Stock",
+      "worst_return": "-0.0443",
+      "ic": "0.5383",
+      "rank_ic": "0.6333",
+      "ic_sample_size": 9
+    },
+    "rows": [
+      {
+        "instrument_id": "US.LITE",
+        "name": "Lumentum Holdings Inc. Common Stock",
+        "sector": "Telecommunications",
+        "entry_date": "2026-03-13",
+        "exit_date": "2026-03-20",
+        "entry_price": "622.5000",
+        "exit_price": "706.3500",
+        "holding_sessions": 5,
+        "forward_return": "0.1319",
+        "benchmark_return": "-0.0207",
+        "excess_return": "0.1526",
+        "target_weight": "0.1504",
+        "qty": 24,
+        "buy_price": "624.0562",
+        "score": "0.6096",
+        "reason": "alpha(rel_ret_20:0.2738, rel_ret_60:0.1669, drawdown:0.1411)"
+      },
+      {
+        "instrument_id": "US.SNDK",
+        "name": "Sandisk Corporation Common Stock",
+        "sector": "Technology",
+        "entry_date": "2026-03-13",
+        "exit_date": "2026-03-20",
+        "entry_price": "661.6200",
+        "exit_price": "709.7100",
+        "holding_sessions": 5,
+        "forward_return": "0.0700",
+        "benchmark_return": "-0.0207",
+        "excess_return": "0.0907",
+        "target_weight": "0.1553",
+        "qty": 23,
+        "buy_price": "663.2740",
+        "score": "0.9202",
+        "reason": "alpha(rel_ret_60:0.5336, rel_ret_20:0.2006, drawdown:0.0826)"
+      },
+      {
+        "instrument_id": "US.CVX",
+        "name": "Chevron Corporation Common Stock",
+        "sector": "Energy",
+        "entry_date": "2026-03-13",
+        "exit_date": "2026-03-20",
+        "entry_price": "196.8200",
+        "exit_price": "201.7300",
+        "holding_sessions": 5,
+        "forward_return": "0.0228",
+        "benchmark_return": "-0.0207",
+        "excess_return": "0.0435",
+        "target_weight": "0.0786",
+        "qty": 39,
+        "buy_price": "197.2319",
+        "score": "0.3187",
+        "reason": "alpha(rel_ret_20:0.3255, trend:0.1085, liquidity:-0.0817)"
+      },
+      {
+        "instrument_id": "US.XOM",
+        "name": "Exxon Mobil Corporation Common Stock",
+        "sector": "Energy",
+        "entry_date": "2026-03-13",
+        "exit_date": "2026-03-20",
+        "entry_price": "156.1200",
+        "exit_price": "159.6700",
+        "holding_sessions": 5,
+        "forward_return": "0.0202",
+        "benchmark_return": "-0.0207",
+        "excess_return": "0.0409",
+        "target_weight": "0.0331",
+        "qty": 21,
+        "buy_price": "156.5103",
+        "score": "0.1340",
+        "reason": "alpha(rel_ret_20:0.1648, liquidity:-0.0704, trend:0.0549)"
+      },
+      {
+        "instrument_id": "US.MRVL",
+        "name": "Marvell Technology Inc. Common Stock",
+        "sector": "Technology",
+        "entry_date": "2026-03-13",
+        "exit_date": "2026-03-20",
+        "entry_price": "87.8600",
+        "exit_price": "87.9100",
+        "holding_sessions": 5,
+        "forward_return": "-0.0019",
+        "benchmark_return": "-0.0207",
+        "excess_return": "0.0188",
+        "target_weight": "0.0898",
+        "qty": 102,
+        "buy_price": "88.0796",
+        "score": "0.5321",
+        "reason": "alpha(rel_ret_20:0.5128, trend:0.1709, liquidity:-0.0886)"
+      },
+      {
+        "instrument_id": "US.PLTR",
+        "name": "Palantir Technologies Inc. Class A Common Stock",
+        "sector": "Technology",
+        "entry_date": "2026-03-13",
+        "exit_date": "2026-03-20",
+        "entry_price": "150.9500",
+        "exit_price": "150.6800",
+        "holding_sessions": 5,
+        "forward_return": "-0.0043",
+        "benchmark_return": "-0.0207",
+        "excess_return": "0.0164",
+        "target_weight": "0.1330",
+        "qty": 88,
+        "buy_price": "151.3274",
+        "score": "0.7881",
+        "reason": "alpha(rel_ret_20:0.7080, trend:0.2360, rel_ret_60:-0.1012)"
+      },
+      {
+        "instrument_id": "US.MU",
+        "name": "Micron Technology Inc. Common Stock",
+        "sector": "Technology",
+        "entry_date": "2026-03-13",
+        "exit_date": "2026-03-20",
+        "entry_price": "426.1300",
+        "exit_price": "422.9000",
+        "holding_sessions": 5,
+        "forward_return": "-0.0101",
+        "benchmark_return": "-0.0207",
+        "excess_return": "0.0107",
+        "target_weight": "0.0637",
+        "qty": 14,
+        "buy_price": "427.1953",
+        "score": "0.3776",
+        "reason": "alpha(rel_ret_60:0.1499, rel_ret_20:0.1141, liquidity:0.0468)"
+      },
+      {
+        "instrument_id": "US.AMZN",
+        "name": "Amazon.com Inc. Common Stock",
+        "sector": "Consumer Discretionary",
+        "entry_date": "2026-03-13",
+        "exit_date": "2026-03-20",
+        "entry_price": "207.6700",
+        "exit_price": "205.3700",
+        "holding_sessions": 5,
+        "forward_return": "-0.0135",
+        "benchmark_return": "-0.0207",
+        "excess_return": "0.0072",
+        "target_weight": "0.0303",
+        "qty": 14,
+        "buy_price": "208.1892",
+        "score": "0.1228",
+        "reason": "alpha(rel_ret_20:0.1612, rel_ret_60:-0.0729, trend:0.0537)"
+      },
+      {
+        "instrument_id": "US.NVDA",
+        "name": "NVIDIA Corporation Common Stock",
+        "sector": "Technology",
+        "entry_date": "2026-03-13",
+        "exit_date": "2026-03-20",
+        "entry_price": "180.2500",
+        "exit_price": "172.7000",
+        "holding_sessions": 5,
+        "forward_return": "-0.0443",
+        "benchmark_return": "-0.0207",
+        "excess_return": "-0.0236",
+        "target_weight": "0.0081",
+        "qty": 4,
+        "buy_price": "180.7006",
+        "score": "0.0477",
+        "reason": "alpha(liquidity:0.3182, rel_ret_20:-0.1631, trend:-0.0544)"
+      }
+    ]
+  },
+  "ranked_candidates": [
+    {
+      "rank": 1,
+      "instrument_id": "US.SNDK",
+      "name": "Sandisk Corporation Common Stock",
+      "sector": "Technology",
+      "score": "0.9202",
+      "target_weight": "0.1553",
+      "selected": true,
+      "beta": {
+        "beta": "3.3131",
+        "correlation": "0.4373",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 2,
+      "instrument_id": "US.PLTR",
+      "name": "Palantir Technologies Inc. Class A Common Stock",
+      "sector": "Technology",
+      "score": "0.7881",
+      "target_weight": "0.1330",
+      "selected": true,
+      "beta": {
+        "beta": "0.5990",
+        "correlation": "0.1851",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 3,
+      "instrument_id": "US.LITE",
+      "name": "Lumentum Holdings Inc. Common Stock",
+      "sector": "Telecommunications",
+      "score": "0.6096",
+      "target_weight": "0.1504",
+      "selected": true,
+      "beta": {
+        "beta": "6.4439",
+        "correlation": "0.6421",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 4,
+      "instrument_id": "US.MRVL",
+      "name": "Marvell Technology Inc. Common Stock",
+      "sector": "Technology",
+      "score": "0.5321",
+      "target_weight": "0.0898",
+      "selected": true,
+      "beta": {
+        "beta": "-0.3505",
+        "correlation": "-0.0544",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 5,
+      "instrument_id": "US.MU",
+      "name": "Micron Technology Inc. Common Stock",
+      "sector": "Technology",
+      "score": "0.3776",
+      "target_weight": "0.0637",
+      "selected": true,
+      "beta": {
+        "beta": "3.5899",
+        "correlation": "0.6627",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 6,
+      "instrument_id": "US.CVX",
+      "name": "Chevron Corporation Common Stock",
+      "sector": "Energy",
+      "score": "0.3187",
+      "target_weight": "0.0786",
+      "selected": true,
+      "beta": {
+        "beta": "-0.6324",
+        "correlation": "-0.3398",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 7,
+      "instrument_id": "US.XOM",
+      "name": "Exxon Mobil Corporation Common Stock",
+      "sector": "Energy",
+      "score": "0.1340",
+      "target_weight": "0.0331",
+      "selected": true,
+      "beta": {
+        "beta": "-0.7926",
+        "correlation": "-0.3551",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 8,
+      "instrument_id": "US.AMZN",
+      "name": "Amazon.com Inc. Common Stock",
+      "sector": "Consumer Discretionary",
+      "score": "0.1228",
+      "target_weight": "0.0303",
+      "selected": true,
+      "beta": {
+        "beta": "1.6319",
+        "correlation": "0.7375",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 9,
+      "instrument_id": "US.NVDA",
+      "name": "NVIDIA Corporation Common Stock",
+      "sector": "Technology",
+      "score": "0.0477",
+      "target_weight": "0.0081",
+      "selected": true,
+      "beta": {
+        "beta": "1.8571",
+        "correlation": "0.5996",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 10,
+      "instrument_id": "US.WDC",
+      "name": "Western Digital Corporation Common Stock",
+      "sector": "Technology",
+      "score": "-0.1790",
+      "target_weight": "0.0000",
+      "selected": false,
+      "beta": {
+        "beta": "3.4864",
+        "correlation": "0.6318",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 11,
+      "instrument_id": "US.INTC",
+      "name": "Intel Corporation Common Stock",
+      "sector": "Technology",
+      "score": "-0.1798",
+      "target_weight": "0.0000",
+      "selected": false,
+      "beta": {
+        "beta": "3.3694",
+        "correlation": "0.7221",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 12,
+      "instrument_id": "US.MSFT",
+      "name": "Microsoft Corporation Common Stock",
+      "sector": "Technology",
+      "score": "-0.1893",
+      "target_weight": "0.0000",
+      "selected": false,
+      "beta": {
+        "beta": "0.8540",
+        "correlation": "0.4424",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 13,
+      "instrument_id": "US.GOOGL",
+      "name": "Alphabet Inc. Class A Common Stock",
+      "sector": "Technology",
+      "score": "-0.2235",
+      "target_weight": "0.0000",
+      "selected": false,
+      "beta": {
+        "beta": "1.1431",
+        "correlation": "0.5690",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 14,
+      "instrument_id": "US.AVGO",
+      "name": "Broadcom Inc. Common Stock",
+      "sector": "Technology",
+      "score": "-0.2641",
+      "target_weight": "0.0000",
+      "selected": false,
+      "beta": {
+        "beta": "1.2640",
+        "correlation": "0.4105",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 15,
+      "instrument_id": "US.TSLA",
+      "name": "Tesla Inc. Common Stock",
+      "sector": "Industrials",
+      "score": "-0.3179",
+      "target_weight": "0.0000",
+      "selected": false,
+      "beta": {
+        "beta": "2.0293",
+        "correlation": "0.7972",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 16,
+      "instrument_id": "US.AAPL",
+      "name": "Apple Inc. Common Stock",
+      "sector": "Technology",
+      "score": "-0.3299",
+      "target_weight": "0.0000",
+      "selected": false,
+      "beta": {
+        "beta": "1.1584",
+        "correlation": "0.5351",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 17,
+      "instrument_id": "US.META",
+      "name": "Meta Platforms Inc. Class A Common Stock",
+      "sector": "Technology",
+      "score": "-0.4261",
+      "target_weight": "0.0000",
+      "selected": false,
+      "beta": {
+        "beta": "1.6978",
+        "correlation": "0.7395",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 18,
+      "instrument_id": "US.AMD",
+      "name": "Advanced Micro Devices Inc. Common Stock",
+      "sector": "Technology",
+      "score": "-0.4495",
+      "target_weight": "0.0000",
+      "selected": false,
+      "beta": {
+        "beta": "3.0061",
+        "correlation": "0.6480",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 19,
+      "instrument_id": "US.LLY",
+      "name": "Eli Lilly and Company Common Stock",
+      "sector": "Health Care",
+      "score": "-0.4701",
+      "target_weight": "0.0000",
+      "selected": false,
+      "beta": {
+        "beta": "-0.5395",
+        "correlation": "-0.2113",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 20,
+      "instrument_id": "US.NKE",
+      "name": "Nike Inc. Common Stock",
+      "sector": "Consumer Discretionary",
+      "score": "-0.8215",
+      "target_weight": "0.0000",
+      "selected": false,
+      "beta": {
+        "beta": "1.2064",
+        "correlation": "0.4818",
+        "sample_size": "20"
+      }
+    }
+  ],
+  "candidate_buckets": {
+    "defensive_alpha": [
+      {
+        "instrument_id": "US.PLTR",
+        "name": "Palantir Technologies Inc. Class A Common Stock",
+        "sector": "Technology",
+        "score": "0.7881",
+        "beta": {
+          "beta": "0.5990",
+          "correlation": "0.1851",
+          "sample_size": "20"
+        }
+      },
+      {
+        "instrument_id": "US.MRVL",
+        "name": "Marvell Technology Inc. Common Stock",
+        "sector": "Technology",
+        "score": "0.5321",
+        "beta": {
+          "beta": "-0.3505",
+          "correlation": "-0.0544",
+          "sample_size": "20"
+        }
+      },
+      {
+        "instrument_id": "US.CVX",
+        "name": "Chevron Corporation Common Stock",
+        "sector": "Energy",
+        "score": "0.3187",
+        "beta": {
+          "beta": "-0.6324",
+          "correlation": "-0.3398",
+          "sample_size": "20"
+        }
+      },
+      {
+        "instrument_id": "US.XOM",
+        "name": "Exxon Mobil Corporation Common Stock",
+        "sector": "Energy",
+        "score": "0.1340",
+        "beta": {
+          "beta": "-0.7926",
+          "correlation": "-0.3551",
+          "sample_size": "20"
+        }
+      },
+      {
+        "instrument_id": "US.LLY",
+        "name": "Eli Lilly and Company Common Stock",
+        "sector": "Health Care",
+        "score": "-0.4701",
+        "beta": {
+          "beta": "-0.5395",
+          "correlation": "-0.2113",
+          "sample_size": "20"
+        }
+      }
+    ],
+    "balanced_alpha": [
+      {
+        "instrument_id": "US.MSFT",
+        "name": "Microsoft Corporation Common Stock",
+        "sector": "Technology",
+        "score": "-0.1893",
+        "beta": {
+          "beta": "0.8540",
+          "correlation": "0.4424",
+          "sample_size": "20"
+        }
+      },
+      {
+        "instrument_id": "US.GOOGL",
+        "name": "Alphabet Inc. Class A Common Stock",
+        "sector": "Technology",
+        "score": "-0.2235",
+        "beta": {
+          "beta": "1.1431",
+          "correlation": "0.5690",
+          "sample_size": "20"
+        }
+      },
+      {
+        "instrument_id": "US.AAPL",
+        "name": "Apple Inc. Common Stock",
+        "sector": "Technology",
+        "score": "-0.3299",
+        "beta": {
+          "beta": "1.1584",
+          "correlation": "0.5351",
+          "sample_size": "20"
+        }
+      }
+    ],
+    "aggressive_alpha": [
+      {
+        "instrument_id": "US.SNDK",
+        "name": "Sandisk Corporation Common Stock",
+        "sector": "Technology",
+        "score": "0.9202",
+        "beta": {
+          "beta": "3.3131",
+          "correlation": "0.4373",
+          "sample_size": "20"
+        }
+      },
+      {
+        "instrument_id": "US.LITE",
+        "name": "Lumentum Holdings Inc. Common Stock",
+        "sector": "Telecommunications",
+        "score": "0.6096",
+        "beta": {
+          "beta": "6.4439",
+          "correlation": "0.6421",
+          "sample_size": "20"
+        }
+      },
+      {
+        "instrument_id": "US.MU",
+        "name": "Micron Technology Inc. Common Stock",
+        "sector": "Technology",
+        "score": "0.3776",
+        "beta": {
+          "beta": "3.5899",
+          "correlation": "0.6627",
+          "sample_size": "20"
+        }
+      },
+      {
+        "instrument_id": "US.AMZN",
+        "name": "Amazon.com Inc. Common Stock",
+        "sector": "Consumer Discretionary",
+        "score": "0.1228",
+        "beta": {
+          "beta": "1.6319",
+          "correlation": "0.7375",
+          "sample_size": "20"
+        }
+      },
+      {
+        "instrument_id": "US.NVDA",
+        "name": "NVIDIA Corporation Common Stock",
+        "sector": "Technology",
+        "score": "0.0477",
+        "beta": {
+          "beta": "1.8571",
+          "correlation": "0.5996",
+          "sample_size": "20"
+        }
+      }
+    ],
+    "sector_leaders": [
+      {
+        "instrument_id": "US.SNDK",
+        "name": "Sandisk Corporation Common Stock",
+        "sector": "Technology",
+        "score": "0.9202",
+        "beta": {
+          "beta": "3.3131",
+          "correlation": "0.4373",
+          "sample_size": "20"
+        }
+      },
+      {
+        "instrument_id": "US.LITE",
+        "name": "Lumentum Holdings Inc. Common Stock",
+        "sector": "Telecommunications",
+        "score": "0.6096",
+        "beta": {
+          "beta": "6.4439",
+          "correlation": "0.6421",
+          "sample_size": "20"
+        }
+      },
+      {
+        "instrument_id": "US.CVX",
+        "name": "Chevron Corporation Common Stock",
+        "sector": "Energy",
+        "score": "0.3187",
+        "beta": {
+          "beta": "-0.6324",
+          "correlation": "-0.3398",
+          "sample_size": "20"
+        }
+      },
+      {
+        "instrument_id": "US.AMZN",
+        "name": "Amazon.com Inc. Common Stock",
+        "sector": "Consumer Discretionary",
+        "score": "0.1228",
+        "beta": {
+          "beta": "1.6319",
+          "correlation": "0.7375",
+          "sample_size": "20"
+        }
+      },
+      {
+        "instrument_id": "US.TSLA",
+        "name": "Tesla Inc. Common Stock",
+        "sector": "Industrials",
+        "score": "-0.3179",
+        "beta": {
+          "beta": "2.0293",
+          "correlation": "0.7972",
+          "sample_size": "20"
+        }
+      }
+    ]
+  },
+  "beta_extremes": {
+    "lowest_beta": [
+      {
+        "instrument_id": "US.XOM",
+        "name": "Exxon Mobil Corporation Common Stock",
+        "beta": "-0.7926",
+        "correlation": "-0.3551",
+        "sample_size": "20"
+      },
+      {
+        "instrument_id": "US.CVX",
+        "name": "Chevron Corporation Common Stock",
+        "beta": "-0.6324",
+        "correlation": "-0.3398",
+        "sample_size": "20"
+      },
+      {
+        "instrument_id": "US.LLY",
+        "name": "Eli Lilly and Company Common Stock",
+        "beta": "-0.5395",
+        "correlation": "-0.2113",
+        "sample_size": "20"
+      },
+      {
+        "instrument_id": "US.MRVL",
+        "name": "Marvell Technology Inc. Common Stock",
+        "beta": "-0.3505",
+        "correlation": "-0.0544",
+        "sample_size": "20"
+      },
+      {
+        "instrument_id": "US.PLTR",
+        "name": "Palantir Technologies Inc. Class A Common Stock",
+        "beta": "0.5990",
+        "correlation": "0.1851",
+        "sample_size": "20"
+      }
+    ],
+    "highest_beta": [
+      {
+        "instrument_id": "US.LITE",
+        "name": "Lumentum Holdings Inc. Common Stock",
+        "beta": "6.4439",
+        "correlation": "0.6421",
+        "sample_size": "20"
+      },
+      {
+        "instrument_id": "US.MU",
+        "name": "Micron Technology Inc. Common Stock",
+        "beta": "3.5899",
+        "correlation": "0.6627",
+        "sample_size": "20"
+      },
+      {
+        "instrument_id": "US.WDC",
+        "name": "Western Digital Corporation Common Stock",
+        "beta": "3.4864",
+        "correlation": "0.6318",
+        "sample_size": "20"
+      },
+      {
+        "instrument_id": "US.INTC",
+        "name": "Intel Corporation Common Stock",
+        "beta": "3.3694",
+        "correlation": "0.7221",
+        "sample_size": "20"
+      },
+      {
+        "instrument_id": "US.SNDK",
+        "name": "Sandisk Corporation Common Stock",
+        "beta": "3.3131",
+        "correlation": "0.4373",
+        "sample_size": "20"
+      }
+    ]
+  },
+  "signals": [
+    {
+      "instrument_id": "US.SNDK",
+      "name": "Sandisk Corporation Common Stock",
+      "score": "0.9202",
+      "reason": "alpha(rel_ret_60:0.5336, rel_ret_20:0.2006, drawdown:0.0826)",
+      "beta": {
+        "beta": "3.3131",
+        "correlation": "0.4373",
+        "sample_size": "20"
+      }
+    },
+    {
+      "instrument_id": "US.LITE",
+      "name": "Lumentum Holdings Inc. Common Stock",
+      "score": "0.6096",
+      "reason": "alpha(rel_ret_20:0.2738, rel_ret_60:0.1669, drawdown:0.1411)",
+      "beta": {
+        "beta": "6.4439",
+        "correlation": "0.6421",
+        "sample_size": "20"
+      }
+    },
+    {
+      "instrument_id": "US.PLTR",
+      "name": "Palantir Technologies Inc. Class A Common Stock",
+      "score": "0.7881",
+      "reason": "alpha(rel_ret_20:0.7080, trend:0.2360, rel_ret_60:-0.1012)",
+      "beta": {
+        "beta": "0.5990",
+        "correlation": "0.1851",
+        "sample_size": "20"
+      }
+    },
+    {
+      "instrument_id": "US.MRVL",
+      "name": "Marvell Technology Inc. Common Stock",
+      "score": "0.5321",
+      "reason": "alpha(rel_ret_20:0.5128, trend:0.1709, liquidity:-0.0886)",
+      "beta": {
+        "beta": "-0.3505",
+        "correlation": "-0.0544",
+        "sample_size": "20"
+      }
+    },
+    {
+      "instrument_id": "US.CVX",
+      "name": "Chevron Corporation Common Stock",
+      "score": "0.3187",
+      "reason": "alpha(rel_ret_20:0.3255, trend:0.1085, liquidity:-0.0817)",
+      "beta": {
+        "beta": "-0.6324",
+        "correlation": "-0.3398",
+        "sample_size": "20"
+      }
+    },
+    {
+      "instrument_id": "US.MU",
+      "name": "Micron Technology Inc. Common Stock",
+      "score": "0.3776",
+      "reason": "alpha(rel_ret_60:0.1499, rel_ret_20:0.1141, liquidity:0.0468)",
+      "beta": {
+        "beta": "3.5899",
+        "correlation": "0.6627",
+        "sample_size": "20"
+      }
+    },
+    {
+      "instrument_id": "US.XOM",
+      "name": "Exxon Mobil Corporation Common Stock",
+      "score": "0.1340",
+      "reason": "alpha(rel_ret_20:0.1648, liquidity:-0.0704, trend:0.0549)",
+      "beta": {
+        "beta": "-0.7926",
+        "correlation": "-0.3551",
+        "sample_size": "20"
+      }
+    },
+    {
+      "instrument_id": "US.AMZN",
+      "name": "Amazon.com Inc. Common Stock",
+      "score": "0.1228",
+      "reason": "alpha(rel_ret_20:0.1612, rel_ret_60:-0.0729, trend:0.0537)",
+      "beta": {
+        "beta": "1.6319",
+        "correlation": "0.7375",
+        "sample_size": "20"
+      }
+    },
+    {
+      "instrument_id": "US.NVDA",
+      "name": "NVIDIA Corporation Common Stock",
+      "score": "0.0477",
+      "reason": "alpha(liquidity:0.3182, rel_ret_20:-0.1631, trend:-0.0544)",
+      "beta": {
+        "beta": "1.8571",
+        "correlation": "0.5996",
+        "sample_size": "20"
+      }
+    }
+  ],
+  "trade_suggestions": [
+    {
+      "account_id": "us-default",
+      "instrument_id": "US.SNDK",
+      "name": "Sandisk Corporation Common Stock",
+      "side": "BUY",
+      "qty": 23,
+      "rationale": "rebalance_to_0.1553"
+    },
+    {
+      "account_id": "us-default",
+      "instrument_id": "US.LITE",
+      "name": "Lumentum Holdings Inc. Common Stock",
+      "side": "BUY",
+      "qty": 24,
+      "rationale": "rebalance_to_0.1504"
+    },
+    {
+      "account_id": "us-default",
+      "instrument_id": "US.PLTR",
+      "name": "Palantir Technologies Inc. Class A Common Stock",
+      "side": "BUY",
+      "qty": 88,
+      "rationale": "rebalance_to_0.1330"
+    },
+    {
+      "account_id": "us-default",
+      "instrument_id": "US.MRVL",
+      "name": "Marvell Technology Inc. Common Stock",
+      "side": "BUY",
+      "qty": 102,
+      "rationale": "rebalance_to_0.0898"
+    },
+    {
+      "account_id": "us-default",
+      "instrument_id": "US.CVX",
+      "name": "Chevron Corporation Common Stock",
+      "side": "BUY",
+      "qty": 39,
+      "rationale": "rebalance_to_0.0786"
+    },
+    {
+      "account_id": "us-default",
+      "instrument_id": "US.MU",
+      "name": "Micron Technology Inc. Common Stock",
+      "side": "BUY",
+      "qty": 14,
+      "rationale": "rebalance_to_0.0637"
+    },
+    {
+      "account_id": "us-default",
+      "instrument_id": "US.XOM",
+      "name": "Exxon Mobil Corporation Common Stock",
+      "side": "BUY",
+      "qty": 21,
+      "rationale": "rebalance_to_0.0331"
+    },
+    {
+      "account_id": "us-default",
+      "instrument_id": "US.AMZN",
+      "name": "Amazon.com Inc. Common Stock",
+      "side": "BUY",
+      "qty": 14,
+      "rationale": "rebalance_to_0.0303"
+    },
+    {
+      "account_id": "us-default",
+      "instrument_id": "US.NVDA",
+      "name": "NVIDIA Corporation Common Stock",
+      "side": "BUY",
+      "qty": 4,
+      "rationale": "rebalance_to_0.0081"
+    }
+  ],
+  "approved_order_intents": [
+    {
+      "instrument_id": "US.SNDK",
+      "name": "Sandisk Corporation Common Stock",
+      "side": "BUY",
+      "qty": 23,
+      "manual": true
+    },
+    {
+      "instrument_id": "US.LITE",
+      "name": "Lumentum Holdings Inc. Common Stock",
+      "side": "BUY",
+      "qty": 24,
+      "manual": true
+    },
+    {
+      "instrument_id": "US.PLTR",
+      "name": "Palantir Technologies Inc. Class A Common Stock",
+      "side": "BUY",
+      "qty": 88,
+      "manual": true
+    },
+    {
+      "instrument_id": "US.MRVL",
+      "name": "Marvell Technology Inc. Common Stock",
+      "side": "BUY",
+      "qty": 102,
+      "manual": true
+    },
+    {
+      "instrument_id": "US.CVX",
+      "name": "Chevron Corporation Common Stock",
+      "side": "BUY",
+      "qty": 39,
+      "manual": true
+    },
+    {
+      "instrument_id": "US.MU",
+      "name": "Micron Technology Inc. Common Stock",
+      "side": "BUY",
+      "qty": 14,
+      "manual": true
+    },
+    {
+      "instrument_id": "US.XOM",
+      "name": "Exxon Mobil Corporation Common Stock",
+      "side": "BUY",
+      "qty": 21,
+      "manual": true
+    },
+    {
+      "instrument_id": "US.AMZN",
+      "name": "Amazon.com Inc. Common Stock",
+      "side": "BUY",
+      "qty": 14,
+      "manual": true
+    },
+    {
+      "instrument_id": "US.NVDA",
+      "name": "NVIDIA Corporation Common Stock",
+      "side": "BUY",
+      "qty": 4,
+      "manual": true
+    }
+  ],
+  "risk_results": [
+    {
+      "order_intent_id": "us-default:US.SNDK:2026-03-13T16:00:00",
+      "passed": true,
+      "violations": []
+    },
+    {
+      "order_intent_id": "us-default:US.LITE:2026-03-13T16:00:00",
+      "passed": true,
+      "violations": []
+    },
+    {
+      "order_intent_id": "us-default:US.PLTR:2026-03-13T16:00:00",
+      "passed": true,
+      "violations": []
+    },
+    {
+      "order_intent_id": "us-default:US.MRVL:2026-03-13T16:00:00",
+      "passed": true,
+      "violations": []
+    },
+    {
+      "order_intent_id": "us-default:US.CVX:2026-03-13T16:00:00",
+      "passed": true,
+      "violations": []
+    },
+    {
+      "order_intent_id": "us-default:US.MU:2026-03-13T16:00:00",
+      "passed": true,
+      "violations": []
+    },
+    {
+      "order_intent_id": "us-default:US.XOM:2026-03-13T16:00:00",
+      "passed": true,
+      "violations": []
+    },
+    {
+      "order_intent_id": "us-default:US.AMZN:2026-03-13T16:00:00",
+      "passed": true,
+      "violations": []
+    },
+    {
+      "order_intent_id": "us-default:US.NVDA:2026-03-13T16:00:00",
+      "passed": true,
+      "violations": []
+    }
+  ],
+  "execution_results": [
+    {
+      "account_id": "us-default",
+      "fills": [
+        {
+          "instrument_id": "US.SNDK",
+          "status": "FILLED",
+          "requested_qty": 23,
+          "filled_qty": 23,
+          "estimated_price": "663.2740",
+          "cash_delta": "-15259.8797",
+          "estimated_cash_delta": "-15259.8797"
+        },
+        {
+          "instrument_id": "US.LITE",
+          "status": "FILLED",
+          "requested_qty": 24,
+          "filled_qty": 24,
+          "estimated_price": "624.0562",
+          "cash_delta": "-14981.8432",
+          "estimated_cash_delta": "-14981.8432"
+        },
+        {
+          "instrument_id": "US.PLTR",
+          "status": "FILLED",
+          "requested_qty": 88,
+          "filled_qty": 88,
+          "estimated_price": "151.3274",
+          "cash_delta": "-13320.8040",
+          "estimated_cash_delta": "-13320.8040"
+        },
+        {
+          "instrument_id": "US.MRVL",
+          "status": "FILLED",
+          "requested_qty": 102,
+          "filled_qty": 102,
+          "estimated_price": "88.0796",
+          "cash_delta": "-8986.8195",
+          "estimated_cash_delta": "-8986.8195"
+        },
+        {
+          "instrument_id": "US.CVX",
+          "status": "FILLED",
+          "requested_qty": 39,
+          "filled_qty": 39,
+          "estimated_price": "197.2319",
+          "cash_delta": "-7694.3524",
+          "estimated_cash_delta": "-7694.3524"
+        },
+        {
+          "instrument_id": "US.MU",
+          "status": "FILLED",
+          "requested_qty": 14,
+          "filled_qty": 14,
+          "estimated_price": "427.1953",
+          "cash_delta": "-5982.5288",
+          "estimated_cash_delta": "-5982.5288"
+        },
+        {
+          "instrument_id": "US.XOM",
+          "status": "FILLED",
+          "requested_qty": 21,
+          "filled_qty": 21,
+          "estimated_price": "156.5103",
+          "cash_delta": "-3287.7023",
+          "estimated_cash_delta": "-3287.7023"
+        },
+        {
+          "instrument_id": "US.AMZN",
+          "status": "FILLED",
+          "requested_qty": 14,
+          "filled_qty": 14,
+          "estimated_price": "208.1892",
+          "cash_delta": "-2915.5228",
+          "estimated_cash_delta": "-2915.5228"
+        },
+        {
+          "instrument_id": "US.NVDA",
+          "status": "FILLED",
+          "requested_qty": 4,
+          "filled_qty": 4,
+          "estimated_price": "180.7006",
+          "cash_delta": "-723.1525",
+          "estimated_cash_delta": "-723.1525"
+        }
+      ]
+    }
+  ],
+  "review": {
+    "verdict": "PASS",
+    "comments": [
+      "signal_count=9",
+      "signal_spread=0.8725",
+      "signal_average=0.4279",
+      "top_candidate=US.SNDK",
+      "target_count=9",
+      "target_hhi=0.0848",
+      "max_target_weight=0.1553",
+      "planned_turnover=0",
+      "planned_selected_count=10",
+      "trade_suggestion_count=9",
+      "rebalance_qty=329",
+      "rebalance_ratio=1.0000",
+      "drift_ratio=1.0000",
+      "account_count=1",
+      "position_count=0"
+    ]
+  }
+}

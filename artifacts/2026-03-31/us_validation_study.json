@@ -1,0 +1,204 @@
+{
+  "market": "US",
+  "start_date": "2026-01-02",
+  "end_date": "2026-03-31",
+  "holding_sessions": 5,
+  "split": {
+    "train": {
+      "label": "train",
+      "start_date": "2026-01-02",
+      "end_date": "2026-02-24",
+      "session_count": 36
+    },
+    "validate": {
+      "label": "validate",
+      "start_date": "2026-02-25",
+      "end_date": "2026-03-12",
+      "session_count": 12
+    },
+    "test": {
+      "label": "test",
+      "start_date": "2026-03-13",
+      "end_date": "2026-03-31",
+      "session_count": 13
+    }
+  },
+  "walk_forward": {
+    "windows": [
+      {
+        "window_index": 1,
+        "train": {
+          "label": "train",
+          "start_date": "2026-01-02",
+          "end_date": "2026-02-24",
+          "session_count": 36
+        },
+        "validate": {
+          "label": "validate",
+          "start_date": "2026-02-25",
+          "end_date": "2026-03-10",
+          "session_count": 10
+        },
+        "test": {
+          "label": "test",
+          "start_date": "2026-03-11",
+          "end_date": "2026-03-24",
+          "session_count": 10
+        }
+      }
+    ],
+    "scenario_summaries": [
+      {
+        "scenario_name": "baseline",
+        "window_count": 1,
+        "average_train_return": "0.0627",
+        "average_validate_return": "0.0124",
+        "average_test_return": "-0.0490",
+        "average_train_excess_return": "0.0629",
+        "average_validate_excess_return": "0.0257",
+        "average_test_excess_return": "-0.0300",
+        "average_train_win_rate": "0.7593",
+        "average_validate_win_rate": "0.5000",
+        "average_test_win_rate": "0.2500",
+        "test_return_std": "0.0000",
+        "validate_test_gap": "0.0615"
+      },
+      {
+        "scenario_name": "balanced_quality_momentum",
+        "window_count": 1,
+        "average_train_return": "0.0627",
+        "average_validate_return": "0.0124",
+        "average_test_return": "-0.0490",
+        "average_train_excess_return": "0.0629",
+        "average_validate_excess_return": "0.0257",
+        "average_test_excess_return": "-0.0300",
+        "average_train_win_rate": "0.7593",
+        "average_validate_win_rate": "0.5000",
+        "average_test_win_rate": "0.2500",
+        "test_return_std": "0.0000",
+        "validate_test_gap": "0.0615"
+      },
+      {
+        "scenario_name": "quality_defensive",
+        "window_count": 1,
+        "average_train_return": "0.0500",
+        "average_validate_return": "0.0112",
+        "average_test_return": "-0.0555",
+        "average_train_excess_return": "0.0502",
+        "average_validate_excess_return": "0.0245",
+        "average_test_excess_return": "-0.0365",
+        "average_train_win_rate": "0.6898",
+        "average_validate_win_rate": "0.5000",
+        "average_test_win_rate": "0.2167",
+        "test_return_std": "0.0000",
+        "validate_test_gap": "0.0668"
+      }
+    ]
+  },
+  "parameter_stability": {
+    "recommended_scenario": "baseline",
+    "scenarios": [
+      {
+        "scenario_name": "baseline",
+        "average_validate_return": "0.0124",
+        "average_test_return": "-0.0490",
+        "average_validate_excess_return": "0.0257",
+        "average_test_excess_return": "-0.0300",
+        "validate_test_gap": "0.0615",
+        "test_return_std": "0.0000",
+        "average_test_win_rate": "0.2500",
+        "positive_test_windows": 0,
+        "total_windows": 1,
+        "stability_score": "-0.0855"
+      },
+      {
+        "scenario_name": "balanced_quality_momentum",
+        "average_validate_return": "0.0124",
+        "average_test_return": "-0.0490",
+        "average_validate_excess_return": "0.0257",
+        "average_test_excess_return": "-0.0300",
+        "validate_test_gap": "0.0615",
+        "test_return_std": "0.0000",
+        "average_test_win_rate": "0.2500",
+        "positive_test_windows": 0,
+        "total_windows": 1,
+        "stability_score": "-0.0855"
+      },
+      {
+        "scenario_name": "quality_defensive",
+        "average_validate_return": "0.0112",
+        "average_test_return": "-0.0555",
+        "average_validate_excess_return": "0.0245",
+        "average_test_excess_return": "-0.0365",
+        "validate_test_gap": "0.0668",
+        "test_return_std": "0.0000",
+        "average_test_win_rate": "0.2167",
+        "positive_test_windows": 0,
+        "total_windows": 1,
+        "stability_score": "-0.1007"
+      }
+    ]
+  },
+  "segment_summaries": {
+    "baseline": {
+      "train": {
+        "average_return": "0.0627",
+        "average_excess_return": "0.0629",
+        "average_win_rate": "0.7593",
+        "observations": 36
+      },
+      "validate": {
+        "average_return": "0.0352",
+        "average_excess_return": "0.0489",
+        "average_win_rate": "0.5833",
+        "observations": 12
+      },
+      "test": {
+        "average_return": "-0.0221",
+        "average_excess_return": "-0.0172",
+        "average_win_rate": "0.4231",
+        "observations": 13
+      }
+    },
+    "quality_defensive": {
+      "train": {
+        "average_return": "0.0500",
+        "average_excess_return": "0.0502",
+        "average_win_rate": "0.6898",
+        "observations": 36
+      },
+      "validate": {
+        "average_return": "0.0288",
+        "average_excess_return": "0.0424",
+        "average_win_rate": "0.5556",
+        "observations": 12
+      },
+      "test": {
+        "average_return": "-0.0239",
+        "average_excess_return": "-0.0190",
+        "average_win_rate": "0.4231",
+        "observations": 13
+      }
+    },
+    "balanced_quality_momentum": {
+      "train": {
+        "average_return": "0.0627",
+        "average_excess_return": "0.0629",
+        "average_win_rate": "0.7593",
+        "observations": 36
+      },
+      "validate": {
+        "average_return": "0.0352",
+        "average_excess_return": "0.0489",
+        "average_win_rate": "0.5833",
+        "observations": 12
+      },
+      "test": {
+        "average_return": "-0.0221",
+        "average_excess_return": "-0.0172",
+        "average_win_rate": "0.4231",
+        "observations": 13
+      }
+    }
+  }
+}

@@ -1,0 +1,879 @@
+{
+  "summary": {
+    "market": "CN",
+    "start_date": "2026-03-02",
+    "end_date": "2026-03-31",
+    "runtime_mode": "BACKTEST",
+    "universe_scope": "FULL",
+    "detail_limit": 20,
+    "history_limit": 90,
+    "top_n": 10,
+    "initial_cash": "100000",
+    "final_nav": "100024.1696",
+    "total_return": "0.0002",
+    "trading_days": 22,
+    "days_with_fills": 16,
+    "buy_fill_count": 14,
+    "sell_fill_count": 8,
+    "final_cash": "42558.1696",
+    "final_positions": [
+      {
+        "instrument_id": "CN.002202",
+        "qty": 800,
+        "last_price": "26.3000",
+        "market_value": "21040.0000"
+      },
+      {
+        "instrument_id": "CN.600487",
+        "qty": 500,
+        "last_price": "52.6600",
+        "market_value": "26330.0000"
+      },
+      {
+        "instrument_id": "CN.600498",
+        "qty": 200,
+        "last_price": "50.4800",
+        "market_value": "10096.0000"
+      }
+    ]
+  },
+  "daily": [
+    {
+      "trade_date": "2026-03-02",
+      "fills": [],
+      "approved_orders": [],
+      "end_of_day_nav": "100000.0000",
+      "cash": "100000.0000",
+      "positions": []
+    },
+    {
+      "trade_date": "2026-03-03",
+      "fills": [
+        {
+          "instrument_id": "CN.002202",
+          "name": "金风科技",
+          "side": "BUY",
+          "filled_qty": 800,
+          "price": "28.3450",
+          "cash_delta": "-22682.7708",
+          "fees": "6.8028"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "CN.002202",
+          "side": "BUY",
+          "qty": 800
+        }
+      ],
+      "end_of_day_nav": "98381.2292",
+      "cash": "77317.2292",
+      "positions": [
+        {
+          "instrument_id": "CN.002202",
+          "qty": 800,
+          "last_price": "26.3300",
+          "market_value": "21064.0000"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-04",
+      "fills": [],
+      "approved_orders": [],
+      "end_of_day_nav": "98925.2292",
+      "cash": "77317.2292",
+      "positions": [
+        {
+          "instrument_id": "CN.002202",
+          "qty": 800,
+          "last_price": "27.0100",
+          "market_value": "21608.0000"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-05",
+      "fills": [],
+      "approved_orders": [],
+      "end_of_day_nav": "99717.2292",
+      "cash": "77317.2292",
+      "positions": [
+        {
+          "instrument_id": "CN.002202",
+          "qty": 800,
+          "last_price": "28.0000",
+          "market_value": "22400.0000"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-06",
+      "fills": [
+        {
+          "instrument_id": "CN.600498",
+          "name": "烽火通信",
+          "side": "BUY",
+          "filled_qty": 100,
+          "price": "55.9440",
+          "cash_delta": "-5599.4000",
+          "fees": "5.0000"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "CN.600498",
+          "side": "BUY",
+          "qty": 100
+        }
+      ],
+      "end_of_day_nav": "99769.8292",
+      "cash": "71717.8292",
+      "positions": [
+        {
+          "instrument_id": "CN.002202",
+          "qty": 800,
+          "last_price": "28.4700",
+          "market_value": "22776.0000"
+        },
+        {
+          "instrument_id": "CN.600498",
+          "qty": 100,
+          "last_price": "52.7600",
+          "market_value": "5276.0000"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-09",
+      "fills": [
+        {
+          "instrument_id": "CN.002202",
+          "name": "金风科技",
+          "side": "SELL",
+          "filled_qty": 100,
+          "price": "27.4784",
+          "cash_delta": "2741.4661",
+          "fees": "6.3739"
+        },
+        {
+          "instrument_id": "CN.600498",
+          "name": "烽火通信",
+          "side": "BUY",
+          "filled_qty": 200,
+          "price": "51.2669",
+          "cash_delta": "-10258.3760",
+          "fees": "5.0000"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "CN.002202",
+          "side": "SELL",
+          "qty": 100
+        },
+        {
+          "instrument_id": "CN.600498",
+          "side": "BUY",
+          "qty": 200
+        }
+      ],
+      "end_of_day_nav": "99729.9193",
+      "cash": "64200.9193",
+      "positions": [
+        {
+          "instrument_id": "CN.002202",
+          "qty": 700,
+          "last_price": "28.4700",
+          "market_value": "19929.0000"
+        },
+        {
+          "instrument_id": "CN.600498",
+          "qty": 300,
+          "last_price": "52.0000",
+          "market_value": "15600.0000"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-10",
+      "fills": [
+        {
+          "instrument_id": "CN.002202",
+          "name": "金风科技",
+          "side": "BUY",
+          "filled_qty": 100,
+          "price": "28.8187",
+          "cash_delta": "-2886.8720",
+          "fees": "5.0000"
+        },
+        {
+          "instrument_id": "CN.600498",
+          "name": "烽火通信",
+          "side": "BUY",
+          "filled_qty": 200,
+          "price": "53.4240",
+          "cash_delta": "-10689.8000",
+          "fees": "5.0000"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "CN.002202",
+          "side": "BUY",
+          "qty": 100
+        },
+        {
+          "instrument_id": "CN.600498",
+          "side": "BUY",
+          "qty": 200
+        }
+      ],
+      "end_of_day_nav": "102008.2473",
+      "cash": "50624.2473",
+      "positions": [
+        {
+          "instrument_id": "CN.002202",
+          "qty": 800,
+          "last_price": "28.4800",
+          "market_value": "22784.0000"
+        },
+        {
+          "instrument_id": "CN.600498",
+          "qty": 500,
+          "last_price": "57.2000",
+          "market_value": "28600.0000"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-11",
+      "fills": [
+        {
+          "instrument_id": "CN.002202",
+          "name": "金风科技",
+          "side": "SELL",
+          "filled_qty": 100,
+          "price": "28.2819",
+          "cash_delta": "2821.7779",
+          "fees": "6.4141"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "CN.002202",
+          "side": "SELL",
+          "qty": 100
+        }
+      ],
+      "end_of_day_nav": "103129.0252",
+      "cash": "53446.0252",
+      "positions": [
+        {
+          "instrument_id": "CN.002202",
+          "qty": 700,
+          "last_price": "30.2400",
+          "market_value": "21168.0000"
+        },
+        {
+          "instrument_id": "CN.600498",
+          "qty": 500,
+          "last_price": "57.0300",
+          "market_value": "28515.0000"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-12",
+      "fills": [
+        {
+          "instrument_id": "CN.600498",
+          "name": "烽火通信",
+          "side": "SELL",
+          "filled_qty": 100,
+          "price": "56.5638",
+          "cash_delta": "5648.5558",
+          "fees": "7.8282"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "CN.600498",
+          "side": "SELL",
+          "qty": 100
+        }
+      ],
+      "end_of_day_nav": "103197.5810",
+      "cash": "59094.5810",
+      "positions": [
+        {
+          "instrument_id": "CN.002202",
+          "qty": 700,
+          "last_price": "31.2900",
+          "market_value": "21903.0000"
+        },
+        {
+          "instrument_id": "CN.600498",
+          "qty": 400,
+          "last_price": "55.5000",
+          "market_value": "22200.0000"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-13",
+      "fills": [],
+      "approved_orders": [],
+      "end_of_day_nav": "102039.5810",
+      "cash": "59094.5810",
+      "positions": [
+        {
+          "instrument_id": "CN.002202",
+          "qty": 700,
+          "last_price": "31.4300",
+          "market_value": "22001.0000"
+        },
+        {
+          "instrument_id": "CN.600498",
+          "qty": 400,
+          "last_price": "52.3600",
+          "market_value": "20944.0000"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-16",
+      "fills": [
+        {
+          "instrument_id": "CN.002202",
+          "name": "金风科技",
+          "side": "BUY",
+          "filled_qty": 100,
+          "price": "32.1552",
+          "cash_delta": "-3220.5200",
+          "fees": "5.0000"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "CN.002202",
+          "side": "BUY",
+          "qty": 100
+        }
+      ],
+      "end_of_day_nav": "101126.0610",
+      "cash": "55874.0610",
+      "positions": [
+        {
+          "instrument_id": "CN.002202",
+          "qty": 800,
+          "last_price": "31.0100",
+          "market_value": "24808.0000"
+        },
+        {
+          "instrument_id": "CN.600498",
+          "qty": 400,
+          "last_price": "51.1100",
+          "market_value": "20444.0000"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-17",
+      "fills": [
+        {
+          "instrument_id": "CN.600487",
+          "name": "亨通光电",
+          "side": "BUY",
+          "filled_qty": 100,
+          "price": "48.2731",
+          "cash_delta": "-4832.3120",
+          "fees": "5.0000"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "CN.600487",
+          "side": "BUY",
+          "qty": 100
+        }
+      ],
+      "end_of_day_nav": "96911.7490",
+      "cash": "51041.7490",
+      "positions": [
+        {
+          "instrument_id": "CN.002202",
+          "qty": 800,
+          "last_price": "28.5500",
+          "market_value": "22840.0000"
+        },
+        {
+          "instrument_id": "CN.600487",
+          "qty": 100,
+          "last_price": "43.2200",
+          "market_value": "4322.0000"
+        },
+        {
+          "instrument_id": "CN.600498",
+          "qty": 400,
+          "last_price": "46.7700",
+          "market_value": "18708.0000"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-18",
+      "fills": [
+        {
+          "instrument_id": "CN.002202",
+          "name": "金风科技",
+          "side": "SELL",
+          "filled_qty": 100,
+          "price": "28.3315",
+          "cash_delta": "2826.7354",
+          "fees": "6.4166"
+        },
+        {
+          "instrument_id": "CN.600487",
+          "name": "亨通光电",
+          "side": "BUY",
+          "filled_qty": 100,
+          "price": "43.4448",
+          "cash_delta": "-4349.4800",
+          "fees": "5.0000"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "CN.002202",
+          "side": "SELL",
+          "qty": 100
+        },
+        {
+          "instrument_id": "CN.600487",
+          "side": "BUY",
+          "qty": 100
+        }
+      ],
+      "end_of_day_nav": "99181.0044",
+      "cash": "49519.0044",
+      "positions": [
+        {
+          "instrument_id": "CN.002202",
+          "qty": 700,
+          "last_price": "31.0000",
+          "market_value": "21700.0000"
+        },
+        {
+          "instrument_id": "CN.600487",
+          "qty": 200,
+          "last_price": "44.5100",
+          "market_value": "8902.0000"
+        },
+        {
+          "instrument_id": "CN.600498",
+          "qty": 400,
+          "last_price": "47.6500",
+          "market_value": "19060.0000"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-19",
+      "fills": [
+        {
+          "instrument_id": "CN.002202",
+          "name": "金风科技",
+          "side": "BUY",
+          "filled_qty": 100,
+          "price": "30.2400",
+          "cash_delta": "-3029.0000",
+          "fees": "5.0000"
+        },
+        {
+          "instrument_id": "CN.600487",
+          "name": "亨通光电",
+          "side": "BUY",
+          "filled_qty": 100,
+          "price": "43.2230",
+          "cash_delta": "-4327.3040",
+          "fees": "5.0000"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "CN.002202",
+          "side": "BUY",
+          "qty": 100
+        },
+        {
+          "instrument_id": "CN.600487",
+          "side": "BUY",
+          "qty": 100
+        }
+      ],
+      "end_of_day_nav": "97319.7004",
+      "cash": "42162.7004",
+      "positions": [
+        {
+          "instrument_id": "CN.002202",
+          "qty": 800,
+          "last_price": "29.8100",
+          "market_value": "23848.0000"
+        },
+        {
+          "instrument_id": "CN.600487",
+          "qty": 300,
+          "last_price": "43.1100",
+          "market_value": "12933.0000"
+        },
+        {
+          "instrument_id": "CN.600498",
+          "qty": 400,
+          "last_price": "45.9400",
+          "market_value": "18376.0000"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-20",
+      "fills": [
+        {
+          "instrument_id": "CN.002202",
+          "name": "金风科技",
+          "side": "SELL",
+          "filled_qty": 100,
+          "price": "29.6608",
+          "cash_delta": "2959.5970",
+          "fees": "6.4830"
+        },
+        {
+          "instrument_id": "CN.600487",
+          "name": "亨通光电",
+          "side": "BUY",
+          "filled_qty": 100,
+          "price": "44.8560",
+          "cash_delta": "-4490.6000",
+          "fees": "5.0000"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "CN.002202",
+          "side": "SELL",
+          "qty": 100
+        },
+        {
+          "instrument_id": "CN.600487",
+          "side": "BUY",
+          "qty": 100
+        }
+      ],
+      "end_of_day_nav": "95967.6974",
+      "cash": "40631.6974",
+      "positions": [
+        {
+          "instrument_id": "CN.002202",
+          "qty": 700,
+          "last_price": "29.2000",
+          "market_value": "20440.0000"
+        },
+        {
+          "instrument_id": "CN.600487",
+          "qty": 400,
+          "last_price": "42.9800",
+          "market_value": "17192.0000"
+        },
+        {
+          "instrument_id": "CN.600498",
+          "qty": 400,
+          "last_price": "44.2600",
+          "market_value": "17704.0000"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-23",
+      "fills": [
+        {
+          "instrument_id": "CN.002202",
+          "name": "金风科技",
+          "side": "BUY",
+          "filled_qty": 100,
+          "price": "28.6272",
+          "cash_delta": "-2867.7200",
+          "fees": "5.0000"
+        },
+        {
+          "instrument_id": "CN.600487",
+          "name": "亨通光电",
+          "side": "BUY",
+          "filled_qty": 100,
+          "price": "42.3662",
+          "cash_delta": "-4241.6240",
+          "fees": "5.0000"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "CN.002202",
+          "side": "BUY",
+          "qty": 100
+        },
+        {
+          "instrument_id": "CN.600487",
+          "side": "BUY",
+          "qty": 100
+        }
+      ],
+      "end_of_day_nav": "92914.3534",
+      "cash": "33522.3534",
+      "positions": [
+        {
+          "instrument_id": "CN.002202",
+          "qty": 800,
+          "last_price": "27.4100",
+          "market_value": "21928.0000"
+        },
+        {
+          "instrument_id": "CN.600487",
+          "qty": 500,
+          "last_price": "41.3600",
+          "market_value": "20680.0000"
+        },
+        {
+          "instrument_id": "CN.600498",
+          "qty": 400,
+          "last_price": "41.9600",
+          "market_value": "16784.0000"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-24",
+      "fills": [
+        {
+          "instrument_id": "CN.600498",
+          "name": "烽火通信",
+          "side": "SELL",
+          "filled_qty": 100,
+          "price": "42.6362",
+          "cash_delta": "4256.4842",
+          "fees": "7.1318"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "CN.600498",
+          "side": "SELL",
+          "qty": 100
+        }
+      ],
+      "end_of_day_nav": "95227.8376",
+      "cash": "37778.8376",
+      "positions": [
+        {
+          "instrument_id": "CN.002202",
+          "qty": 800,
+          "last_price": "27.5800",
+          "market_value": "22064.0000"
+        },
+        {
+          "instrument_id": "CN.600487",
+          "qty": 500,
+          "last_price": "44.3700",
+          "market_value": "22185.0000"
+        },
+        {
+          "instrument_id": "CN.600498",
+          "qty": 300,
+          "last_price": "44.0000",
+          "market_value": "13200.0000"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-25",
+      "fills": [],
+      "approved_orders": [],
+      "end_of_day_nav": "98596.8376",
+      "cash": "37778.8376",
+      "positions": [
+        {
+          "instrument_id": "CN.002202",
+          "qty": 800,
+          "last_price": "28.3100",
+          "market_value": "22648.0000"
+        },
+        {
+          "instrument_id": "CN.600487",
+          "qty": 500,
+          "last_price": "48.1700",
+          "market_value": "24085.0000"
+        },
+        {
+          "instrument_id": "CN.600498",
+          "qty": 300,
+          "last_price": "46.9500",
+          "market_value": "14085.0000"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-26",
+      "fills": [
+        {
+          "instrument_id": "CN.002202",
+          "name": "金风科技",
+          "side": "SELL",
+          "filled_qty": 100,
+          "price": "28.3811",
+          "cash_delta": "2831.6929",
+          "fees": "6.4191"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "CN.002202",
+          "side": "SELL",
+          "qty": 100
+        }
+      ],
+      "end_of_day_nav": "97867.5305",
+      "cash": "40610.5305",
+      "positions": [
+        {
+          "instrument_id": "CN.002202",
+          "qty": 700,
+          "last_price": "28.1300",
+          "market_value": "19691.0000"
+        },
+        {
+          "instrument_id": "CN.600487",
+          "qty": 500,
+          "last_price": "47.8800",
+          "market_value": "23940.0000"
+        },
+        {
+          "instrument_id": "CN.600498",
+          "qty": 300,
+          "last_price": "45.4200",
+          "market_value": "13626.0000"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-27",
+      "fills": [
+        {
+          "instrument_id": "CN.002202",
+          "name": "金风科技",
+          "side": "BUY",
+          "filled_qty": 100,
+          "price": "27.6192",
+          "cash_delta": "-2766.9200",
+          "fees": "5.0000"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "CN.002202",
+          "side": "BUY",
+          "qty": 100
+        }
+      ],
+      "end_of_day_nav": "98072.6105",
+      "cash": "37843.6105",
+      "positions": [
+        {
+          "instrument_id": "CN.002202",
+          "qty": 800,
+          "last_price": "27.4500",
+          "market_value": "21960.0000"
+        },
+        {
+          "instrument_id": "CN.600487",
+          "qty": 500,
+          "last_price": "48.9500",
+          "market_value": "24475.0000"
+        },
+        {
+          "instrument_id": "CN.600498",
+          "qty": 300,
+          "last_price": "45.9800",
+          "market_value": "13794.0000"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-30",
+      "fills": [],
+      "approved_orders": [],
+      "end_of_day_nav": "101584.6105",
+      "cash": "37843.6105",
+      "positions": [
+        {
+          "instrument_id": "CN.002202",
+          "qty": 800,
+          "last_price": "27.7200",
+          "market_value": "22176.0000"
+        },
+        {
+          "instrument_id": "CN.600487",
+          "qty": 500,
+          "last_price": "53.8500",
+          "market_value": "26925.0000"
+        },
+        {
+          "instrument_id": "CN.600498",
+          "qty": 300,
+          "last_price": "48.8000",
+          "market_value": "14640.0000"
+        }
+      ]
+    },
+    {
+      "trade_date": "2026-03-31",
+      "fills": [
+        {
+          "instrument_id": "CN.600498",
+          "name": "烽火通信",
+          "side": "SELL",
+          "filled_qty": 100,
+          "price": "47.2192",
+          "cash_delta": "4714.5590",
+          "fees": "7.3610"
+        }
+      ],
+      "approved_orders": [
+        {
+          "instrument_id": "CN.600498",
+          "side": "SELL",
+          "qty": 100
+        }
+      ],
+      "end_of_day_nav": "100024.1696",
+      "cash": "42558.1696",
+      "positions": [
+        {
+          "instrument_id": "CN.002202",
+          "qty": 800,
+          "last_price": "26.3000",
+          "market_value": "21040.0000"
+        },
+        {
+          "instrument_id": "CN.600487",
+          "qty": 500,
+          "last_price": "52.6600",
+          "market_value": "26330.0000"
+        },
+        {
+          "instrument_id": "CN.600498",
+          "qty": 200,
+          "last_price": "50.4800",
+          "market_value": "10096.0000"
+        }
+      ]
+    }
+  ]
+}

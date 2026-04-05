@@ -1,0 +1,60 @@
+{
+  "market": "CN",
+  "start_date": "2026-01-02",
+  "end_date": "2026-03-31",
+  "initial_cash": "100000",
+  "detail_limit": 8,
+  "history_limit": 60,
+  "strategies": [
+    {
+      "preset_id": "cn_momentum_core",
+      "display_name": "A股动量核心",
+      "family": "动量",
+      "description": "以20/60日相对强弱和趋势为核心的中期动量策略。",
+      "total_return": "0.1029",
+      "max_drawdown": "-0.0374",
+      "final_nav": "110285.2918",
+      "trading_days": 56
+    },
+    {
+      "preset_id": "cn_quality_momentum",
+      "display_name": "A股质量动量",
+      "family": "质量+动量",
+      "description": "盈利能力叠加中期动量，兼顾趋势和回撤。",
+      "total_return": "0.0309",
+      "max_drawdown": "-0.0320",
+      "final_nav": "103086.0866",
+      "trading_days": 56
+    },
+    {
+      "preset_id": "cn_liquidity_leaders",
+      "display_name": "A股流动性龙头",
+      "family": "流动性",
+      "description": "优先流动性和中期强势，偏向高成交活跃标的。",
+      "total_return": "0.0262",
+      "max_drawdown": "-0.0255",
+      "final_nav": "102616.6129",
+      "trading_days": 56
+    },
+    {
+      "preset_id": "cn_low_vol_defensive",
+      "display_name": "A股低波防御",
+      "family": "低波动",
+      "description": "降低波动和回撤暴露，保留少量中期趋势与盈利质量。",
+      "total_return": "0.0138",
+      "max_drawdown": "-0.0290",
+      "final_nav": "101383.0011",
+      "trading_days": 56
+    },
+    {
+      "preset_id": "cn_baseline",
+      "display_name": "A股基线增强",
+      "family": "指数增强",
+      "description": "当前默认的指数增强型多因子策略。",
+      "total_return": "-0.0216",
+      "max_drawdown": "-0.0669",
+      "final_nav": "97839.1432",
+      "trading_days": 56
+    }
+  ]
+}

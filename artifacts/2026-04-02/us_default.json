@@ -1,0 +1,328 @@
+{
+  "market": "US",
+  "trade_date": "2026-04-02",
+  "runtime_mode": "PAPER",
+  "universe_scope": "DEFAULT",
+  "symbols": [
+    "AAPL",
+    "MSFT",
+    "NVDA",
+    "AMZN",
+    "GOOGL"
+  ],
+  "resolved_symbol_count": 6,
+  "benchmark": {
+    "benchmark_id": "SP500_PROXY",
+    "constituent_count": 504,
+    "matched_symbol_count": 5
+  },
+  "data_coverage": {
+    "fundamental_coverage": "5/6"
+  },
+  "strategy_id": "us_quality_momentum",
+  "research_highlights": [
+    "top_candidates=US.NVDA,US.AAPL",
+    "signal_count=2"
+  ],
+  "portfolio_diagnostics": {
+    "gross_exposure": "0.4509247349420502901787410427",
+    "cash_buffer": "0.5490752650579497098212589573",
+    "turnover": "0",
+    "selected_count": 2,
+    "sector_exposure": {
+      "Technology": "0.4374983535176189754410965740",
+      "Consumer Discretionary": "0.01342638142443131473764446869"
+    }
+  },
+  "ranked_candidates": [
+    {
+      "rank": 1,
+      "instrument_id": "US.NVDA",
+      "sector": "Technology",
+      "score": "0.9929",
+      "target_weight": "0.2800",
+      "selected": true,
+      "beta": {
+        "beta": "1.8964",
+        "correlation": "0.9645",
+        "sample_size": "8"
+      }
+    },
+    {
+      "rank": 2,
+      "instrument_id": "US.AAPL",
+      "sector": "Technology",
+      "score": "0.4685",
+      "target_weight": "0.1435",
+      "selected": true,
+      "beta": null
+    },
+    {
+      "rank": 3,
+      "instrument_id": "US.AMZN",
+      "sector": "Consumer Discretionary",
+      "score": "-0.2318",
+      "target_weight": "0.0134",
+      "selected": true,
+      "beta": {
+        "beta": "1.4715",
+        "correlation": "0.9056",
+        "sample_size": "8"
+      }
+    },
+    {
+      "rank": 4,
+      "instrument_id": "US.GOOGL",
+      "sector": "Technology",
+      "score": "-0.5640",
+      "target_weight": "0.0054",
+      "selected": true,
+      "beta": {
+        "beta": "1.8607",
+        "correlation": "0.8782",
+        "sample_size": "8"
+      }
+    },
+    {
+      "rank": 5,
+      "instrument_id": "US.MSFT",
+      "sector": "Technology",
+      "score": "-0.6655",
+      "target_weight": "0.0086",
+      "selected": true,
+      "beta": {
+        "beta": "1.0364",
+        "correlation": "0.8002",
+        "sample_size": "8"
+      }
+    }
+  ],
+  "candidate_buckets": {
+    "defensive_alpha": [],
+    "balanced_alpha": [
+      {
+        "instrument_id": "US.MSFT",
+        "sector": "Technology",
+        "score": "-0.6655",
+        "beta": {
+          "beta": "1.0364",
+          "correlation": "0.8002",
+          "sample_size": "8"
+        }
+      }
+    ],
+    "aggressive_alpha": [
+      {
+        "instrument_id": "US.NVDA",
+        "sector": "Technology",
+        "score": "0.9929",
+        "beta": {
+          "beta": "1.8964",
+          "correlation": "0.9645",
+          "sample_size": "8"
+        }
+      },
+      {
+        "instrument_id": "US.AMZN",
+        "sector": "Consumer Discretionary",
+        "score": "-0.2318",
+        "beta": {
+          "beta": "1.4715",
+          "correlation": "0.9056",
+          "sample_size": "8"
+        }
+      },
+      {
+        "instrument_id": "US.GOOGL",
+        "sector": "Technology",
+        "score": "-0.5640",
+        "beta": {
+          "beta": "1.8607",
+          "correlation": "0.8782",
+          "sample_size": "8"
+        }
+      }
+    ],
+    "sector_leaders": [
+      {
+        "instrument_id": "US.NVDA",
+        "sector": "Technology",
+        "score": "0.9929",
+        "beta": {
+          "beta": "1.8964",
+          "correlation": "0.9645",
+          "sample_size": "8"
+        }
+      },
+      {
+        "instrument_id": "US.AMZN",
+        "sector": "Consumer Discretionary",
+        "score": "-0.2318",
+        "beta": {
+          "beta": "1.4715",
+          "correlation": "0.9056",
+          "sample_size": "8"
+        }
+      }
+    ]
+  },
+  "beta_extremes": {
+    "lowest_beta": [
+      {
+        "instrument_id": "US.MSFT",
+        "beta": "1.0364",
+        "correlation": "0.8002",
+        "sample_size": "8"
+      },
+      {
+        "instrument_id": "US.AMZN",
+        "beta": "1.4715",
+        "correlation": "0.9056",
+        "sample_size": "8"
+      },
+      {
+        "instrument_id": "US.GOOGL",
+        "beta": "1.8607",
+        "correlation": "0.8782",
+        "sample_size": "8"
+      },
+      {
+        "instrument_id": "US.NVDA",
+        "beta": "1.8964",
+        "correlation": "0.9645",
+        "sample_size": "8"
+      }
+    ],
+    "highest_beta": [
+      {
+        "instrument_id": "US.NVDA",
+        "beta": "1.8964",
+        "correlation": "0.9645",
+        "sample_size": "8"
+      },
+      {
+        "instrument_id": "US.GOOGL",
+        "beta": "1.8607",
+        "correlation": "0.8782",
+        "sample_size": "8"
+      },
+      {
+        "instrument_id": "US.AMZN",
+        "beta": "1.4715",
+        "correlation": "0.9056",
+        "sample_size": "8"
+      },
+      {
+        "instrument_id": "US.MSFT",
+        "beta": "1.0364",
+        "correlation": "0.8002",
+        "sample_size": "8"
+      }
+    ]
+  },
+  "signals": [
+    {
+      "instrument_id": "US.NVDA",
+      "score": "0.9929",
+      "reason": "alpha(rel_ret_20:0.3462, profitability:0.2749, liquidity:0.1760)",
+      "beta": {
+        "beta": "1.8964",
+        "correlation": "0.9645",
+        "sample_size": "8"
+      }
+    },
+    {
+      "instrument_id": "US.AAPL",
+      "score": "0.4685",
+      "reason": "alpha(profitability:0.3554, rel_ret_20:0.1689, rel_ret_60:0.0845)",
+      "beta": null
+    }
+  ],
+  "trade_suggestions": [
+    {
+      "account_id": "us-default",
+      "instrument_id": "US.NVDA",
+      "side": "BUY",
+      "qty": 157,
+      "rationale": "rebalance_to_0.2800"
+    },
+    {
+      "account_id": "us-default",
+      "instrument_id": "US.AAPL",
+      "side": "BUY",
+      "qty": 56,
+      "rationale": "rebalance_to_0.1435"
+    }
+  ],
+  "approved_order_intents": [
+    {
+      "instrument_id": "US.NVDA",
+      "side": "BUY",
+      "qty": 157,
+      "manual": true
+    },
+    {
+      "instrument_id": "US.AAPL",
+      "side": "BUY",
+      "qty": 56,
+      "manual": true
+    }
+  ],
+  "risk_results": [
+    {
+      "order_intent_id": "us-default:US.NVDA:2026-04-02T16:00:00",
+      "passed": true,
+      "violations": []
+    },
+    {
+      "order_intent_id": "us-default:US.AAPL:2026-04-02T16:00:00",
+      "passed": true,
+      "violations": []
+    }
+  ],
+  "execution_results": [
+    {
+      "account_id": "us-default",
+      "fills": [
+        {
+          "instrument_id": "US.NVDA",
+          "status": "FILLED",
+          "requested_qty": 157,
+          "filled_qty": 157,
+          "estimated_price": "177.8335",
+          "cash_delta": "-27928.2315",
+          "estimated_cash_delta": "-27928.2315"
+        },
+        {
+          "instrument_id": "US.AAPL",
+          "status": "FILLED",
+          "requested_qty": 56,
+          "filled_qty": 56,
+          "estimated_price": "256.5598",
+          "cash_delta": "-14371.6590",
+          "estimated_cash_delta": "-14371.6590"
+        }
+      ]
+    }
+  ],
+  "review": {
+    "verdict": "PASS",
+    "comments": [
+      "signal_count=2",
+      "signal_spread=0.5244",
+      "signal_average=0.7307",
+      "top_candidate=US.NVDA",
+      "target_count=2",
+      "target_hhi=0.0990",
+      "max_target_weight=0.2800",
+      "planned_turnover=0",
+      "planned_selected_count=2",
+      "trade_suggestion_count=2",
+      "rebalance_qty=213",
+      "rebalance_ratio=1.0000",
+      "drift_ratio=1.0000",
+      "account_count=1",
+      "position_count=0"
+    ]
+  }
+}

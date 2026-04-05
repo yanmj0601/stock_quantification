@@ -1,0 +1,60 @@
+{
+  "market": "US",
+  "start_date": "2026-01-02",
+  "end_date": "2026-03-31",
+  "initial_cash": "100000",
+  "detail_limit": 6,
+  "history_limit": 60,
+  "strategies": [
+    {
+      "preset_id": "us_momentum_core",
+      "display_name": "美股动量核心",
+      "family": "动量",
+      "description": "以相对强弱和趋势为核心的中期动量策略。",
+      "total_return": "0.2584",
+      "max_drawdown": "-0.0939",
+      "final_nav": "125844.4470",
+      "trading_days": 61
+    },
+    {
+      "preset_id": "us_baseline",
+      "display_name": "美股基线质量动量",
+      "family": "质量+动量",
+      "description": "当前默认的大市值质量动量多因子策略。",
+      "total_return": "0.2439",
+      "max_drawdown": "-0.0870",
+      "final_nav": "124385.2146",
+      "trading_days": 61
+    },
+    {
+      "preset_id": "us_liquidity_leaders",
+      "display_name": "美股流动性龙头",
+      "family": "流动性",
+      "description": "优先高流动性大市值股票，保留一定中期动量。",
+      "total_return": "0.1905",
+      "max_drawdown": "-0.0966",
+      "final_nav": "119045.0333",
+      "trading_days": 61
+    },
+    {
+      "preset_id": "us_quality_focus",
+      "display_name": "美股质量精选",
+      "family": "质量",
+      "description": "以盈利能力和经营质量为核心，辅以回撤控制。",
+      "total_return": "0.0511",
+      "max_drawdown": "-0.1084",
+      "final_nav": "105111.6807",
+      "trading_days": 61
+    },
+    {
+      "preset_id": "us_low_vol_defensive",
+      "display_name": "美股低波防御",
+      "family": "低波动",
+      "description": "质量和盈利能力叠加低波动约束，强调防守。",
+      "total_return": "-0.0789",
+      "max_drawdown": "-0.1349",
+      "final_nav": "92114.0075",
+      "trading_days": 61
+    }
+  ]
+}
