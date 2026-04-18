@@ -179,32 +179,14 @@ class DashboardApp:
         return self._text("Not found", HTTPStatus.NOT_FOUND, "text/plain; charset=utf-8")
 
     def render_home(self, query: Dict[str, List[str]]) -> WebResponse:
-        config = self._load_project_config()
-        artifact_query = query.get("artifact", [None])[0]
-        selected_artifact = self._resolve_selected_artifact(artifact_query)
-        artifact_html = self._render_selected_artifact(selected_artifact)
-        run_results_html = self._render_run_results()
-        factor_backtest_html = self._render_factor_backtest_results()
-        indexed_results_html = self._render_indexed_result_cards()
-        artifact_cards_html = self._render_recent_artifact_cards(selected_artifact.relative_path if selected_artifact else None)
-        chat_html = self._render_chat_panel()
-        flash_html = self._render_flash_messages()
-        factor_form_html = self._render_factor_backtest_form()
-        local_paper_html = self._render_local_paper_panel(query)
-
-        content = self._render_content(
-            config=config,
-            artifact_html=artifact_html,
-            run_results_html=run_results_html,
-            factor_backtest_html=factor_backtest_html,
-            indexed_results_html=indexed_results_html,
-            artifact_cards_html=artifact_cards_html,
-            chat_html=chat_html,
-            flash_html=flash_html,
-            factor_form_html=factor_form_html,
-            local_paper_html=local_paper_html,
-        )
-        return self._html_page(content)
+        view = self._dashboard_view(query)
+        if view == "workbench":
+            return self._render_workbench_page(query)
+        if view == "results":
+            return self._render_results_page(query)
+        if view == "paper":
+            return self._render_paper_page(query)
+        return self._render_overview_page(query)
 
     def render_project_config(self) -> WebResponse:
         config = self._load_project_config()
@@ -2330,6 +2312,248 @@ class DashboardApp:
             content_type="text/html; charset=utf-8",
             body=body.encode("utf-8"),
             headers={"Cache-Control": "no-store, max-age=0"},
+        )
+
+    def _dashboard_view(self, query: Dict[str, List[str]]) -> str:
+        raw_view = query.get("view", ["overview"])[0].strip().lower()
+        if raw_view in {"overview", "workbench", "results", "paper"}:
+            return raw_view
+        return "overview"
+
+    def _render_page_shell(self, active_page: str, title: str, eyebrow: str, description: str, body: str) -> str:
+        return f"""
+        <main class="shell">
+          <section class="hero">
+            <div>
+              <p class="eyebrow">Project Status</p>
+              <p class="eyebrow">{escape(eyebrow)}</p>
+              <h1>{escape(title)}</h1>
+              <p class="hero__copy">{escape(description)}</p>
+            </div>
+          </section>
+          <div class="workspace">
+            <aside class="workspace__nav">
+              {self._render_sidebar_nav(active_page)}
+            </aside>
+            <div class="workspace__content">
+              {body}
+            </div>
+          </div>
+          {self._render_interactive_script()}
+        </main>
+        """
+
+    def _render_sidebar_nav(self, active_page: str) -> str:
+        items = [
+            ("overview", "/", "Overview / 总览", "项目总览与运行状态"),
+            ("workbench", "/?view=workbench", "Research Workbench / 研究工作台", "因子实验与工作台"),
+            ("results", "/?view=results", "Research Results / 研究结果", "研究和运行结果索引"),
+            ("paper", "/?view=paper", "Local Paper / 模拟盘", "模拟盘账户与流水"),
+            ("logs", "/project/logs", "Logs / 任务日志", "任务与审计流水"),
+            ("ops", "/project/ops", "Ops / 运维中心", "健康检查与后台守护"),
+            ("config", "/project/config", "Config / 项目配置", "运行与研究默认值"),
+        ]
+        links = "".join(
+            f"""
+            <a class="module-link{' module-link--active' if key == active_page else ''}" href="{href}">
+              <strong>{escape(label)}</strong>
+              <span>{escape(description)}</span>
+            </a>
+            """
+            for key, href, label, description in items
+        )
+        return f"""
+        <div class="panel panel--nav">
+          <p class="eyebrow">Workspace Navigation</p>
+          <h2>工作区导航</h2>
+          <div class="module-links module-links--secondary">{links}</div>
+        </div>
+        """
+
+    def _render_overview_page(self, query: Dict[str, List[str]]) -> WebResponse:
+        config = self._load_project_config()
+        artifact_query = query.get("artifact", [None])[0]
+        selected_artifact = self._resolve_selected_artifact(artifact_query)
+        artifact_html = self._render_selected_artifact(selected_artifact)
+        run_results_html = self._render_run_results()
+        factor_backtest_html = self._render_factor_backtest_results()
+        indexed_results_html = self._render_indexed_result_cards()
+        artifact_cards_html = self._render_recent_artifact_cards(selected_artifact.relative_path if selected_artifact else None)
+        chat_html = self._render_chat_panel()
+        flash_html = self._render_flash_messages()
+        factor_form_html = self._render_factor_backtest_form()
+        local_paper_html = self._render_local_paper_panel(query)
+        overview_html = self._render_project_overview()
+        system_status = self._build_system_status()
+        run_defaults = config["run_defaults"]
+        recommended_account_id = self._recommended_account_id(str(run_defaults["market"]))
+        run_cn_picker = self._render_symbol_picker(
+            "run-cn",
+            Market.CN,
+            "symbols_cn",
+            str(run_defaults["symbols_cn"]),
+        )
+        run_us_picker = self._render_symbol_picker(
+            "run-us",
+            Market.US,
+            "symbols_us",
+            str(run_defaults["symbols_us"]),
+        )
+        progress_panel_html = self._render_job_progress_panel(
+            system_status.get("display_job") if isinstance(system_status.get("display_job"), dict) else None,
+            "dashboard-job-progress",
+        )
+        body = f"""
+          {flash_html}
+          {overview_html}
+          <section class="module" id="module-run">
+            <div class="module__header">
+              <p class="eyebrow">Module 01</p>
+              <h2>策略运行模块</h2>
+              <p class="hero__copy">运行市场扫描、设置运行模式、选择模拟盘账户，并把本次执行纳入项目记录。</p>
+            </div>
+            {progress_panel_html}
+            <section class="panel panel--form">
+              <div class="panel__header">
+                <div>
+                  <p class="eyebrow">Strategy Runtime</p>
+                  <h2>本地运行</h2>
+                </div>
+              </div>
+              <form class="grid-form" method="post" action="/run" id="run-form" data-async-job-form="strategy_run">
+                <label>Market / 市场<span class="field-note">选择 CN、US 或双市场</span><select id="run-market-select" name="market"><option value="ALL"{' selected' if run_defaults['market'] == 'ALL' else ''}>ALL</option><option value="CN"{' selected' if run_defaults['market'] == 'CN' else ''}>CN</option><option value="US"{' selected' if run_defaults['market'] == 'US' else ''}>US</option></select></label>
+                <label>Runtime / 运行语义<span class="field-note">PAPER 模拟、BACKTEST 回放、LIVE 实时估算</span><select name="runtime_mode"><option value="PAPER"{' selected' if run_defaults['runtime_mode'] == 'PAPER' else ''}>PAPER</option><option value="BACKTEST"{' selected' if run_defaults['runtime_mode'] == 'BACKTEST' else ''}>BACKTEST</option><option value="LIVE"{' selected' if run_defaults['runtime_mode'] == 'LIVE' else ''}>LIVE</option></select></label>
+                <label>Execution / 执行模式<span class="field-note">ADVISORY 仅建议，AUTO 自动执行</span><select name="execution_mode"><option value="ADVISORY"{' selected' if run_defaults['execution_mode'] == 'ADVISORY' else ''}>ADVISORY</option><option value="AUTO"{' selected' if run_defaults['execution_mode'] == 'AUTO' else ''}>AUTO</option></select></label>
+                <label>Broker / 接入口<span class="field-note">NONE 为纯本地，LOCAL_PAPER 为本地模拟盘</span><select name="broker"><option value="NONE"{' selected' if run_defaults['broker'] == 'NONE' else ''}>NONE</option><option value="LOCAL_PAPER"{' selected' if run_defaults['broker'] == 'LOCAL_PAPER' else ''}>LOCAL_PAPER</option></select></label>
+                <label>Cash / 初始资金<span class="field-note">新模拟盘账户的起始现金</span><input name="cash" value="{escape(str(run_defaults['cash']))}" /></label>
+                <label>Paper Account ID / 模拟盘账户<span class="field-note">本地模拟盘账户唯一标识</span><input id="run-broker-account-id" name="broker_account_id" value="{escape(str(run_defaults['broker_account_id']))}" data-recommended-account="{escape(recommended_account_id)}" /><span class="field-note field-note--accent" id="run-broker-account-recommendation">推荐账户名: {escape(recommended_account_id)}</span></label>
+                <label>Top N / 选股数<span class="field-note">最终组合保留的标的数量</span><input name="top_n" value="{escape(str(run_defaults['top_n']))}" /></label>
+                <label>Detail Limit / 细节样本<span class="field-note">全市场模式下详细历史抓取上限</span><input name="detail_limit" value="{escape(str(run_defaults['detail_limit']))}" /></label>
+                <label>History Limit / 历史窗口<span class="field-note">20/60 日因子和 beta 使用的历史 bars</span><input name="history_limit" value="{escape(str(run_defaults['history_limit']))}" /></label>
+                <label>Beta Window / Beta 窗口<span class="field-note">beta 估算使用的收益窗口长度</span><input name="beta_window" value="{escape(str(run_defaults['beta_window']))}" /></label>
+                <label>Forward Days / 前瞻天数<span class="field-note">附带 forward report 的持有天数</span><input name="forward_days" value="{escape(str(run_defaults['forward_days']))}" /></label>
+                <label>As Of Date / 历史日期<span class="field-note">为空时使用最近有效交易日</span><input name="as_of_date" value="{escape(str(run_defaults['as_of_date']))}" placeholder="2026-03-15" /></label>
+                <div class="field-group field-group--full"><span>A 股 Symbols / A 股股票池</span><span class="field-note">默认留空；需要时可搜索并多选</span>{run_cn_picker}</div>
+                <div class="field-group field-group--full"><span>美股 Symbols / 美股股票池</span><span class="field-note">默认留空；需要时可搜索并多选</span>{run_us_picker}</div>
+                <label class="checkbox-field"><input type="checkbox" name="route_orders"{' checked' if run_defaults.get('route_orders') else ''} />Route Orders / 写入模拟盘成交记录</label>
+                <div class="grid-form__actions"><button class="button button--primary" type="submit">运行策略</button></div>
+              </form>
+            </section>
+            {run_results_html}
+          </section>
+          <section class="module" id="module-paper">
+            <div class="module__header">
+              <p class="eyebrow">Module 02</p>
+              <h2>模拟盘模块</h2>
+              <p class="hero__copy">查看账户、成交流水、净值演变，并支持按日期过滤和一键重置，方便你把策略当作持续运转的项目来管理。</p>
+            </div>
+            {local_paper_html}
+          </section>
+          <section class="module" id="module-research">
+            <div class="module__header">
+              <p class="eyebrow">Module 03</p>
+              <h2>策略实验台</h2>
+              <p class="hero__copy">在一页里完成因子挑选、收益分析、滚动回测、状态归因和下一轮参数迭代，不再只看单次回测摘要。</p>
+            </div>
+            {factor_form_html}
+            {factor_backtest_html}
+            {artifact_html}
+          </section>
+          <section class="module" id="module-archive">
+            <div class="module__header">
+              <p class="eyebrow">Module 04</p>
+              <h2>结果归档模块</h2>
+              <p class="hero__copy">统一管理近期输出的 JSON、Markdown 和回测结果，保留项目级的可追溯记录。</p>
+            </div>
+            {indexed_results_html}
+            {artifact_cards_html}
+          </section>
+          <section class="module" id="module-collab">
+            <div class="module__header">
+              <p class="eyebrow">Module 05</p>
+              <h2>协作交互模块</h2>
+              <p class="hero__copy">保留一个轻量对话区，方便后面把研究问答、策略点评和异常解释接进来。</p>
+            </div>
+            {chat_html}
+          </section>
+        """
+        return self._html_page(
+            self._render_page_shell(
+                "overview",
+                title="双市场量化项目工作台",
+                eyebrow="Project Workspace",
+                description="把策略运行、模拟盘、研究验证、结果归档和协作交互收进同一个项目工作台。",
+                body=body,
+            )
+        )
+
+    def _render_workbench_page(self, query: Dict[str, List[str]]) -> WebResponse:
+        artifact_query = query.get("artifact", [None])[0]
+        selected_artifact = self._resolve_selected_artifact(artifact_query)
+        flash_html = self._render_flash_messages()
+        factor_form_html = self._render_factor_backtest_form()
+        factor_backtest_html = self._render_factor_backtest_results()
+        artifact_html = self._render_selected_artifact(selected_artifact)
+        body = f"""
+          {flash_html}
+          <section class="module" id="module-research">
+            <div class="module__header">
+              <p class="eyebrow">Module 03</p>
+              <h2>研究工作台</h2>
+              <p class="hero__copy">在这里集中做因子挑选、收益分析、滚动回测和归因，不再和运行页混在一起。</p>
+            </div>
+            {factor_form_html}
+            {factor_backtest_html}
+            {artifact_html}
+          </section>
+        """
+        return self._html_page(
+            self._render_page_shell(
+                "workbench",
+                title="Research Workbench / 研究工作台",
+                eyebrow="Research Workbench",
+                description="因子实验、回测结果和研究工件都放在这里。",
+                body=body,
+            )
+        )
+
+    def _render_results_page(self, query: Dict[str, List[str]]) -> WebResponse:
+        flash_html = self._render_flash_messages()
+        indexed_results_html = self._render_indexed_result_cards()
+        selected_artifact = self._resolve_selected_artifact(query.get("artifact", [None])[0])
+        artifact_cards_html = self._render_recent_artifact_cards(selected_artifact.relative_path if selected_artifact else None)
+        body = f"""
+          {flash_html}
+          {indexed_results_html}
+          {artifact_cards_html}
+        """
+        return self._html_page(
+            self._render_page_shell(
+                "results",
+                title="Research Results / 研究结果",
+                eyebrow="Research Results",
+                description="统一查看研究、回测和运行结果的索引与归档。",
+                body=body,
+            )
+        )
+
+    def _render_paper_page(self, query: Dict[str, List[str]]) -> WebResponse:
+        flash_html = self._render_flash_messages()
+        local_paper_html = self._render_local_paper_panel(query)
+        overview_html = self._render_project_overview()
+        body = f"""
+          {flash_html}
+          {overview_html}
+          {local_paper_html}
+        """
+        return self._html_page(
+            self._render_page_shell(
+                "paper",
+                title="Local Paper / 模拟盘",
+                eyebrow="Local Paper",
+                description="查看本地模拟盘账户、成交和净值变化。",
+                body=body,
+            )
         )
 
     def _render_content(
