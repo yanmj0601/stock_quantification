@@ -4,6 +4,7 @@ import argparse
 import json
 from datetime import date, datetime
 from decimal import Decimal
+from pathlib import Path
 from typing import Dict, List, Optional
 
 from .analytics import compute_return_beta
@@ -35,8 +36,11 @@ from .real_data import MarketSnapshot, build_market_snapshot
 from .research_data import ResearchDataBundle
 from .reporting import build_beta_extremes, build_candidate_buckets, build_markdown_report, build_ranked_candidates
 from .reporting import build_recommended_stocks
+from .result_index import record_result
 from .runtime import RuntimeEngine
 from .state import InMemoryStateStore
+
+ARTIFACT_ROOT = Path(__file__).resolve().parents[2] / "artifacts"
 
 
 def _instrument_name(instrument) -> str:
@@ -367,6 +371,7 @@ def run_market(
         )
     broker_orders = []
     paper_account = local_paper.account_overview(account_id) if local_paper is not None else None
+    paper_run_summary: Dict[str, object] | None = None
     paper_trade_records: List[Dict[str, object]] = []
     paper_paths: Dict[str, str] = {}
     if route_orders:
@@ -389,8 +394,45 @@ def run_market(
                 price_map=price_map,
             )
             paper_account = local_paper_result["account"]
+            paper_run_summary = dict(local_paper_result.get("summary") or {})
             paper_trade_records = list(local_paper_result["trade_records"])
             paper_paths = dict(local_paper_result["paths"])
+            if paper_run_summary:
+                record_result(
+                    ARTIFACT_ROOT,
+                    {
+                        "result_id": f"local_paper_run:{market.value}:{account_id}:{paper_run_summary.get('as_of')}",
+                        "artifact_kind": "local_paper_run",
+                        "market": market.value,
+                        "account_id": account_id,
+                        "strategy_id": strategy.strategy_id,
+                        "trade_date": snapshot.as_of.date().isoformat(),
+                        "as_of": paper_run_summary.get("as_of"),
+                        "sort_date": paper_run_summary.get("as_of") or snapshot.as_of.isoformat(),
+                        "summary": {
+                            "subject_id": f"{account_id}:{strategy.strategy_id}",
+                            "subject_name": f"{account_id} / {strategy.strategy_id}",
+                            "decision": "RECORDED",
+                            "rationale": (
+                                f"{paper_run_summary.get('trade_count', 0)} trades routed into local paper ledger "
+                                f"with {paper_run_summary.get('position_count', 0)} open positions"
+                            ),
+                            "score": paper_run_summary.get("trade_count"),
+                            "return": paper_run_summary.get("cash"),
+                            "excess_return": paper_run_summary.get("buying_power"),
+                            "max_drawdown": None,
+                            "regime_summary": [],
+                            "alpha_mix": [],
+                        },
+                        "paper_run_summary": paper_run_summary,
+                        "artifacts": {
+                            "json": paper_paths.get("run_json"),
+                            "markdown": paper_paths.get("run_markdown"),
+                            "ledger": paper_paths.get("ledger"),
+                            "account": paper_paths.get("account"),
+                        },
+                    },
+                )
         else:
             if broker_adapter is None:
                 raise ValueError("route_orders requires a broker adapter")
@@ -417,6 +459,7 @@ def run_market(
             "routed_order_statuses": sorted({str(order["status"]) for order in broker_orders}),
         },
         "paper_account": paper_account,
+        "paper_run_summary": paper_run_summary,
         "paper_trade_records": paper_trade_records,
         "paper_paths": paper_paths,
         "benchmark": {

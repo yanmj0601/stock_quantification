@@ -5,6 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 from unittest import TestCase
 
+from stock_quantification.artifacts import read_json_artifact
 from stock_quantification.local_paper import LocalPaperLedger
 from stock_quantification.models import (
     AccountState,
@@ -107,6 +108,9 @@ class LocalPaperLedgerTests(TestCase):
             self.assertEqual(len(overview["nav_history"]), 2)
             self.assertEqual(overview["latest_nav"], "100200.0000")
             self.assertEqual(overview["nav_history"][-1]["as_of"], as_of.isoformat())
+            run_payload = read_json_artifact(tmpdir, "paper-us/runs/20260406T160000_us_quality_momentum.json")
+            self.assertEqual(run_payload["normalized_summary"]["decision"], "RECORDED")
+            self.assertEqual(run_payload["normalized_summary"]["subject_name"], "paper-us / us_quality_momentum")
 
     def test_record_execution_skips_zero_fill_trade_noise_and_keeps_nav_consistent(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

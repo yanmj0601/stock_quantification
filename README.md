@@ -35,8 +35,10 @@ PYTHONPATH=src python3 scripts/run_strategy_suite.py --market ALL --start-date 2
 - 状态 API：`/api/project/status`
 
 运维中心会展示服务健康、运行守护、审计事件和后台任务历史；`run` / `factor-backtest` 现在也会经过单任务锁，避免后台重复触发重叠作业。
-`run_validation_study.py` 会对指定市场和时间区间运行 `train / validate / test`、`walk-forward` 和参数稳定性分析，并把结果写到 `artifacts/<end-date>/`。
-`run_strategy_suite.py` 会批量运行当前工程里已经接入的主流 long-only 策略，并输出收益和最大回撤对比。
+结果归档模块现在会优先读取 `artifacts/web/result_index.json`，把验证研究、策略套件、滚动回测和本地 paper run 分成“研究结果 / 运行结果”两组卡片；选中结果后会优先展示 `normalized_summary` 的统一摘要字段。
+模拟盘面板现在除了账户、成交和净值，还会优先显示最近一次本地 paper run 的持久化摘要，也就是 `strategy_id / as_of / trade_count / position_count`，并可直接打开对应运行工件。
+`run_validation_study.py` 会对指定市场和时间区间运行 `train / validate / test`、`walk-forward` 和参数稳定性分析，并把结果写到 `artifacts/<end-date>/`，同时登记到结果索引。
+`run_strategy_suite.py` 会批量运行当前工程里已经接入的主流 long-only 策略，输出收益和最大回撤对比，并把统一摘要登记到结果索引。
 
 ## 当前范围
 
@@ -46,6 +48,7 @@ PYTHONPATH=src python3 scripts/run_strategy_suite.py --market ALL --start-date 2
 - alpha 排名、beta 估计、分层候选池输出
 - 本地 artifact 与 universe cache，便于后续替换为真实数据仓库和券商接口
 - 本地 `Local Paper` 账本和美股 `Alpaca Paper` 基础路由
+- 文件系统驱动的结果索引层和 Web 研究结果中心
 - 月度调仓回放脚本与净值曲线图输出
 - 验证工具链：样本内外切分、滚动窗口检验、参数稳定性比较
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Optional
@@ -15,9 +16,16 @@ def write_json_artifact(base_dir: str | Path, relative_path: str, payload: Any) 
     root = ensure_directory(Path(base_dir))
     target = root / relative_path
     ensure_directory(target.parent)
-    temp_target = target.with_name(f".{target.name}.tmp")
-    with temp_target.open("w", encoding="utf-8") as handle:
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        dir=target.parent,
+        prefix=f".{target.name}.",
+        suffix=".tmp",
+        delete=False,
+    ) as handle:
         json.dump(payload, handle, ensure_ascii=False, indent=2)
+        temp_target = Path(handle.name)
     temp_target.replace(target)
     return str(target)
 

@@ -28,6 +28,7 @@ from .engine import AStockSelectionStrategy, StandardStrategyRunner, USStockSele
 from .local_paper import LocalPaperLedger
 from .models import ExecutionMode, Market, RuntimeMode
 from .ops import ProjectOpsStore
+from .result_index import list_results
 from .research_diagnostics import (
     build_strategy_scorecard,
     serialize_alpha_mix,
@@ -184,6 +185,7 @@ class DashboardApp:
         artifact_html = self._render_selected_artifact(selected_artifact)
         run_results_html = self._render_run_results()
         factor_backtest_html = self._render_factor_backtest_results()
+        indexed_results_html = self._render_indexed_result_cards()
         artifact_cards_html = self._render_recent_artifact_cards(selected_artifact.relative_path if selected_artifact else None)
         chat_html = self._render_chat_panel()
         flash_html = self._render_flash_messages()
@@ -195,6 +197,7 @@ class DashboardApp:
             artifact_html=artifact_html,
             run_results_html=run_results_html,
             factor_backtest_html=factor_backtest_html,
+            indexed_results_html=indexed_results_html,
             artifact_cards_html=artifact_cards_html,
             chat_html=chat_html,
             flash_html=flash_html,
@@ -834,6 +837,44 @@ class DashboardApp:
             </section>
             """
 
+        normalized_summary = artifact.summary.get("normalized_summary", {})
+        if isinstance(normalized_summary, dict) and normalized_summary:
+            return f"""
+            <section class="panel panel--selected">
+              <div class="panel__header">
+                <div>
+                  <p class="eyebrow">Artifact Workspace</p>
+                  <h2>{escape(artifact.display_name)}</h2>
+                </div>
+                <a class="button button--ghost" href="/artifact-file?path={quote(artifact.relative_path)}" target="_blank" rel="noreferrer">打开 JSON 工件</a>
+              </div>
+              <div class="panel__header">
+                <div>
+                  <p class="eyebrow">Normalized Summary</p>
+                  <h3>Normalized Summary / 统一摘要</h3>
+                </div>
+              </div>
+              <div class="summary-grid">
+                {self._summary_tile("Subject / 对象", normalized_summary.get("subject_name") or normalized_summary.get("subject_id") or "N/A", "统一结果视图中的主体名称")}
+                {self._summary_tile("Decision / 结论", normalized_summary.get("decision", "N/A"), "统一的保留/复核/淘汰结论")}
+                {self._summary_tile("Score / 评分", normalized_summary.get("score", "N/A"), "如果该结果带评分，这里显示统一分数")}
+                {self._summary_tile("Return / 收益", normalized_summary.get("return", "N/A"), "统一收益口径")}
+                {self._summary_tile("Excess Return / 超额收益", normalized_summary.get("excess_return", "N/A"), "统一超额收益口径")}
+                {self._summary_tile("Max Drawdown / 最大回撤", normalized_summary.get("max_drawdown", "N/A"), "统一回撤口径")}
+              </div>
+              <div class="panel__split">
+                <div>
+                  <h3>Rationale / 依据</h3>
+                  <p>{escape(str(normalized_summary.get("rationale", "暂无摘要说明")))}</p>
+                </div>
+                <div>
+                  <h3>Payload / 原始工件</h3>
+                  <p class="muted">这份结果已经有统一摘要，页面优先展示标准字段；完整细节仍可通过 JSON 工件查看。</p>
+                </div>
+              </div>
+            </section>
+            """
+
         summary = artifact.summary.get("summary", {})
         if summary.get("artifact_type") == "factor_backtest":
             return self._render_factor_backtest_artifact(artifact, summary)
@@ -1205,6 +1246,73 @@ class DashboardApp:
         </section>
         """
 
+    def _render_indexed_result_cards(self) -> str:
+        records = self._recent_indexed_results(limit=8)
+        if not records:
+            return """
+            <section class="panel panel--empty">
+              <h2>Research Results / 研究结果中心</h2>
+              <p>验证研究、策略套件和滚动回测接入结果索引后，这里会显示统一摘要卡片。</p>
+            </section>
+            """
+        research_records = [row for row in records if str(row.get("artifact_kind")) != "local_paper_run"]
+        runtime_records = [row for row in records if str(row.get("artifact_kind")) == "local_paper_run"]
+        sections = []
+        if research_records:
+            sections.append(
+                f"""
+                <div class="panel__split">
+                  <div>
+                    <p class="eyebrow">Research Results</p>
+                    <h3>Research Results / 研究结果中心</h3>
+                  </div>
+                </div>
+                <div class="card-grid card-grid--tight">{self._render_indexed_result_card_grid(research_records)}</div>
+                """
+            )
+        if runtime_records:
+            sections.append(
+                f"""
+                <div class="panel__split">
+                  <div>
+                    <p class="eyebrow">Runtime Results</p>
+                    <h3>Runtime Results / 运行结果</h3>
+                  </div>
+                </div>
+                <div class="card-grid card-grid--tight">{self._render_indexed_result_card_grid(runtime_records)}</div>
+                """
+            )
+        return f"""
+        <section class="panel">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Indexed Results</p>
+              <h2>Indexed Results / 索引结果中心</h2>
+            </div>
+          </div>
+          {''.join(sections)}
+        </section>
+        """
+
+    def _render_indexed_result_card_grid(self, records: Iterable[Dict[str, Any]]) -> str:
+        cards = []
+        for row in records:
+            summary = row.get("summary", {}) if isinstance(row.get("summary"), dict) else {}
+            artifacts = row.get("artifacts", {}) if isinstance(row.get("artifacts"), dict) else {}
+            json_path = str(artifacts.get("json", "") or "")
+            href = f"/?artifact={quote(self._artifact_query_path(json_path))}" if json_path else "#"
+            cards.append(
+                f"""
+                <a class="result-card" href="{href}">
+                  <p class="eyebrow">{escape(str(row.get('artifact_kind', 'result')))} / {escape(str(row.get('market', 'N/A')))}</p>
+                  <h3>{escape(str(summary.get('subject_name') or summary.get('subject_id') or row.get('result_id', 'N/A')))}</h3>
+                  <p>Decision / 结论: {escape(str(summary.get('decision', 'N/A')))} | Score / 评分 {escape(str(summary.get('score', 'N/A')))}</p>
+                  <p>Return / 收益: {escape(str(summary.get('return', 'N/A')))} | Excess / 超额: {escape(str(summary.get('excess_return', 'N/A')))}</p>
+                </a>
+                """
+            )
+        return "".join(cards)
+
     def _render_local_paper_panel(self, query: Dict[str, List[str]]) -> str:
         ui_defaults = self._load_project_config()["ui_defaults"]
         filter_account_id = query.get("paper_account_id", [str(ui_defaults["paper_account_id"])])[0].strip() or None
@@ -1259,6 +1367,30 @@ class DashboardApp:
                 """
             )
         trade_table = "".join(trade_rows) if trade_rows else "<tr><td colspan='6'>暂无成交记录</td></tr>"
+        latest_paper_run = self._latest_paper_run_result()
+        latest_paper_run_html = ""
+        if latest_paper_run:
+            run_summary = latest_paper_run.get("paper_run_summary", {}) if isinstance(latest_paper_run.get("paper_run_summary"), dict) else {}
+            run_paths = latest_paper_run.get("paper_paths", {}) if isinstance(latest_paper_run.get("paper_paths"), dict) else {}
+            run_href = ""
+            if run_paths.get("run_json"):
+                run_href = f'<a class="button button--ghost" href="/artifact-file?path={quote(self._artifact_query_path(str(run_paths["run_json"])))}" target="_blank" rel="noreferrer">打开最近运行工件</a>'
+            latest_paper_run_html = f"""
+            <div class="panel__split">
+              <div>
+                <h3>Latest Paper Run / 最近模拟盘运行</h3>
+                <div class="summary-grid">
+                  {self._summary_tile("Strategy / 策略", run_summary.get("strategy_id", "N/A"), "最近一次写入模拟盘的策略 ID")}
+                  {self._summary_tile("As Of / 记账时间", run_summary.get("as_of", "N/A"), "本次模拟盘记账对应的执行时间")}
+                  {self._summary_tile("Trades / 成交数", run_summary.get("trade_count", "0"), "本次运行新增的成交记录数")}
+                  {self._summary_tile("Positions / 持仓数", run_summary.get("position_count", "0"), "本次运行后的持仓数量")}
+                </div>
+              </div>
+              <div class="panel__actions panel__actions--inline">
+                {run_href}
+              </div>
+            </div>
+            """
         return f"""
         <section class="panel">
           <div class="panel__header">
@@ -1309,6 +1441,7 @@ class DashboardApp:
               <div class="alert-grid">{risk_cards}</div>
             </div>
           </div>
+          {latest_paper_run_html}
           {nav_chart_html}
           <div class="panel__split">
             <div>
@@ -2017,6 +2150,33 @@ class DashboardApp:
                 break
         return entries
 
+    def _recent_indexed_results(self, limit: int = 8) -> List[Dict[str, Any]]:
+        try:
+            return list_results(ARTIFACT_ROOT, limit=limit)
+        except Exception:
+            return []
+
+    def _latest_paper_run_result(self) -> Optional[Dict[str, Any]]:
+        for row in reversed(self.state.last_run_results):
+            if row.get("paper_run_summary"):
+                return row
+        indexed_runs = self._recent_indexed_results(limit=8)
+        for row in indexed_runs:
+            if str(row.get("artifact_kind")) != "local_paper_run":
+                continue
+            paper_run_summary = row.get("paper_run_summary", {}) if isinstance(row.get("paper_run_summary"), dict) else {}
+            artifacts = row.get("artifacts", {}) if isinstance(row.get("artifacts"), dict) else {}
+            return {
+                "paper_run_summary": paper_run_summary,
+                "paper_paths": {
+                    "run_json": artifacts.get("json"),
+                    "run_markdown": artifacts.get("markdown"),
+                    "ledger": artifacts.get("ledger"),
+                    "account": artifacts.get("account"),
+                },
+            }
+        return None
+
     def _symbol_catalog(self, market: Market) -> List[Dict[str, str]]:
         cache_key = market.value
         cached = self._symbol_catalog_cache.get(cache_key)
@@ -2178,6 +2338,7 @@ class DashboardApp:
         artifact_html: str,
         run_results_html: str,
         factor_backtest_html: str,
+        indexed_results_html: str,
         artifact_cards_html: str,
         chat_html: str,
         flash_html: str,
@@ -2282,6 +2443,7 @@ class DashboardApp:
                   <h2>结果归档模块</h2>
                   <p class="hero__copy">统一管理近期输出的 JSON、Markdown 和回测结果，保留项目级的可追溯记录。</p>
                 </div>
+                {indexed_results_html}
                 {artifact_cards_html}
               </section>
               <section class="module" id="module-collab">

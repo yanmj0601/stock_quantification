@@ -32,6 +32,14 @@ def _std(values: Sequence[Decimal]) -> Decimal:
     return Decimal(str(sqrt(float(variance))))
 
 
+def _population_std(values: Sequence[Decimal]) -> Decimal:
+    if len(values) < 2:
+        return Decimal("0")
+    avg = _mean(values)
+    variance = sum((value - avg) ** 2 for value in values) / Decimal(len(values))
+    return Decimal(str(sqrt(float(variance))))
+
+
 def _zscore(value: Decimal, mean: Decimal, std: Decimal) -> Decimal:
     if std == 0:
         return Decimal("0")
@@ -301,7 +309,7 @@ class FeaturePipeline:
                     standardized={},
                 )
             )
-        return self._standardize(rows)
+        return self._standardize(rows, neutralize_by_sector=blueprint.feature_config.neutralize_by_sector)
 
     def _benchmark_returns(self, blueprint: StrategyBlueprint, as_of: datetime) -> Dict[int, Decimal]:
         if not blueprint.benchmark_instrument_id:
@@ -318,19 +326,32 @@ class FeaturePipeline:
             if len(closes) > window
         }
 
-    def _standardize(self, rows: List[FeatureRow]) -> List[FeatureRow]:
+    def _standardize(self, rows: List[FeatureRow], *, neutralize_by_sector: bool = False) -> List[FeatureRow]:
         if not rows:
             return rows
         feature_names = sorted({feature for row in rows for feature in row.raw})
-        stats = {
-            feature: (
-                _mean([row.raw.get(feature, Decimal("0")) for row in rows]),
-                _std([row.raw.get(feature, Decimal("0")) for row in rows]),
-            )
-            for feature in feature_names
-        }
+
+        def _build_stats(group_rows: Sequence[FeatureRow]) -> Dict[str, Tuple[Decimal, Decimal]]:
+            return {
+                feature: (
+                    _mean([row.raw.get(feature, Decimal("0")) for row in group_rows]),
+                    _population_std([row.raw.get(feature, Decimal("0")) for row in group_rows]),
+                )
+                for feature in feature_names
+            }
+
+        stats_by_sector = (
+            {
+                sector: _build_stats([row for row in rows if row.sector == sector])
+                for sector in {row.sector for row in rows}
+            }
+            if neutralize_by_sector
+            else {}
+        )
+        global_stats = _build_stats(rows)
         standardized_rows: List[FeatureRow] = []
         for row in rows:
+            stats = stats_by_sector.get(row.sector, global_stats)
             standardized = {
                 feature: _zscore(row.raw.get(feature, Decimal("0")), stats[feature][0], stats[feature][1])
                 for feature in feature_names

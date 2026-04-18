@@ -6,6 +6,7 @@ from unittest.mock import Mock
 from unittest.mock import patch
 from unittest import TestCase
 
+from stock_quantification.artifacts import write_json_artifact
 from stock_quantification import web as web_module
 from stock_quantification.web import DashboardApp, DEFAULT_PROJECT_CONFIG
 
@@ -30,6 +31,7 @@ class WebTests(TestCase):
         self.assertIn("双市场量化项目工作台", body)
         self.assertIn("Project Status", body)
         self.assertIn("模块导航", body)
+        self.assertIn("研究结果中心", body)
         self.assertIn("最近结果", body)
         self.assertIn("策略实验台", body)
         self.assertIn("模拟盘账户", body)
@@ -38,6 +40,90 @@ class WebTests(TestCase):
         self.assertIn("任务进度", body)
         self.assertIn("data-async-job-form=\"strategy_run\"", body)
         self.assertIn("留空表示全市场", body)
+
+    @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
+    @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")
+    def test_home_page_renders_indexed_research_results(self, _mock_paper_panel, _mock_symbol_catalog) -> None:
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            write_json_artifact(
+                artifact_root,
+                "web/result_index.json",
+                {
+                    "records": [
+                        {
+                            "result_id": "strategy_suite:US:2026-03-31",
+                            "artifact_kind": "strategy_suite",
+                            "market": "US",
+                            "sort_date": "2026-03-31",
+                            "summary": {
+                                "subject_id": "us_baseline",
+                                "subject_name": "美股基线质量动量",
+                                "decision": "KEEP",
+                                "score": "1.2345",
+                                "return": "0.1200",
+                            },
+                            "artifacts": {"json": "2026-03-31/us_strategy_suite.json"},
+                        }
+                    ]
+                },
+            )
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                response = self.app.render_home({})
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn("Research Results / 研究结果中心", body)
+        self.assertIn("美股基线质量动量", body)
+        self.assertIn("KEEP", body)
+        self.assertIn("0.1200", body)
+
+    @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
+    @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")
+    def test_home_page_separates_research_and_runtime_indexed_results(self, _mock_paper_panel, _mock_symbol_catalog) -> None:
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            write_json_artifact(
+                artifact_root,
+                "web/result_index.json",
+                {
+                    "records": [
+                        {
+                            "result_id": "strategy_suite:US:2026-03-31",
+                            "artifact_kind": "strategy_suite",
+                            "market": "US",
+                            "sort_date": "2026-03-31",
+                            "summary": {
+                                "subject_name": "美股基线质量动量",
+                                "decision": "KEEP",
+                                "score": "1.2345",
+                                "return": "0.1200",
+                            },
+                            "artifacts": {"json": "2026-03-31/us_strategy_suite.json"},
+                        },
+                        {
+                            "result_id": "local_paper_run:US:web-paper-us:2026-04-18T10:00:00",
+                            "artifact_kind": "local_paper_run",
+                            "market": "US",
+                            "sort_date": "2026-04-18T10:00:00",
+                            "summary": {
+                                "subject_name": "web-paper-us / us_quality_momentum",
+                                "decision": "RECORDED",
+                                "score": 2,
+                                "return": "80000",
+                            },
+                            "artifacts": {"json": "local_paper/web-paper-us/runs/demo.json"},
+                        },
+                    ]
+                },
+            )
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                response = self.app.render_home({})
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn("Research Results / 研究结果中心", body)
+        self.assertIn("Runtime Results / 运行结果", body)
+        self.assertIn("美股基线质量动量", body)
+        self.assertIn("web-paper-us / us_quality_momentum", body)
 
     @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
     @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")
@@ -484,3 +570,121 @@ class WebTests(TestCase):
                 response = self.app.serve_artifact({"path": [relative_path]})
         self.assertEqual(response.status, 200)
         self.assertIn('"ok": true', response.body.decode("utf-8"))
+
+    def test_selected_artifact_prefers_normalized_summary(self) -> None:
+        artifact = web_module.ArtifactEntry(
+            relative_path="2026-03-31/us_strategy_suite.json",
+            display_name="us_strategy_suite.json",
+            mtime=0,
+            summary={
+                "normalized_summary": {
+                    "subject_name": "美股基线质量动量",
+                    "decision": "KEEP",
+                    "score": "1.2345",
+                    "return": "0.1200",
+                    "excess_return": "0.0500",
+                    "max_drawdown": "-0.0400",
+                }
+            },
+        )
+
+        html = self.app._render_selected_artifact(artifact)
+
+        self.assertIn("Normalized Summary / 统一摘要", html)
+        self.assertIn("美股基线质量动量", html)
+        self.assertIn("1.2345", html)
+        self.assertIn("0.1200", html)
+
+    def test_local_paper_panel_renders_latest_run_summary(self) -> None:
+        self.app.state.last_run_results = [
+            {
+                "paper_account": {
+                    "account_id": "web-paper-us",
+                    "market": "US",
+                    "cash": "80000",
+                    "buying_power": "80000",
+                    "position_count": 1,
+                    "trade_count": 2,
+                    "filtered_trade_count": 1,
+                    "latest_nav": "100500.0000",
+                    "cumulative_return": "0.0050",
+                    "positions": [{"instrument_id": "US.AAPL", "qty": 10, "avg_cost": "200"}],
+                    "nav_history": [{"trade_date": "2026-04-05", "nav": "100000.0000"}, {"trade_date": "2026-04-06", "nav": "100500.0000"}],
+                    "recent_trades": [{"trade_date": "2026-04-06", "side": "BUY", "instrument_id": "US.AAPL", "filled_qty": 10, "estimated_price": "200", "cash_delta": "-2000"}],
+                },
+                "paper_trade_records": [{"instrument_id": "US.AAPL"}],
+                "paper_run_summary": {
+                    "strategy_id": "us_quality_momentum",
+                    "trade_count": 1,
+                    "as_of": "2026-04-06T16:00:00",
+                    "position_count": 1,
+                },
+                "paper_paths": {"run_json": "artifacts/local_paper/web-paper-us/runs/demo.json"},
+            }
+        ]
+        self.app.state.last_local_paper_account = self.app.state.last_run_results[-1]["paper_account"]
+        with patch.object(self.app, "_enrich_local_paper_overview", side_effect=lambda overview: overview):
+            with patch.object(web_module, "LocalPaperLedger") as mock_ledger_cls:
+                ledger = mock_ledger_cls.return_value
+                ledger.account_overview.return_value = self.app.state.last_local_paper_account
+                ledger.list_accounts.return_value = ["web-paper-us"]
+                html = self.app._render_local_paper_panel({})
+
+        self.assertIn("Latest Paper Run / 最近模拟盘运行", html)
+        self.assertIn("us_quality_momentum", html)
+        self.assertIn("2026-04-06T16:00:00", html)
+
+    def test_local_paper_panel_falls_back_to_indexed_run_summary(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            write_json_artifact(
+                artifact_root,
+                "web/result_index.json",
+                {
+                    "records": [
+                        {
+                            "result_id": "local_paper_run:US:web-paper-us:2026-04-18T10:00:00",
+                            "artifact_kind": "local_paper_run",
+                            "market": "US",
+                            "sort_date": "2026-04-18T10:00:00",
+                            "summary": {
+                                "subject_name": "web-paper-us / us_quality_momentum",
+                                "decision": "RECORDED",
+                                "score": 2,
+                                "rationale": "2 trades routed into local paper ledger",
+                            },
+                            "paper_run_summary": {
+                                "strategy_id": "us_quality_momentum",
+                                "trade_count": 2,
+                                "as_of": "2026-04-18T10:00:00",
+                                "position_count": 4,
+                            },
+                            "artifacts": {"json": "local_paper/web-paper-us/runs/demo.json"},
+                        }
+                    ]
+                },
+            )
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                with patch.object(self.app, "_enrich_local_paper_overview", side_effect=lambda overview: overview):
+                    with patch.object(web_module, "LocalPaperLedger") as mock_ledger_cls:
+                        ledger = mock_ledger_cls.return_value
+                        ledger.account_overview.return_value = {
+                            "account_id": "web-paper-us",
+                            "market": "US",
+                            "cash": "80000",
+                            "buying_power": "80000",
+                            "position_count": 1,
+                            "trade_count": 2,
+                            "filtered_trade_count": 2,
+                            "latest_nav": "100500.0000",
+                            "cumulative_return": "0.0050",
+                            "positions": [],
+                            "recent_trades": [],
+                            "nav_history": [],
+                        }
+                        ledger.list_accounts.return_value = ["web-paper-us"]
+                        html = self.app._render_local_paper_panel({})
+
+        self.assertIn("Latest Paper Run / 最近模拟盘运行", html)
+        self.assertIn("us_quality_momentum", html)
+        self.assertIn("2026-04-18T10:00:00", html)

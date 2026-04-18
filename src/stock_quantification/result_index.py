@@ -123,6 +123,28 @@ def normalize_rolling_backtest_summary(payload: Dict[str, Any]) -> Dict[str, Any
     }
 
 
+def normalize_local_paper_run_summary(payload: Dict[str, Any]) -> Dict[str, Any]:
+    summary = payload.get("summary", {})
+    account_id = summary.get("account_id")
+    strategy_id = summary.get("strategy_id")
+    trade_count = summary.get("trade_count")
+    position_count = summary.get("position_count")
+    cash = summary.get("cash")
+    buying_power = summary.get("buying_power")
+    return {
+        "subject_id": f"{account_id}:{strategy_id}" if account_id and strategy_id else account_id or strategy_id,
+        "subject_name": " / ".join(str(item) for item in (account_id, strategy_id) if item),
+        "decision": "RECORDED",
+        "rationale": f"{trade_count} trades routed into local paper ledger with {position_count} open positions",
+        "score": trade_count,
+        "return": cash,
+        "excess_return": buying_power,
+        "max_drawdown": None,
+        "regime_summary": [],
+        "alpha_mix": [],
+    }
+
+
 def _load_index(base_dir: str | Path, relative_path: str) -> Dict[str, List[Dict[str, Any]]]:
     payload = read_json_artifact(base_dir, relative_path)
     rows = payload.get("records", []) if isinstance(payload, dict) else []

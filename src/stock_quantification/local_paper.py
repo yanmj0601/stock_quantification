@@ -8,6 +8,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 from .artifacts import read_json_artifact, write_json_artifact, write_text_artifact
 from .models import AccountConstraints, AccountState, Market, OrderIntent, Position
+from .result_index import normalize_local_paper_run_summary
 from .runtime import ExecutionResult
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -219,6 +220,7 @@ class LocalPaperLedger:
             "account": _serialize_account_state(account_state),
             "trades": trade_records,
         }
+        run_payload["normalized_summary"] = normalize_local_paper_run_summary(run_payload)
         run_json_path = write_json_artifact(self._base_dir, run_relative, run_payload)
         md_lines = [
             f"# Local Paper Run {account_id}",
