@@ -111,6 +111,20 @@ class WebTests(TestCase):
 
     @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
     @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")
+    def test_home_page_explicit_overview_view_renders_morning_briefing(self, _mock_paper_panel, _mock_symbol_catalog) -> None:
+        response = self.app.render_home({"view": ["overview"]})
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn("Morning Brief / 今日总览", body)
+        self.assertIn("Latest Research / 最近研究结果", body)
+        self.assertIn("Latest Runtime / 最近运行结果", body)
+        self.assertIn("Quick Actions / 快捷入口", body)
+        self.assertNotIn("策略实验台", body)
+        self.assertNotIn('data-async-job-form="strategy_run"', body)
+        self.assertNotIn("和我交互", body)
+
+    @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
+    @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")
     def test_home_page_supports_workbench_view(self, _mock_paper_panel, _mock_symbol_catalog) -> None:
         response = self.app.render_home({"view": ["workbench"]})
         body = response.body.decode("utf-8")
