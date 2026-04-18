@@ -41,11 +41,16 @@ class WebTests(TestCase):
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
         self.assertIn('class="dashboard-app"', body)
-        self.assertIn('class="app-shell', body)
-        self.assertIn('class="side-nav', body)
-        self.assertIn('class="page-shell', body)
-        self.assertIn('class="page-header', body)
-        self.assertIn('class="summary-strip', body)
+        self.assertIn('<main class="app-shell">', body)
+        self.assertIn('<aside class="side-nav">', body)
+        self.assertIn('<section class="page-shell">', body)
+        self.assertIn('<header class="page-header">', body)
+        self.assertIn('<section class="summary-strip">', body)
+        self.assertIn('status-strip__link--active" href="/">项目总览</a>', body)
+        self.assertNotIn('class="app-shell shell"', body)
+        self.assertNotIn('class="side-nav workspace__nav"', body)
+        self.assertNotIn('class="page-shell workspace__content"', body)
+        self.assertNotIn('class="summary-strip panel', body)
 
     @patch.object(DashboardApp, "_recent_indexed_results", return_value=[
         {
@@ -102,7 +107,7 @@ class WebTests(TestCase):
         self.assertEqual(response.status, 200)
         self.assertIn("双市场量化项目工作台", body)
         self.assertIn('class="side-nav__link', body)
-        self.assertIn("module-link--active", body)
+        self.assertIn("side-nav__link--active", body)
 
     @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
     @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")

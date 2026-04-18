@@ -209,7 +209,7 @@ class DashboardApp:
             str(run_defaults["symbols_us"]),
         )
         content = f"""
-        <main class="app-shell shell">
+        <main class="app-shell">
           {status_bar}
           <section class="hero">
             <div>
@@ -304,7 +304,7 @@ class DashboardApp:
             )
         table_rows = "".join(rows) if rows else "<tr><td colspan='6'>当前还没有任务日志</td></tr>"
         content = f"""
-        <main class="app-shell shell">
+        <main class="app-shell">
           {status_bar}
           <section class="hero">
             <div>
@@ -385,7 +385,7 @@ class DashboardApp:
             </form>
             """
         content = f"""
-        <main class="app-shell shell">
+        <main class="app-shell">
           {status_bar}
           <section class="hero">
             <div>
@@ -2340,15 +2340,16 @@ class DashboardApp:
         return default
 
     def _render_page_shell(self, active_page: str, title: str, eyebrow: str, description: str, body: str) -> str:
+        status_active_page = "overview" if active_page in {"overview", "workbench", "results", "paper"} else active_page
         return f"""
-        <main class="app-shell shell">
-          {self._render_status_bar(active_page)}
-          <div class="app-shell__frame workspace">
-            <aside class="side-nav workspace__nav">
+        <main class="app-shell">
+          {self._render_status_bar(status_active_page)}
+          <div class="app-shell__frame">
+            <aside class="side-nav">
               {self._render_sidebar_nav(active_page)}
             </aside>
-            <section class="page-shell workspace__content">
-              <header class="page-header hero">
+            <section class="page-shell">
+              <header class="page-header">
                 <div>
                   <p class="eyebrow">{escape(eyebrow)}</p>
                   <h1>{escape(title)}</h1>
@@ -2376,7 +2377,7 @@ class DashboardApp:
         ]
         links = "".join(
             f"""
-            <a class="side-nav__link module-link{' module-link--active' if key == active_page else ''}" href="{href}">
+            <a class="side-nav__link{' side-nav__link--active' if key == active_page else ''}" href="{href}">
               <strong>{escape(label)}</strong>
               <span>{escape(description)}</span>
             </a>
@@ -2384,10 +2385,10 @@ class DashboardApp:
             for key, href, label, description in items
         )
         return f"""
-        <div class="side-nav__panel panel panel--nav">
+        <div class="side-nav__panel">
           <p class="eyebrow">Workspace Navigation</p>
           <h2>工作区导航</h2>
-          <div class="side-nav__links module-links module-links--secondary">{links}</div>
+          <div class="side-nav__links">{links}</div>
         </div>
         """
 
@@ -2592,8 +2593,8 @@ class DashboardApp:
         latest_strategy = latest_result.get("strategy_id", "N/A") if latest_result else "N/A"
         paper_trade_count = local_account.get("trade_count", "0") if local_account else "0"
         return f"""
-        <section class="summary-strip panel panel--overview">
-          <div class="panel__header">
+        <section class="summary-strip">
+          <div class="summary-strip__header">
             <div>
               <p class="eyebrow">Project Overview</p>
               <h2>项目总览</h2>
@@ -2619,32 +2620,32 @@ class DashboardApp:
         recent_artifacts = self._recent_artifacts(limit=12)
         task_logs = self._load_task_logs()
         links = [
-            ("dashboard", "/", "项目总览"),
+            ("overview", "/", "项目总览"),
             ("config", "/project/config", "项目配置页"),
             ("logs", "/project/logs", "任务日志页"),
             ("ops", "/project/ops", "运维中心"),
         ]
         link_html = "".join(
-            f"<a class=\"status-strip__link status-link{' status-link--active' if key == active_page else ''}\" href=\"{href}\">{label}</a>"
+            f"<a class=\"status-strip__link{' status-strip__link--active' if key == active_page else ''}\" href=\"{href}\">{label}</a>"
             for key, href, label in links
         )
         return f"""
-        <section class="status-strip status-bar">
-          <div class="status-strip__brand status-bar__brand">
+        <section class="status-strip">
+          <div class="status-strip__brand">
             <div>
               <p class="eyebrow">Project Status</p>
               <strong>Stock Quantification</strong>
             </div>
-            <span class="status-pill status-strip__pill">Server Time / {escape(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))}</span>
+            <span class="status-strip__pill">Server Time / {escape(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))}</span>
           </div>
-          <div class="status-strip__metrics status-bar__metrics">
-            <span class="status-pill status-strip__pill">Status / {escape(str(system_status.get('overall_status', 'N/A')))}</span>
-            <span class="status-pill status-strip__pill">Review / {escape(str(latest_result.get('review', {}).get('verdict', 'N/A')))}</span>
-            <span class="status-pill status-strip__pill">Paper / {escape(str(local_account.get('account_id', 'N/A') if local_account else 'N/A'))}</span>
-            <span class="status-pill status-strip__pill">Artifacts / {len(recent_artifacts)}</span>
-            <span class="status-pill status-strip__pill">Logs / {len(task_logs)}</span>
+          <div class="status-strip__metrics">
+            <span class="status-strip__pill">Status / {escape(str(system_status.get('overall_status', 'N/A')))}</span>
+            <span class="status-strip__pill">Review / {escape(str(latest_result.get('review', {}).get('verdict', 'N/A')))}</span>
+            <span class="status-strip__pill">Paper / {escape(str(local_account.get('account_id', 'N/A') if local_account else 'N/A'))}</span>
+            <span class="status-strip__pill">Artifacts / {len(recent_artifacts)}</span>
+            <span class="status-strip__pill">Logs / {len(task_logs)}</span>
           </div>
-          <nav class="status-strip__nav status-bar__nav">{link_html}</nav>
+          <nav class="status-strip__nav">{link_html}</nav>
         </section>
         """
 
