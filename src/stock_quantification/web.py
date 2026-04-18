@@ -2393,121 +2393,120 @@ class DashboardApp:
         """
 
     def _render_overview_page(self, query: Dict[str, List[str]]) -> WebResponse:
-        config = self._load_project_config()
-        artifact_query = query.get("artifact", [None])[0]
-        selected_artifact = self._resolve_selected_artifact(artifact_query)
-        artifact_html = self._render_selected_artifact(selected_artifact)
-        run_results_html = self._render_run_results()
-        factor_backtest_html = self._render_factor_backtest_results()
-        indexed_results_html = self._render_indexed_result_cards(view="overview")
-        artifact_cards_html = self._render_recent_artifact_cards(selected_artifact.relative_path if selected_artifact else None, view="overview")
-        chat_html = self._render_chat_panel()
         flash_html = self._render_flash_messages()
-        factor_form_html = self._render_factor_backtest_form(view="overview")
-        local_paper_html = self._render_local_paper_panel(query, view="overview")
-        overview_html = self._render_project_overview()
-        system_status = self._build_system_status()
-        run_defaults = config["run_defaults"]
-        recommended_account_id = self._recommended_account_id(str(run_defaults["market"]))
-        run_cn_picker = self._render_symbol_picker(
-            "run-cn",
-            Market.CN,
-            "symbols_cn",
-            str(run_defaults["symbols_cn"]),
-        )
-        run_us_picker = self._render_symbol_picker(
-            "run-us",
-            Market.US,
-            "symbols_us",
-            str(run_defaults["symbols_us"]),
-        )
-        progress_panel_html = self._render_job_progress_panel(
-            system_status.get("display_job") if isinstance(system_status.get("display_job"), dict) else None,
-            "dashboard-job-progress",
-        )
         body = f"""
           {flash_html}
-          {overview_html}
-          <section class="module" id="module-run">
-            <div class="module__header">
-              <p class="eyebrow">Module 01</p>
-              <h2>策略运行模块</h2>
-              <p class="hero__copy">运行市场扫描、设置运行模式、选择模拟盘账户，并把本次执行纳入项目记录。</p>
-            </div>
-            {progress_panel_html}
-            <section class="panel panel--form">
-              <div class="panel__header">
-                <div>
-                  <p class="eyebrow">Strategy Runtime</p>
-                  <h2>本地运行</h2>
-                </div>
-              </div>
-              <form class="grid-form" method="post" action="/run" id="run-form" data-async-job-form="strategy_run">
-                <label>Market / 市场<span class="field-note">选择 CN、US 或双市场</span><select id="run-market-select" name="market"><option value="ALL"{' selected' if run_defaults['market'] == 'ALL' else ''}>ALL</option><option value="CN"{' selected' if run_defaults['market'] == 'CN' else ''}>CN</option><option value="US"{' selected' if run_defaults['market'] == 'US' else ''}>US</option></select></label>
-                <label>Runtime / 运行语义<span class="field-note">PAPER 模拟、BACKTEST 回放、LIVE 实时估算</span><select name="runtime_mode"><option value="PAPER"{' selected' if run_defaults['runtime_mode'] == 'PAPER' else ''}>PAPER</option><option value="BACKTEST"{' selected' if run_defaults['runtime_mode'] == 'BACKTEST' else ''}>BACKTEST</option><option value="LIVE"{' selected' if run_defaults['runtime_mode'] == 'LIVE' else ''}>LIVE</option></select></label>
-                <label>Execution / 执行模式<span class="field-note">ADVISORY 仅建议，AUTO 自动执行</span><select name="execution_mode"><option value="ADVISORY"{' selected' if run_defaults['execution_mode'] == 'ADVISORY' else ''}>ADVISORY</option><option value="AUTO"{' selected' if run_defaults['execution_mode'] == 'AUTO' else ''}>AUTO</option></select></label>
-                <label>Broker / 接入口<span class="field-note">NONE 为纯本地，LOCAL_PAPER 为本地模拟盘</span><select name="broker"><option value="NONE"{' selected' if run_defaults['broker'] == 'NONE' else ''}>NONE</option><option value="LOCAL_PAPER"{' selected' if run_defaults['broker'] == 'LOCAL_PAPER' else ''}>LOCAL_PAPER</option></select></label>
-                <label>Cash / 初始资金<span class="field-note">新模拟盘账户的起始现金</span><input name="cash" value="{escape(str(run_defaults['cash']))}" /></label>
-                <label>Paper Account ID / 模拟盘账户<span class="field-note">本地模拟盘账户唯一标识</span><input id="run-broker-account-id" name="broker_account_id" value="{escape(str(run_defaults['broker_account_id']))}" data-recommended-account="{escape(recommended_account_id)}" /><span class="field-note field-note--accent" id="run-broker-account-recommendation">推荐账户名: {escape(recommended_account_id)}</span></label>
-                <label>Top N / 选股数<span class="field-note">最终组合保留的标的数量</span><input name="top_n" value="{escape(str(run_defaults['top_n']))}" /></label>
-                <label>Detail Limit / 细节样本<span class="field-note">全市场模式下详细历史抓取上限</span><input name="detail_limit" value="{escape(str(run_defaults['detail_limit']))}" /></label>
-                <label>History Limit / 历史窗口<span class="field-note">20/60 日因子和 beta 使用的历史 bars</span><input name="history_limit" value="{escape(str(run_defaults['history_limit']))}" /></label>
-                <label>Beta Window / Beta 窗口<span class="field-note">beta 估算使用的收益窗口长度</span><input name="beta_window" value="{escape(str(run_defaults['beta_window']))}" /></label>
-                <label>Forward Days / 前瞻天数<span class="field-note">附带 forward report 的持有天数</span><input name="forward_days" value="{escape(str(run_defaults['forward_days']))}" /></label>
-                <label>As Of Date / 历史日期<span class="field-note">为空时使用最近有效交易日</span><input name="as_of_date" value="{escape(str(run_defaults['as_of_date']))}" placeholder="2026-03-15" /></label>
-                <div class="field-group field-group--full"><span>A 股 Symbols / A 股股票池</span><span class="field-note">默认留空；需要时可搜索并多选</span>{run_cn_picker}</div>
-                <div class="field-group field-group--full"><span>美股 Symbols / 美股股票池</span><span class="field-note">默认留空；需要时可搜索并多选</span>{run_us_picker}</div>
-                <label class="checkbox-field"><input type="checkbox" name="route_orders"{' checked' if run_defaults.get('route_orders') else ''} />Route Orders / 写入模拟盘成交记录</label>
-                <div class="grid-form__actions"><button class="button button--primary" type="submit">运行策略</button></div>
-              </form>
-            </section>
-            {run_results_html}
-          </section>
-          <section class="module" id="module-paper">
-            <div class="module__header">
-              <p class="eyebrow">Module 02</p>
-              <h2>模拟盘模块</h2>
-              <p class="hero__copy">查看账户、成交流水、净值演变，并支持按日期过滤和一键重置，方便你把策略当作持续运转的项目来管理。</p>
-            </div>
-            {local_paper_html}
-          </section>
-          <section class="module" id="module-research">
-            <div class="module__header">
-              <p class="eyebrow">Module 03</p>
-              <h2>策略实验台</h2>
-              <p class="hero__copy">在一页里完成因子挑选、收益分析、滚动回测、状态归因和下一轮参数迭代，不再只看单次回测摘要。</p>
-            </div>
-            {factor_form_html}
-            {factor_backtest_html}
-            {artifact_html}
-          </section>
-          <section class="module" id="module-archive">
-            <div class="module__header">
-              <p class="eyebrow">Module 04</p>
-              <h2>结果归档模块</h2>
-              <p class="hero__copy">统一管理近期输出的 JSON、Markdown 和回测结果，保留项目级的可追溯记录。</p>
-            </div>
-            {indexed_results_html}
-            {artifact_cards_html}
-          </section>
-          <section class="module" id="module-collab">
-            <div class="module__header">
-              <p class="eyebrow">Module 05</p>
-              <h2>协作交互模块</h2>
-              <p class="hero__copy">保留一个轻量对话区，方便后面把研究问答、策略点评和异常解释接进来。</p>
-            </div>
-            {chat_html}
-          </section>
+          {self._render_morning_briefing()}
         """
         return self._html_page(
             self._render_page_shell(
                 "overview",
-                title="双市场量化项目工作台",
-                eyebrow="Project Workspace",
-                description="把策略运行、模拟盘、研究验证、结果归档和协作交互收进同一个项目工作台。",
+                title="Morning Brief / 今日总览",
+                eyebrow="Morning Brief",
+                description="30 秒看完今天的状态、最近研究、最近运行和常用入口。",
                 body=body,
             )
         )
+
+    def _render_morning_briefing(self) -> str:
+        system_status = self._build_system_status()
+        display_job = system_status.get("display_job") if isinstance(system_status.get("display_job"), dict) else None
+        latest_research = self.state.last_factor_backtest_result if isinstance(self.state.last_factor_backtest_result, dict) else {}
+        latest_runtime = self.state.last_run_results[-1] if self.state.last_run_results else self._latest_paper_run_result() or {}
+        latest_research_summary = latest_research.get("summary", {}) if isinstance(latest_research.get("summary"), dict) else {}
+        latest_research_scorecard = (
+            latest_research.get("attribution", {}).get("scorecard", {})
+            if isinstance(latest_research.get("attribution"), dict)
+            else {}
+        )
+        latest_runtime_summary = latest_runtime.get("paper_run_summary", {}) if isinstance(latest_runtime.get("paper_run_summary"), dict) else latest_runtime
+        latest_runtime_review = (
+            latest_runtime.get("review", {}).get("verdict")
+            if isinstance(latest_runtime.get("review"), dict)
+            else None
+        )
+        active_job_label = "N/A"
+        if display_job:
+            active_job_label = str(display_job.get("kind") or display_job.get("job_kind") or display_job.get("status") or "N/A")
+            stage = str(display_job.get("stage") or "").strip()
+            if stage:
+                active_job_label = f"{active_job_label} / {stage}"
+        return f"""
+        <section class="summary-strip">
+          <div class="summary-strip__header">
+            <div>
+              <p class="eyebrow">Morning Brief / 今日总览</p>
+              <h2>30 秒看完今天情况</h2>
+            </div>
+            <p class="hero__copy">只保留当前状态、最近研究、最近运行和常用跳转，避免 overview 再次膨胀成缩小版工作台。</p>
+          </div>
+          <div class="summary-grid">
+            {self._summary_tile("System / 当前状态", system_status.get("overall_status", "N/A"), "来自项目健康检查的总状态")}
+            {self._summary_tile("Review / 最近审核", system_status.get("latest_review", "N/A"), "最近一次运行的审核结论")}
+            {self._summary_tile("Artifacts / 工件", system_status.get("artifact_count", 0), "当前可见的归档数量")}
+            {self._summary_tile("Jobs / 当前任务", active_job_label, "最近心跳或最近完成的后台任务")}
+            {self._summary_tile("Paper / 模拟盘", system_status.get("paper_account_count", 0), "已注册的本地模拟盘账户数")}
+          </div>
+        </section>
+        <section class="panel">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Latest Research / 最近研究结果</p>
+              <h2>{escape(str(latest_research_summary.get("subject_name", "暂无最近研究结果")))}</h2>
+            </div>
+            <a class="button button--ghost" href="/?view=workbench">Open Workbench / 打开工作台</a>
+          </div>
+          <div class="summary-grid">
+            {self._summary_tile("Market / 市场", latest_research_summary.get("market", "N/A"), "最近一次实验的市场")}
+            {self._summary_tile("Return / 累计收益", latest_research_summary.get("total_return", "N/A"), "实验摘要里的总收益")}
+            {self._summary_tile("Decision / 结论", latest_research_scorecard.get("decision", "N/A"), "评分卡给出的建议")}
+            {self._summary_tile("Score / 评分", latest_research_scorecard.get("score", "N/A"), "本轮实验综合评分")}
+          </div>
+          <p class="muted">Window / 窗口: {escape(str(latest_research_summary.get("start_date", "N/A")))} -> {escape(str(latest_research_summary.get("end_date", "N/A")))}</p>
+        </section>
+        <section class="panel">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Latest Runtime / 最近运行结果</p>
+              <h2>{escape(str(latest_runtime_summary.get("strategy_id", latest_runtime_summary.get("paper_run_summary", {}).get("strategy_id", "暂无最近运行结果"))))}</h2>
+            </div>
+            <a class="button button--ghost" href="/?view=paper">Open Paper / 打开模拟盘</a>
+          </div>
+          <div class="summary-grid">
+            {self._summary_tile("Market / 市场", latest_runtime.get("market", latest_runtime_summary.get("market", "N/A")), "最近一次运行覆盖的市场")}
+            {self._summary_tile("Runtime / 运行模式", latest_runtime.get("effective_runtime_mode", latest_runtime.get("runtime_mode", latest_runtime_summary.get("runtime_mode", "N/A"))), "最近一次运行的语义")}
+            {self._summary_tile("Review / 审核", latest_runtime_review or latest_runtime_summary.get("decision", "N/A"), "最近一次运行的审核或记录状态")}
+            {self._summary_tile("Trades / 成交", len(latest_runtime.get("paper_trade_records", [])) if isinstance(latest_runtime.get("paper_trade_records"), list) else latest_runtime_summary.get("trade_count", "0"), "最近一次运行里的成交数")}
+          </div>
+          <p class="muted">Trade Date / 交易日: {escape(str(latest_runtime.get("trade_date", latest_runtime_summary.get("as_of", "N/A"))))}</p>
+        </section>
+        <section class="panel">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Quick Actions / 快捷入口</p>
+              <h2>跳到常用工作区</h2>
+            </div>
+          </div>
+          <div class="quick-actions">
+            <a class="quick-link" href="/?view=workbench">
+              <strong>Research Workbench / 研究工作台</strong>
+              <span>去做因子实验和回测。</span>
+            </a>
+            <a class="quick-link" href="/?view=results">
+              <strong>Research Results / 研究结果</strong>
+              <span>查看统一索引和归档结果。</span>
+            </a>
+            <a class="quick-link" href="/?view=paper">
+              <strong>Local Paper / 模拟盘</strong>
+              <span>查看账户、成交和净值。</span>
+            </a>
+            <a class="quick-link" href="/project/ops">
+              <strong>Ops / 运维中心</strong>
+              <span>查看后台任务和系统健康。</span>
+            </a>
+          </div>
+        </section>
+        """
 
     def _render_workbench_page(self, query: Dict[str, List[str]]) -> WebResponse:
         artifact_query = query.get("artifact", [None])[0]

@@ -1110,6 +1110,33 @@ body.dashboard-app {
   margin-top: 14px;
 }
 
+.dashboard-app .quick-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.dashboard-app .quick-link {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 250, 242, 0.94);
+  border: 1px solid rgba(133, 108, 81, 0.16);
+  box-shadow: var(--shadow-soft);
+}
+
+.dashboard-app .quick-link strong {
+  color: var(--text-strong);
+  font-size: 0.95rem;
+}
+
+.dashboard-app .quick-link span {
+  color: var(--muted);
+  line-height: 1.5;
+  font-size: 0.86rem;
+}
+
 .panel,
 .report-panel,
 .form-panel {

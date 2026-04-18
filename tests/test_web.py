@@ -105,7 +105,7 @@ class WebTests(TestCase):
         response = self.app.render_home({"view": ["not-a-real-view"]})
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
-        self.assertIn("双市场量化项目工作台", body)
+        self.assertIn("Morning Brief / 今日总览", body)
         self.assertIn('class="side-nav__link', body)
         self.assertIn("side-nav__link--active", body)
 
@@ -120,26 +120,28 @@ class WebTests(TestCase):
 
     @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
     @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")
-    def test_home_page_renders_dashboard(self, _mock_paper_panel, _mock_symbol_catalog) -> None:
+    def test_home_page_renders_morning_briefing_overview(self, _mock_paper_panel, _mock_symbol_catalog) -> None:
         response = self.app.render_home({})
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
-        self.assertIn("双市场量化项目工作台", body)
+        self.assertIn("Morning Brief / 今日总览", body)
         self.assertIn("Project Status", body)
         self.assertIn("Overview / 总览", body)
+        self.assertIn("Latest Research / 最近研究结果", body)
+        self.assertIn("Latest Runtime / 最近运行结果", body)
+        self.assertIn("Quick Actions / 快捷入口", body)
         self.assertIn("Research Workbench / 研究工作台", body)
         self.assertIn("Research Results / 研究结果", body)
         self.assertIn("Local Paper / 模拟盘", body)
-        self.assertNotIn("模块导航", body)
-        self.assertIn("研究结果中心", body)
-        self.assertIn("最近结果", body)
-        self.assertIn("策略实验台", body)
-        self.assertIn("模拟盘账户", body)
-        self.assertIn("推荐账户名", body)
-        self.assertIn("web-paper-us", body)
-        self.assertIn("任务进度", body)
-        self.assertIn("data-async-job-form=\"strategy_run\"", body)
-        self.assertIn("留空表示全市场", body)
+        self.assertIn("Ops / 运维中心", body)
+        self.assertNotIn("策略实验台", body)
+        self.assertNotIn('data-async-job-form="strategy_run"', body)
+        self.assertNotIn('id="factor-backtest-form"', body)
+        self.assertNotIn("重置账户", body)
+        self.assertNotIn("持仓详情", body)
+        self.assertNotIn("当日成交汇总", body)
+        self.assertNotIn("最近结果", body)
+        self.assertNotIn("和我交互", body)
 
     @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
     @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")
@@ -169,7 +171,7 @@ class WebTests(TestCase):
                 },
             )
             with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
-                response = self.app.render_home({})
+                response = self.app.render_home({"view": ["results"]})
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
         self.assertIn("Research Results / 研究结果中心", body)
@@ -217,7 +219,7 @@ class WebTests(TestCase):
                 },
             )
             with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
-                response = self.app.render_home({})
+                response = self.app.render_home({"view": ["results"]})
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
         self.assertIn("Research Results / 研究结果中心", body)
@@ -254,7 +256,7 @@ class WebTests(TestCase):
             },
             "artifacts": {"json": "/tmp/us_factor.json", "markdown": "/tmp/us_factor.md"},
         }
-        response = self.app.render_home({})
+        response = self.app.render_home({"view": ["workbench"]})
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
         self.assertIn("Factor Setup / 因子配置", body)
