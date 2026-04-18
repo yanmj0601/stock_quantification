@@ -209,7 +209,7 @@ class DashboardApp:
             str(run_defaults["symbols_us"]),
         )
         content = f"""
-        <main class="shell">
+        <main class="app-shell shell">
           {status_bar}
           <section class="hero">
             <div>
@@ -304,7 +304,7 @@ class DashboardApp:
             )
         table_rows = "".join(rows) if rows else "<tr><td colspan='6'>当前还没有任务日志</td></tr>"
         content = f"""
-        <main class="shell">
+        <main class="app-shell shell">
           {status_bar}
           <section class="hero">
             <div>
@@ -385,7 +385,7 @@ class DashboardApp:
             </form>
             """
         content = f"""
-        <main class="shell">
+        <main class="app-shell shell">
           {status_bar}
           <section class="hero">
             <div>
@@ -2311,6 +2311,7 @@ class DashboardApp:
         body = Template(template).safe_substitute(
             page_title=escape(title),
             content=content,
+            body_class="dashboard-app",
         )
         return WebResponse(
             status=HTTPStatus.OK,
@@ -2340,22 +2341,24 @@ class DashboardApp:
 
     def _render_page_shell(self, active_page: str, title: str, eyebrow: str, description: str, body: str) -> str:
         return f"""
-        <main class="shell">
-          <section class="hero">
-            <div>
-              <p class="eyebrow">Project Status</p>
-              <p class="eyebrow">{escape(eyebrow)}</p>
-              <h1>{escape(title)}</h1>
-              <p class="hero__copy">{escape(description)}</p>
-            </div>
-          </section>
-          <div class="workspace">
-            <aside class="workspace__nav">
+        <main class="app-shell shell">
+          {self._render_status_bar(active_page)}
+          <div class="app-shell__frame workspace">
+            <aside class="side-nav workspace__nav">
               {self._render_sidebar_nav(active_page)}
             </aside>
-            <div class="workspace__content">
-              {body}
-            </div>
+            <section class="page-shell workspace__content">
+              <header class="page-header hero">
+                <div>
+                  <p class="eyebrow">{escape(eyebrow)}</p>
+                  <h1>{escape(title)}</h1>
+                  <p class="page-header__copy hero__copy">{escape(description)}</p>
+                </div>
+              </header>
+              <div class="page-shell__body">
+                {body}
+              </div>
+            </section>
           </div>
           {self._render_interactive_script()}
         </main>
@@ -2373,7 +2376,7 @@ class DashboardApp:
         ]
         links = "".join(
             f"""
-            <a class="module-link{' module-link--active' if key == active_page else ''}" href="{href}">
+            <a class="side-nav__link module-link{' module-link--active' if key == active_page else ''}" href="{href}">
               <strong>{escape(label)}</strong>
               <span>{escape(description)}</span>
             </a>
@@ -2381,10 +2384,10 @@ class DashboardApp:
             for key, href, label, description in items
         )
         return f"""
-        <div class="panel panel--nav">
+        <div class="side-nav__panel panel panel--nav">
           <p class="eyebrow">Workspace Navigation</p>
           <h2>工作区导航</h2>
-          <div class="module-links module-links--secondary">{links}</div>
+          <div class="side-nav__links module-links module-links--secondary">{links}</div>
         </div>
         """
 
@@ -2589,7 +2592,7 @@ class DashboardApp:
         latest_strategy = latest_result.get("strategy_id", "N/A") if latest_result else "N/A"
         paper_trade_count = local_account.get("trade_count", "0") if local_account else "0"
         return f"""
-        <section class="panel panel--overview">
+        <section class="summary-strip panel panel--overview">
           <div class="panel__header">
             <div>
               <p class="eyebrow">Project Overview</p>
@@ -2622,26 +2625,26 @@ class DashboardApp:
             ("ops", "/project/ops", "运维中心"),
         ]
         link_html = "".join(
-            f"<a class=\"status-link{' status-link--active' if key == active_page else ''}\" href=\"{href}\">{label}</a>"
+            f"<a class=\"status-strip__link status-link{' status-link--active' if key == active_page else ''}\" href=\"{href}\">{label}</a>"
             for key, href, label in links
         )
         return f"""
-        <section class="status-bar">
-          <div class="status-bar__brand">
+        <section class="status-strip status-bar">
+          <div class="status-strip__brand status-bar__brand">
             <div>
               <p class="eyebrow">Project Status</p>
               <strong>Stock Quantification</strong>
             </div>
-            <span class="status-pill">Server Time / {escape(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))}</span>
+            <span class="status-pill status-strip__pill">Server Time / {escape(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))}</span>
           </div>
-          <div class="status-bar__metrics">
-            <span class="status-pill">Status / {escape(str(system_status.get('overall_status', 'N/A')))}</span>
-            <span class="status-pill">Review / {escape(str(latest_result.get('review', {}).get('verdict', 'N/A')))}</span>
-            <span class="status-pill">Paper / {escape(str(local_account.get('account_id', 'N/A') if local_account else 'N/A'))}</span>
-            <span class="status-pill">Artifacts / {len(recent_artifacts)}</span>
-            <span class="status-pill">Logs / {len(task_logs)}</span>
+          <div class="status-strip__metrics status-bar__metrics">
+            <span class="status-pill status-strip__pill">Status / {escape(str(system_status.get('overall_status', 'N/A')))}</span>
+            <span class="status-pill status-strip__pill">Review / {escape(str(latest_result.get('review', {}).get('verdict', 'N/A')))}</span>
+            <span class="status-pill status-strip__pill">Paper / {escape(str(local_account.get('account_id', 'N/A') if local_account else 'N/A'))}</span>
+            <span class="status-pill status-strip__pill">Artifacts / {len(recent_artifacts)}</span>
+            <span class="status-pill status-strip__pill">Logs / {len(task_logs)}</span>
           </div>
-          <nav class="status-bar__nav">{link_html}</nav>
+          <nav class="status-strip__nav status-bar__nav">{link_html}</nav>
         </section>
         """
 

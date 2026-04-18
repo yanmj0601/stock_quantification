@@ -34,6 +34,19 @@ class WebTests(TestCase):
         self.assertIn("Local Paper / 模拟盘", body)
         self.assertNotIn("模块导航", body)
 
+    @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
+    @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")
+    def test_home_page_exposes_report_first_shell_hooks_on_overview(self, _mock_paper_panel, _mock_symbol_catalog) -> None:
+        response = self.app.render_home({})
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn('class="dashboard-app"', body)
+        self.assertIn('class="app-shell', body)
+        self.assertIn('class="side-nav', body)
+        self.assertIn('class="page-shell', body)
+        self.assertIn('class="page-header', body)
+        self.assertIn('class="summary-strip', body)
+
     @patch.object(DashboardApp, "_recent_indexed_results", return_value=[
         {
             "result_id": "strategy_suite:US:2026-03-31",
@@ -88,7 +101,8 @@ class WebTests(TestCase):
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
         self.assertIn("双市场量化项目工作台", body)
-        self.assertIn('class="module-link module-link--active" href="/"', body)
+        self.assertIn('class="side-nav__link', body)
+        self.assertIn("module-link--active", body)
 
     @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
     @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")
