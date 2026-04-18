@@ -29,7 +29,9 @@ from .research_data import (
     InMemoryCorporateActionProvider,
     InMemoryFundamentalProvider,
     ResearchDataBundle,
+    UnavailableCorporateActionProvider,
     build_default_bundle,
+    build_point_in_time_safe_snapshots,
 )
 
 _HTTP_HEADERS = {
@@ -446,6 +448,22 @@ def _resolve_full_us_symbols(detail_limit: int) -> List[str]:
     return [symbol for _turnover, _market_cap, symbol in ranked[:detail_limit]]
 
 
+def load_symbol_directory(market: Market) -> List[Tuple[str, str]]:
+    if market == Market.CN:
+        directory = _fetch_sse_symbol_directory()
+        directory.update(_fetch_szse_symbol_directory())
+        return sorted(directory.items(), key=lambda item: item[0])
+    if market == Market.US:
+        rows = [row for row in _fetch_us_screener_rows() if _is_us_common_stock_row(row)]
+        directory = {
+            str(row.get("symbol", "")).upper(): str(row.get("name", "")).strip()
+            for row in rows
+            if str(row.get("symbol", "")).strip()
+        }
+        return sorted(directory.items(), key=lambda item: item[0])
+    raise RealDataError("Unsupported market %s" % market.value)
+
+
 def _us_company_name(symbol: str) -> str:
     screener_row = (_US_SCREENER_CACHE or {}).get(symbol.upper())
     if screener_row and screener_row.get("name"):
@@ -776,6 +794,7 @@ def _build_real_research_bundle(
 ) -> ResearchDataBundle:
     instruments = market_data_provider.list_instruments(market)
     fallback_bundle = build_default_bundle(market_data_provider, market, benchmark_id, as_of)
+    historical_mode = as_of < date.today()
 
     constituents: List[BenchmarkConstituent] = []
     cn_sector_by_symbol: Dict[str, str] = {}
@@ -803,23 +822,28 @@ def _build_real_research_bundle(
             constituents = _fetch_market_benchmark_constituents(market, benchmark_id)
     except Exception:
         constituents = []
-    try:
-        snapshots = _fetch_market_fundamentals(
-            market,
-            instruments,
-            as_of,
-            cn_sector_by_symbol,
-            deep_us_fundamentals=deep_us_fundamentals,
-        )
-    except Exception:
-        snapshots = []
 
-    if not snapshots:
-        snapshots = [
-            fallback_bundle.fundamental_provider.get_snapshot(instrument.instrument_id, as_of)
-            for instrument in instruments
-        ]
-        snapshots = [snapshot for snapshot in snapshots if snapshot is not None]
+    if historical_mode:
+        snapshots = build_point_in_time_safe_snapshots(market_data_provider, instruments, as_of)
+    else:
+        try:
+            snapshots = _fetch_market_fundamentals(
+                market,
+                instruments,
+                as_of,
+                cn_sector_by_symbol,
+                deep_us_fundamentals=deep_us_fundamentals,
+            )
+        except Exception:
+            snapshots = []
+
+        if not snapshots:
+            snapshots = [
+                fallback_bundle.fundamental_provider.get_snapshot(instrument.instrument_id, as_of)
+                for instrument in instruments
+            ]
+            snapshots = [snapshot for snapshot in snapshots if snapshot is not None]
+
     if not constituents:
         constituents = fallback_bundle.benchmark_provider.get_constituents(benchmark_id, as_of)
 
@@ -827,7 +851,7 @@ def _build_real_research_bundle(
         market_data_provider=market_data_provider,
         fundamental_provider=InMemoryFundamentalProvider(snapshots),
         benchmark_provider=InMemoryBenchmarkProvider(constituents),
-        corporate_action_provider=InMemoryCorporateActionProvider([]),
+        corporate_action_provider=UnavailableCorporateActionProvider(),
         benchmark_ids_by_market={market: benchmark_id},
     )
 

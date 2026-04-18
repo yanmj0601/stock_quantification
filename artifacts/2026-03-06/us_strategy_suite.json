@@ -1,0 +1,445 @@
+{
+  "market": "US",
+  "start_date": "2026-03-02",
+  "end_date": "2026-03-06",
+  "detail_limit": 4,
+  "history_limit": 60,
+  "recommended_presets": [],
+  "watchlist_presets": [
+    "us_liquidity_leaders",
+    "us_baseline",
+    "us_momentum_core",
+    "us_low_vol_defensive",
+    "us_quality_focus"
+  ],
+  "drop_presets": [],
+  "strategies": [
+    {
+      "preset_id": "us_liquidity_leaders",
+      "display_name": "美股流动性龙头",
+      "family": "流动性",
+      "description": "优先高流动性大市值股票，保留一定中期动量。",
+      "total_return": "-0.0014",
+      "pre_fee_return": "-0.0013",
+      "fee_drag": "0.0001",
+      "annualized_return": "-0.0596",
+      "annualized_volatility": "0.1479",
+      "sharpe_ratio": "-0.4032",
+      "average_turnover": "0.1606",
+      "total_fees": "9.4872",
+      "max_drawdown": "-0.0087",
+      "final_nav": "99860.7837",
+      "trading_days": 5,
+      "benchmark_available": true,
+      "benchmark_total_return": "-0.0204",
+      "excess_return": "0.0190",
+      "regime_summary": [
+        {
+          "regime": "UP",
+          "observations": 1,
+          "average_period_return": "0.0150",
+          "average_benchmark_period_return": "0.0071",
+          "average_excess_period_return": "0.0079",
+          "win_rate": "1.0000"
+        },
+        {
+          "regime": "RANGE",
+          "observations": 1,
+          "average_period_return": "0.0000",
+          "average_benchmark_period_return": "0.0000",
+          "average_excess_period_return": "0.0000",
+          "win_rate": "0.0000"
+        },
+        {
+          "regime": "DOWN",
+          "observations": 3,
+          "average_period_return": "-0.0054",
+          "average_benchmark_period_return": "-0.0092",
+          "average_excess_period_return": "0.0038",
+          "win_rate": "0.0000"
+        }
+      ],
+      "alpha_mix": [
+        {
+          "family": "momentum",
+          "net_weight": "0.4200",
+          "gross_weight": "0.4200",
+          "share_of_gross": "0.4667"
+        },
+        {
+          "family": "liquidity",
+          "net_weight": "0.3400",
+          "gross_weight": "0.3400",
+          "share_of_gross": "0.3778"
+        },
+        {
+          "family": "risk_control",
+          "net_weight": "-0.1400",
+          "gross_weight": "0.1400",
+          "share_of_gross": "0.1556"
+        },
+        {
+          "family": "quality",
+          "net_weight": "0.0000",
+          "gross_weight": "0.0000",
+          "share_of_gross": "0.0000"
+        }
+      ],
+      "scorecard": {
+        "preset_id": "us_liquidity_leaders",
+        "market": "US",
+        "score": "-1.0050",
+        "decision": "REVIEW",
+        "strengths": [
+          "跨市场状态保持正超额",
+          "相对基准有正超额"
+        ],
+        "warnings": [
+          "净收益仍为负或接近零"
+        ],
+        "rationale": "net=-0.0014 excess=0.0190 sharpe=-0.4032 drawdown=-0.0087"
+      }
+    },
+    {
+      "preset_id": "us_baseline",
+      "display_name": "美股基线质量动量",
+      "family": "质量+动量",
+      "description": "当前默认的大市值质量动量多因子策略。",
+      "total_return": "-0.0058",
+      "pre_fee_return": "-0.0057",
+      "fee_drag": "0.0001",
+      "annualized_return": "-0.2446",
+      "annualized_volatility": "0.1677",
+      "sharpe_ratio": "-1.4584",
+      "average_turnover": "0.1922",
+      "total_fees": "11.3355",
+      "max_drawdown": "-0.0132",
+      "final_nav": "99422.7922",
+      "trading_days": 5,
+      "benchmark_available": true,
+      "benchmark_total_return": "-0.0204",
+      "excess_return": "0.0146",
+      "regime_summary": [
+        {
+          "regime": "UP",
+          "observations": 1,
+          "average_period_return": "0.0157",
+          "average_benchmark_period_return": "0.0071",
+          "average_excess_period_return": "0.0086",
+          "win_rate": "1.0000"
+        },
+        {
+          "regime": "RANGE",
+          "observations": 1,
+          "average_period_return": "0.0000",
+          "average_benchmark_period_return": "0.0000",
+          "average_excess_period_return": "0.0000",
+          "win_rate": "0.0000"
+        },
+        {
+          "regime": "DOWN",
+          "observations": 3,
+          "average_period_return": "-0.0071",
+          "average_benchmark_period_return": "-0.0092",
+          "average_excess_period_return": "0.0021",
+          "win_rate": "0.0000"
+        }
+      ],
+      "alpha_mix": [
+        {
+          "family": "momentum",
+          "net_weight": "0.4500",
+          "gross_weight": "0.4500",
+          "share_of_gross": "0.3913"
+        },
+        {
+          "family": "quality",
+          "net_weight": "0.4000",
+          "gross_weight": "0.4000",
+          "share_of_gross": "0.3478"
+        },
+        {
+          "family": "risk_control",
+          "net_weight": "-0.2500",
+          "gross_weight": "0.2500",
+          "share_of_gross": "0.2174"
+        },
+        {
+          "family": "liquidity",
+          "net_weight": "0.0500",
+          "gross_weight": "0.0500",
+          "share_of_gross": "0.0435"
+        }
+      ],
+      "scorecard": {
+        "preset_id": "us_baseline",
+        "market": "US",
+        "score": "-3.4211",
+        "decision": "REVIEW",
+        "strengths": [
+          "跨市场状态保持正超额",
+          "相对基准有正超额"
+        ],
+        "warnings": [
+          "净收益仍为负或接近零"
+        ],
+        "rationale": "net=-0.0058 excess=0.0146 sharpe=-1.4584 drawdown=-0.0132"
+      }
+    },
+    {
+      "preset_id": "us_momentum_core",
+      "display_name": "美股动量核心",
+      "family": "动量",
+      "description": "以相对强弱和趋势为核心的中期动量策略。",
+      "total_return": "-0.0130",
+      "pre_fee_return": "-0.0128",
+      "fee_drag": "0.0001",
+      "annualized_return": "-0.4748",
+      "annualized_volatility": "0.1800",
+      "sharpe_ratio": "-2.6383",
+      "average_turnover": "0.2145",
+      "total_fees": "12.4190",
+      "max_drawdown": "-0.0188",
+      "final_nav": "98704.9499",
+      "trading_days": 5,
+      "benchmark_available": true,
+      "benchmark_total_return": "-0.0204",
+      "excess_return": "0.0074",
+      "regime_summary": [
+        {
+          "regime": "UP",
+          "observations": 1,
+          "average_period_return": "0.0140",
+          "average_benchmark_period_return": "0.0071",
+          "average_excess_period_return": "0.0070",
+          "win_rate": "1.0000"
+        },
+        {
+          "regime": "RANGE",
+          "observations": 1,
+          "average_period_return": "0.0000",
+          "average_benchmark_period_return": "0.0000",
+          "average_excess_period_return": "0.0000",
+          "win_rate": "0.0000"
+        },
+        {
+          "regime": "DOWN",
+          "observations": 3,
+          "average_period_return": "-0.0089",
+          "average_benchmark_period_return": "-0.0092",
+          "average_excess_period_return": "0.0002",
+          "win_rate": "0.0000"
+        }
+      ],
+      "alpha_mix": [
+        {
+          "family": "momentum",
+          "net_weight": "1.0350",
+          "gross_weight": "1.0350",
+          "share_of_gross": "0.9000"
+        },
+        {
+          "family": "liquidity",
+          "net_weight": "0.1150",
+          "gross_weight": "0.1150",
+          "share_of_gross": "0.1000"
+        },
+        {
+          "family": "quality",
+          "net_weight": "0.0000",
+          "gross_weight": "0.0000",
+          "share_of_gross": "0.0000"
+        },
+        {
+          "family": "risk_control",
+          "net_weight": "0.0000",
+          "gross_weight": "0.0000",
+          "share_of_gross": "0.0000"
+        }
+      ],
+      "scorecard": {
+        "preset_id": "us_momentum_core",
+        "market": "US",
+        "score": "-6.1441",
+        "decision": "REVIEW",
+        "strengths": [
+          "跨市场状态保持正超额",
+          "相对基准有正超额"
+        ],
+        "warnings": [
+          "净收益仍为负或接近零",
+          "平均换手偏高，容易吞噬 alpha"
+        ],
+        "rationale": "net=-0.0130 excess=0.0074 sharpe=-2.6383 drawdown=-0.0188"
+      }
+    },
+    {
+      "preset_id": "us_low_vol_defensive",
+      "display_name": "美股低波防御",
+      "family": "低波动",
+      "description": "质量和盈利能力叠加低波动约束，强调防守。",
+      "total_return": "-0.0272",
+      "pre_fee_return": "-0.0271",
+      "fee_drag": "0.0001",
+      "annualized_return": "-0.7444",
+      "annualized_volatility": "0.2410",
+      "sharpe_ratio": "-3.0895",
+      "average_turnover": "0.0847",
+      "total_fees": "9.6255",
+      "max_drawdown": "-0.0361",
+      "final_nav": "97284.3091",
+      "trading_days": 5,
+      "benchmark_available": true,
+      "benchmark_total_return": "-0.0204",
+      "excess_return": "-0.0068",
+      "regime_summary": [
+        {
+          "regime": "UP",
+          "observations": 1,
+          "average_period_return": "0.0179",
+          "average_benchmark_period_return": "0.0071",
+          "average_excess_period_return": "0.0108",
+          "win_rate": "1.0000"
+        },
+        {
+          "regime": "RANGE",
+          "observations": 1,
+          "average_period_return": "0.0000",
+          "average_benchmark_period_return": "0.0000",
+          "average_excess_period_return": "0.0000",
+          "win_rate": "0.0000"
+        },
+        {
+          "regime": "DOWN",
+          "observations": 3,
+          "average_period_return": "-0.0150",
+          "average_benchmark_period_return": "-0.0092",
+          "average_excess_period_return": "-0.0058",
+          "win_rate": "0.0000"
+        }
+      ],
+      "alpha_mix": [
+        {
+          "family": "risk_control",
+          "net_weight": "-0.5000",
+          "gross_weight": "0.5000",
+          "share_of_gross": "0.5000"
+        },
+        {
+          "family": "quality",
+          "net_weight": "0.4000",
+          "gross_weight": "0.4000",
+          "share_of_gross": "0.4000"
+        },
+        {
+          "family": "momentum",
+          "net_weight": "0.1000",
+          "gross_weight": "0.1000",
+          "share_of_gross": "0.1000"
+        },
+        {
+          "family": "liquidity",
+          "net_weight": "0.0000",
+          "gross_weight": "0.0000",
+          "share_of_gross": "0.0000"
+        }
+      ],
+      "scorecard": {
+        "preset_id": "us_low_vol_defensive",
+        "market": "US",
+        "score": "-7.3505",
+        "decision": "REVIEW",
+        "strengths": [],
+        "warnings": [
+          "净收益仍为负或接近零",
+          "相对基准没有稳定超额"
+        ],
+        "rationale": "net=-0.0272 excess=-0.0068 sharpe=-3.0895 drawdown=-0.0361"
+      }
+    },
+    {
+      "preset_id": "us_quality_focus",
+      "display_name": "美股质量精选",
+      "family": "质量",
+      "description": "以盈利能力和经营质量为核心，辅以回撤控制。",
+      "total_return": "-0.0263",
+      "pre_fee_return": "-0.0262",
+      "fee_drag": "0.0001",
+      "annualized_return": "-0.7333",
+      "annualized_volatility": "0.2268",
+      "sharpe_ratio": "-3.2334",
+      "average_turnover": "0.0763",
+      "total_fees": "7.6327",
+      "max_drawdown": "-0.0340",
+      "final_nav": "97371.8417",
+      "trading_days": 5,
+      "benchmark_available": true,
+      "benchmark_total_return": "-0.0204",
+      "excess_return": "-0.0059",
+      "regime_summary": [
+        {
+          "regime": "UP",
+          "observations": 1,
+          "average_period_return": "0.0169",
+          "average_benchmark_period_return": "0.0071",
+          "average_excess_period_return": "0.0098",
+          "win_rate": "1.0000"
+        },
+        {
+          "regime": "RANGE",
+          "observations": 1,
+          "average_period_return": "0.0000",
+          "average_benchmark_period_return": "0.0000",
+          "average_excess_period_return": "0.0000",
+          "win_rate": "0.0000"
+        },
+        {
+          "regime": "DOWN",
+          "observations": 3,
+          "average_period_return": "-0.0143",
+          "average_benchmark_period_return": "-0.0092",
+          "average_excess_period_return": "-0.0052",
+          "win_rate": "0.0000"
+        }
+      ],
+      "alpha_mix": [
+        {
+          "family": "quality",
+          "net_weight": "0.5600",
+          "gross_weight": "0.5600",
+          "share_of_gross": "0.5833"
+        },
+        {
+          "family": "risk_control",
+          "net_weight": "-0.2800",
+          "gross_weight": "0.2800",
+          "share_of_gross": "0.2917"
+        },
+        {
+          "family": "momentum",
+          "net_weight": "0.1200",
+          "gross_weight": "0.1200",
+          "share_of_gross": "0.1250"
+        },
+        {
+          "family": "liquidity",
+          "net_weight": "0.0000",
+          "gross_weight": "0.0000",
+          "share_of_gross": "0.0000"
+        }
+      ],
+      "scorecard": {
+        "preset_id": "us_quality_focus",
+        "market": "US",
+        "score": "-7.5955",
+        "decision": "REVIEW",
+        "strengths": [],
+        "warnings": [
+          "净收益仍为负或接近零",
+          "相对基准没有稳定超额"
+        ],
+        "rationale": "net=-0.0263 excess=-0.0059 sharpe=-3.2334 drawdown=-0.0340"
+      }
+    }
+  ]
+}

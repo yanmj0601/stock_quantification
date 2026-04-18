@@ -3,6 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 from unittest import TestCase
 
+from stock_quantification.result_index import normalize_strategy_suite_summary
 from stock_quantification.reporting import (
     build_beta_extremes,
     build_candidate_buckets,
@@ -50,3 +51,37 @@ class ReportingTests(TestCase):
         self.assertEqual(buckets["aggressive_alpha"][0]["instrument_id"], "US.AAPL")
         self.assertEqual(extremes["highest_beta"][0]["instrument_id"], "US.AAPL")
         self.assertIn("buy_price=210.50", markdown)
+
+    def test_normalize_strategy_suite_summary_uses_top_strategy_fields(self) -> None:
+        payload = {
+            "market": "US",
+            "start_date": "2026-01-01",
+            "end_date": "2026-03-31",
+            "strategies": [
+                {
+                    "preset_id": "us_baseline",
+                    "display_name": "美股基线质量动量",
+                    "total_return": "0.1200",
+                    "excess_return": "0.0500",
+                    "max_drawdown": "-0.0400",
+                    "regime_summary": [{"regime": "UP"}],
+                    "alpha_mix": [{"family": "quality"}],
+                    "scorecard": {
+                        "decision": "KEEP",
+                        "score": "1.2345",
+                        "rationale": "net=0.1200 excess=0.0500",
+                    },
+                }
+            ],
+        }
+
+        summary = normalize_strategy_suite_summary(payload)
+
+        self.assertEqual(summary["subject_id"], "us_baseline")
+        self.assertEqual(summary["subject_name"], "美股基线质量动量")
+        self.assertEqual(summary["decision"], "KEEP")
+        self.assertEqual(summary["score"], "1.2345")
+        self.assertEqual(summary["return"], "0.1200")
+        self.assertEqual(summary["excess_return"], "0.0500")
+        self.assertEqual(summary["max_drawdown"], "-0.0400")
+        self.assertEqual(summary["regime_summary"][0]["regime"], "UP")

@@ -1,0 +1,404 @@
+{
+  "market": "US",
+  "requested_as_of_date": null,
+  "trade_date": "2026-04-02",
+  "runtime_mode": "LIVE",
+  "effective_runtime_mode": "PAPER",
+  "universe_scope": "CUSTOM",
+  "symbols": [
+    "AAPL",
+    "MSFT"
+  ],
+  "resolved_symbol_count": 3,
+  "broker": {
+    "name": "LOCAL_PAPER",
+    "account_id": "web-paper-us",
+    "cash": "69432.08375037",
+    "buying_power": "69432.08375037",
+    "position_count": 2,
+    "orders_routed": false
+  },
+  "paper_account": {
+    "account_id": "web-paper-us",
+    "market": "US",
+    "broker_id": "local-paper",
+    "cash": "68309.33715037",
+    "buying_power": "68309.33715037",
+    "position_count": 2,
+    "trade_count": 4,
+    "filtered_trade_count": 4,
+    "positions": [
+      {
+        "instrument_id": "US.AAPL",
+        "qty": 109,
+        "avg_cost": "256.3807",
+        "last_trade_date": "2026-04-02"
+      },
+      {
+        "instrument_id": "US.MSFT",
+        "qty": 10,
+        "avg_cost": "374.1322",
+        "last_trade_date": "2026-04-02"
+      }
+    ],
+    "recent_trades": [
+      {
+        "executed_at": "2026-04-02T16:00:00",
+        "trade_date": "2026-04-02",
+        "account_id": "web-paper-us",
+        "market": "US",
+        "strategy_id": "us_quality_momentum",
+        "instrument_id": "US.MSFT",
+        "name": "Microsoft Corporation Common Stock",
+        "side": "BUY",
+        "requested_qty": 3,
+        "filled_qty": 3,
+        "estimated_price": "374.1322",
+        "realized_price": "374.1322",
+        "cash_delta": "-1122.7466",
+        "status": "FILLED"
+      },
+      {
+        "executed_at": "2026-04-02T16:00:00",
+        "trade_date": "2026-04-02",
+        "account_id": "web-paper-us",
+        "market": "US",
+        "strategy_id": "us_quality_momentum",
+        "instrument_id": "US.MSFT",
+        "name": "Microsoft Corporation Common Stock",
+        "side": "BUY",
+        "requested_qty": 2,
+        "filled_qty": 2,
+        "estimated_price": "374.1322",
+        "realized_price": "374.1322",
+        "cash_delta": "-748.6144",
+        "status": "FILLED"
+      },
+      {
+        "executed_at": "2026-04-02T16:00:00",
+        "trade_date": "2026-04-02",
+        "account_id": "web-paper-us",
+        "market": "US",
+        "strategy_id": "us_quality_momentum",
+        "instrument_id": "US.MSFT",
+        "name": "Microsoft Corporation Common Stock",
+        "side": "BUY",
+        "requested_qty": 5,
+        "filled_qty": 5,
+        "estimated_price": "374.1322",
+        "realized_price": "374.1322",
+        "cash_delta": "-1871.0110",
+        "status": "FILLED"
+      },
+      {
+        "executed_at": "2026-04-02T16:00:00",
+        "trade_date": "2026-04-02",
+        "account_id": "web-paper-us",
+        "market": "US",
+        "strategy_id": "us_quality_momentum",
+        "instrument_id": "US.AAPL",
+        "name": "Apple Inc. Common Stock",
+        "side": "BUY",
+        "requested_qty": 109,
+        "filled_qty": 109,
+        "estimated_price": "256.3807",
+        "realized_price": "256.3807",
+        "cash_delta": "-27948.2908",
+        "status": "FILLED"
+      }
+    ],
+    "nav_history": [
+      {
+        "as_of": "2026-04-02T16:00:00",
+        "trade_date": "2026-04-02",
+        "nav": "99941.5838",
+        "cash": "69432.0838",
+        "position_value": "30509.5000",
+        "cumulative_return": "0.4394"
+      },
+      {
+        "as_of": "2026-04-05T23:44:09.636975",
+        "trade_date": "2026-04-02",
+        "nav": "99939.2172",
+        "cash": "68309.3372",
+        "position_value": "31629.8800",
+        "cumulative_return": "-0.0006"
+      }
+    ],
+    "latest_nav": "99939.2172",
+    "cumulative_return": "-0.0006",
+    "filter_start_date": null,
+    "filter_end_date": null
+  },
+  "paper_trade_records": [
+    {
+      "executed_at": "2026-04-02T16:00:00",
+      "trade_date": "2026-04-02",
+      "account_id": "web-paper-us",
+      "market": "US",
+      "strategy_id": "us_quality_momentum",
+      "instrument_id": "US.MSFT",
+      "name": "Microsoft Corporation Common Stock",
+      "side": "BUY",
+      "requested_qty": 3,
+      "filled_qty": 3,
+      "estimated_price": "374.1322",
+      "realized_price": "374.1322",
+      "cash_delta": "-1122.7466",
+      "status": "FILLED"
+    }
+  ],
+  "paper_paths": {
+    "account": "/Users/juxiantan/ai_agent_project/stock_quantification/artifacts/local_paper/web-paper-us/account.json",
+    "ledger": "/Users/juxiantan/ai_agent_project/stock_quantification/artifacts/local_paper/web-paper-us/ledger.json",
+    "run_json": "/Users/juxiantan/ai_agent_project/stock_quantification/artifacts/local_paper/web-paper-us/runs/20260402T160000_us_quality_momentum.json",
+    "run_markdown": "/Users/juxiantan/ai_agent_project/stock_quantification/artifacts/local_paper/web-paper-us/runs/20260402T160000_us_quality_momentum.md"
+  },
+  "benchmark": {
+    "benchmark_id": "SP500_PROXY",
+    "constituent_count": 504,
+    "matched_symbol_count": 2
+  },
+  "data_coverage": {
+    "fundamental_coverage": "3/3"
+  },
+  "strategy_id": "us_quality_momentum",
+  "research_highlights": [
+    "top_candidates=US.AAPL,US.MSFT",
+    "signal_count=2"
+  ],
+  "portfolio_diagnostics": {
+    "gross_exposure": "0.3185584490076861305495009751",
+    "cash_buffer": "0.6814415509923138694504990249",
+    "turnover": "0E-29",
+    "selected_count": 2,
+    "sector_exposure": {
+      "UNKNOWN": "0.3185584490076861305495009751"
+    }
+  },
+  "recommended_stocks": [
+    {
+      "instrument_id": "US.AAPL",
+      "name": "Apple Inc. Common Stock",
+      "sector": "UNKNOWN",
+      "score": "0.2475",
+      "beta": {
+        "beta": "0.8804",
+        "correlation": "0.8415",
+        "sample_size": "20"
+      },
+      "target_weight": "0.2800",
+      "qty": 0,
+      "buy_price": "",
+      "reason": "alpha(rel_ret_60:0.1414, rel_ret_20:0.1061, drawdown:-0.1061)"
+    },
+    {
+      "instrument_id": "US.MSFT",
+      "name": "Microsoft Corporation Common Stock",
+      "sector": "UNKNOWN",
+      "score": "-0.2475",
+      "beta": {
+        "beta": "0.9058",
+        "correlation": "0.7929",
+        "sample_size": "20"
+      },
+      "target_weight": "0.0386",
+      "qty": 3,
+      "buy_price": "374.1322",
+      "reason": "alpha(rel_ret_60:-0.1414, rel_ret_20:-0.1061, drawdown:0.1061)"
+    }
+  ],
+  "backtest_report": null,
+  "ranked_candidates": [
+    {
+      "rank": 1,
+      "instrument_id": "US.AAPL",
+      "name": "Apple Inc. Common Stock",
+      "sector": "UNKNOWN",
+      "score": "0.2475",
+      "target_weight": "0.2800",
+      "selected": true,
+      "beta": {
+        "beta": "0.8804",
+        "correlation": "0.8415",
+        "sample_size": "20"
+      }
+    },
+    {
+      "rank": 2,
+      "instrument_id": "US.MSFT",
+      "name": "Microsoft Corporation Common Stock",
+      "sector": "UNKNOWN",
+      "score": "-0.2475",
+      "target_weight": "0.0386",
+      "selected": true,
+      "beta": {
+        "beta": "0.9058",
+        "correlation": "0.7929",
+        "sample_size": "20"
+      }
+    }
+  ],
+  "candidate_buckets": {
+    "defensive_alpha": [],
+    "balanced_alpha": [
+      {
+        "instrument_id": "US.AAPL",
+        "name": "Apple Inc. Common Stock",
+        "sector": "UNKNOWN",
+        "score": "0.2475",
+        "beta": {
+          "beta": "0.8804",
+          "correlation": "0.8415",
+          "sample_size": "20"
+        }
+      },
+      {
+        "instrument_id": "US.MSFT",
+        "name": "Microsoft Corporation Common Stock",
+        "sector": "UNKNOWN",
+        "score": "-0.2475",
+        "beta": {
+          "beta": "0.9058",
+          "correlation": "0.7929",
+          "sample_size": "20"
+        }
+      }
+    ],
+    "aggressive_alpha": [],
+    "sector_leaders": [
+      {
+        "instrument_id": "US.AAPL",
+        "name": "Apple Inc. Common Stock",
+        "sector": "UNKNOWN",
+        "score": "0.2475",
+        "beta": {
+          "beta": "0.8804",
+          "correlation": "0.8415",
+          "sample_size": "20"
+        }
+      }
+    ]
+  },
+  "beta_extremes": {
+    "lowest_beta": [
+      {
+        "instrument_id": "US.AAPL",
+        "name": "Apple Inc. Common Stock",
+        "beta": "0.8804",
+        "correlation": "0.8415",
+        "sample_size": "20"
+      },
+      {
+        "instrument_id": "US.MSFT",
+        "name": "Microsoft Corporation Common Stock",
+        "beta": "0.9058",
+        "correlation": "0.7929",
+        "sample_size": "20"
+      }
+    ],
+    "highest_beta": [
+      {
+        "instrument_id": "US.MSFT",
+        "name": "Microsoft Corporation Common Stock",
+        "beta": "0.9058",
+        "correlation": "0.7929",
+        "sample_size": "20"
+      },
+      {
+        "instrument_id": "US.AAPL",
+        "name": "Apple Inc. Common Stock",
+        "beta": "0.8804",
+        "correlation": "0.8415",
+        "sample_size": "20"
+      }
+    ]
+  },
+  "signals": [
+    {
+      "instrument_id": "US.AAPL",
+      "name": "Apple Inc. Common Stock",
+      "score": "0.2475",
+      "reason": "alpha(rel_ret_60:0.1414, rel_ret_20:0.1061, drawdown:-0.1061)",
+      "beta": {
+        "beta": "0.8804",
+        "correlation": "0.8415",
+        "sample_size": "20"
+      }
+    },
+    {
+      "instrument_id": "US.MSFT",
+      "name": "Microsoft Corporation Common Stock",
+      "score": "-0.2475",
+      "reason": "alpha(rel_ret_60:-0.1414, rel_ret_20:-0.1061, drawdown:0.1061)",
+      "beta": {
+        "beta": "0.9058",
+        "correlation": "0.7929",
+        "sample_size": "20"
+      }
+    }
+  ],
+  "trade_suggestions": [
+    {
+      "account_id": "web-paper-us",
+      "instrument_id": "US.MSFT",
+      "name": "Microsoft Corporation Common Stock",
+      "side": "BUY",
+      "qty": 3,
+      "rationale": "rebalance_to_0.0386"
+    }
+  ],
+  "approved_order_intents": [
+    {
+      "instrument_id": "US.MSFT",
+      "name": "Microsoft Corporation Common Stock",
+      "side": "BUY",
+      "qty": 3,
+      "manual": false
+    }
+  ],
+  "risk_results": [
+    {
+      "order_intent_id": "web-paper-us:US.MSFT:2026-04-02T16:00:00",
+      "passed": true,
+      "violations": []
+    }
+  ],
+  "execution_results": [
+    {
+      "account_id": "web-paper-us",
+      "fills": [
+        {
+          "instrument_id": "US.MSFT",
+          "status": "FILLED",
+          "requested_qty": 3,
+          "filled_qty": 3,
+          "estimated_price": "374.1322",
+          "cash_delta": "-1122.7466",
+          "estimated_cash_delta": "-1122.7467"
+        }
+      ]
+    }
+  ],
+  "broker_orders": [],
+  "review": {
+    "verdict": "PASS",
+    "comments": [
+      "signal_count=2",
+      "signal_spread=0.4950",
+      "signal_average=0.0000",
+      "top_candidate=US.AAPL",
+      "target_count=2",
+      "target_hhi=0.0799",
+      "max_target_weight=0.2800",
+      "planned_turnover=0E-29",
+      "planned_selected_count=2",
+      "trade_suggestion_count=1",
+      "rebalance_qty=3",
+      "rebalance_ratio=0.3000",
+      "drift_ratio=0.3000",
+      "account_count=1",
+      "position_count=2"
+    ]
+  }
+}

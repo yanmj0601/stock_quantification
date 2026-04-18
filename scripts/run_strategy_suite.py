@@ -2,95 +2,28 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
-from typing import Dict, Iterable, List
+from typing import Dict, List
 
-from stock_quantification.agents import Orchestrator, ResearchAgent, ReviewAgent, StrategyAgent
 from stock_quantification.artifacts import write_json_artifact, write_text_artifact
-from stock_quantification.engine import (
-    EqualWeightPortfolioConstructor,
-    StandardExecutionPlanner,
-    StandardRiskEngine,
-    StandardStrategyRunner,
+from stock_quantification.backtest import (
+    build_rolling_strategy_backtest_report,
+    serialize_rolling_backtest_report,
 )
-from stock_quantification.markets import ChinaMarketRules, USMarketRules
-from stock_quantification.models import AccountConstraints, AccountState, BacktestContext, ExecutionMode, Market
-from stock_quantification.real_data import build_market_snapshot
-from stock_quantification.runtime import RuntimeEngine
-from stock_quantification.state import InMemoryStateStore
-from stock_quantification.strategy_catalog import build_strategy_from_preset, strategy_presets_for_market
+from stock_quantification.models import Market
+from stock_quantification.result_index import normalize_strategy_suite_summary, record_result
+from stock_quantification.research_diagnostics import (
+    build_strategy_scorecard,
+    serialize_alpha_mix,
+    serialize_regime_summaries,
+    serialize_strategy_scorecard,
+    summarize_alpha_mix,
+    summarize_regimes,
+)
+from stock_quantification.strategy_catalog import strategy_presets_for_market
 
 ARTIFACT_DIR = "artifacts"
-INITIAL_CASH = Decimal("100000")
-
-
-def _weekdays(start: date, end: date):
-    current = start
-    while current <= end:
-        if current.weekday() < 5:
-            yield current
-        current += timedelta(days=1)
-
-
-def _mark_nav(account_state, data_provider, as_of):
-    nav = account_state.cash
-    for instrument_id, position in account_state.positions.items():
-        if position.qty == 0:
-            continue
-        bar = data_provider.get_latest_bar(instrument_id, as_of)
-        nav += bar.close * Decimal(position.qty)
-    return nav
-
-
-def _compute_max_drawdown(nav_values: Iterable[Decimal]) -> Decimal:
-    peak = Decimal("0")
-    max_drawdown = Decimal("0")
-    for nav in nav_values:
-        if nav > peak:
-            peak = nav
-        if peak > 0:
-            drawdown = (nav / peak) - Decimal("1")
-            if drawdown < max_drawdown:
-                max_drawdown = drawdown
-    return max_drawdown
-
-
-def _actual_sessions(
-    market: Market,
-    start_date: date,
-    end_date: date,
-    detail_limit: int,
-    history_limit: int,
-) -> list:
-    sessions = []
-    for day in _weekdays(start_date, end_date):
-        snapshot_history_limit = max(
-            history_limit,
-            min(1000, max(120, (date.today() - day).days + 40)),
-        )
-        snapshot = build_market_snapshot(
-            market,
-            symbols=[],
-            detail_limit=detail_limit,
-            history_limit=snapshot_history_limit,
-            as_of_date=day,
-        )
-        if snapshot.as_of.date() == day:
-            sessions.append(snapshot)
-    return sessions
-
-
-def _benchmark_weights(snapshot, market: Market) -> Dict[str, Decimal]:
-    available_ids = {
-        instrument.instrument_id
-        for instrument in snapshot.research_data_bundle.market_data_provider.list_instruments(market)
-    }
-    return {
-        instrument_id: weight
-        for instrument_id, weight in snapshot.research_data_bundle.benchmark_weights(market, snapshot.as_of.date()).items()
-        if instrument_id in available_ids
-    }
 
 
 def run_strategy_suite(
@@ -100,120 +33,103 @@ def run_strategy_suite(
     detail_limit: int,
     history_limit: int,
 ) -> Dict[str, object]:
-    snapshots = _actual_sessions(market, start_date, end_date, detail_limit, history_limit)
-    if len(snapshots) < 2:
-        raise RuntimeError(f"Not enough sessions found for {market.value}")
-
     summaries: List[Dict[str, object]] = []
     strategy_presets = strategy_presets_for_market(market)
 
     for preset in strategy_presets:
-        account_id = f"{market.value.lower()}-{preset.preset_id}"
-        state_store = InMemoryStateStore()
-        state_store.save_account_state(
-            AccountState(
-                account_id=account_id,
-                market=market,
-                broker_id=f"paper-{market.value.lower()}",
-                cash=INITIAL_CASH,
-                buying_power=INITIAL_CASH,
-                constraints=AccountConstraints(
-                    max_position_weight=Decimal("0.60"),
-                    max_single_order_value=INITIAL_CASH,
-                ),
-            )
+        report = build_rolling_strategy_backtest_report(
+            market=market,
+            preset=preset,
+            start_date=start_date,
+            end_date=end_date,
+            detail_limit=detail_limit,
+            history_limit=history_limit,
         )
-
-        daily = []
-        for index, snapshot in enumerate(snapshots):
-            account_state = state_store.get_account_state(account_id)
-            nav = _mark_nav(account_state, snapshot.data_provider, snapshot.as_of)
-            daily.append(
-                {
-                    "trade_date": snapshot.as_of.date().isoformat(),
-                    "end_of_day_nav": str(nav.quantize(Decimal("0.0001"))),
-                }
-            )
-            if index == len(snapshots) - 1:
-                continue
-
-            strategy_runner = StandardStrategyRunner(
-                snapshot.data_provider,
-                snapshot.universe_provider,
-                snapshot.calendar_provider,
-            )
-            execution_planner = StandardExecutionPlanner(snapshot.data_provider)
-            orchestrator = Orchestrator(
-                research_agent=ResearchAgent(strategy_runner),
-                strategy_agent=StrategyAgent(
-                    strategy_runner,
-                    EqualWeightPortfolioConstructor(top_n=preset.top_n),
-                    execution_planner,
-                    state_store,
-                ),
-                review_agent=ReviewAgent(),
-                execution_planner=execution_planner,
-                risk_engine=StandardRiskEngine(
-                    snapshot.data_provider,
-                    {Market.CN: ChinaMarketRules(), Market.US: USMarketRules()},
-                ),
-                state_store=state_store,
-                runtime_engine=RuntimeEngine(snapshot.data_provider, snapshot.calendar_provider),
-            )
-            strategy = build_strategy_from_preset(
-                preset,
-                snapshot.benchmark_instrument_id,
-                _benchmark_weights(snapshot, market),
-            )
-            orchestrator.run(
-                BacktestContext(as_of=snapshot.as_of),
-                strategy,
-                [account_id],
-                ExecutionMode.AUTO,
-            )
-
-        final_nav = Decimal(daily[-1]["end_of_day_nav"])
-        total_return = (final_nav / INITIAL_CASH) - Decimal("1")
-        max_drawdown = _compute_max_drawdown(Decimal(day["end_of_day_nav"]) for day in daily)
+        serialized = serialize_rolling_backtest_report(report)
+        summary = serialized["summary"]
+        regime_summaries = summarize_regimes(report)
+        alpha_mix = summarize_alpha_mix(preset)
+        scorecard = build_strategy_scorecard(preset, report, regime_summaries)
         summaries.append(
             {
-                "preset_id": preset.preset_id,
-                "display_name": preset.display_name,
+                "preset_id": summary["preset_id"],
+                "display_name": summary["display_name"],
                 "family": preset.family,
                 "description": preset.description,
-                "total_return": str(total_return.quantize(Decimal("0.0001"))),
-                "max_drawdown": str(max_drawdown.quantize(Decimal("0.0001"))),
-                "final_nav": str(final_nav.quantize(Decimal("0.0001"))),
-                "trading_days": len(daily),
+                "total_return": summary["total_return"],
+                "pre_fee_return": summary["pre_fee_return"],
+                "fee_drag": summary["fee_drag"],
+                "annualized_return": summary["annualized_return"],
+                "annualized_volatility": summary["annualized_volatility"],
+                "sharpe_ratio": summary["sharpe_ratio"],
+                "average_turnover": summary["average_turnover"],
+                "total_fees": summary["total_fees"],
+                "max_drawdown": summary["max_drawdown"],
+                "final_nav": summary["final_nav"],
+                "trading_days": summary["trading_days"],
+                "benchmark_available": summary["benchmark_available"],
+                "benchmark_total_return": summary["benchmark_total_return"],
+                "excess_return": summary["excess_return"],
+                "regime_summary": serialize_regime_summaries(regime_summaries),
+                "alpha_mix": serialize_alpha_mix(alpha_mix),
+                "scorecard": serialize_strategy_scorecard(scorecard),
             }
         )
 
-    summaries.sort(key=lambda item: Decimal(item["total_return"]), reverse=True)
+    summaries.sort(key=lambda item: Decimal(item["scorecard"]["score"]), reverse=True)
+    recommended = [row["preset_id"] for row in summaries if row["scorecard"]["decision"] == "KEEP"][:3]
+    watchlist = [row["preset_id"] for row in summaries if row["scorecard"]["decision"] == "REVIEW"]
+    drop_list = [row["preset_id"] for row in summaries if row["scorecard"]["decision"] == "DROP"]
     payload = {
         "market": market.value,
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat(),
-        "initial_cash": str(INITIAL_CASH),
         "detail_limit": detail_limit,
         "history_limit": history_limit,
+        "recommended_presets": recommended,
+        "watchlist_presets": watchlist,
+        "drop_presets": drop_list,
         "strategies": summaries,
     }
+    payload["normalized_summary"] = normalize_strategy_suite_summary(payload)
     relative = f"{end_date.isoformat()}/{market.value.lower()}_strategy_suite.json"
     json_path = write_json_artifact(ARTIFACT_DIR, relative, payload)
     lines = [
         f"# {market.value} Strategy Suite",
         "",
         f"- period: {start_date.isoformat()} to {end_date.isoformat()}",
-        f"- initial_cash: {INITIAL_CASH}",
         "",
-        "| 策略 | 家族 | 总收益 | 最大回撤 |",
-        "| --- | --- | --- | --- |",
+        f"- recommended_presets: {', '.join(recommended) if recommended else 'none'}",
+        f"- watchlist_presets: {', '.join(watchlist) if watchlist else 'none'}",
+        f"- drop_presets: {', '.join(drop_list) if drop_list else 'none'}",
+        "",
+        "| 策略 | 家族 | 决策 | 评分 | 净收益 | 费前收益 | 费用拖累 | 超额收益 | 夏普 | 最大回撤 |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for row in summaries:
         lines.append(
-            f"| {row['display_name']} | {row['family']} | {row['total_return']} | {row['max_drawdown']} |"
+            f"| {row['display_name']} | {row['family']} | {row['scorecard']['decision']} | {row['scorecard']['score']} | {row['total_return']} | "
+            f"{row['pre_fee_return']} | {row['fee_drag']} | {row['excess_return'] or 'N/A'} | {row['sharpe_ratio']} | {row['max_drawdown']} |"
         )
     md_path = write_text_artifact(ARTIFACT_DIR, relative.replace(".json", ".md"), "\n".join(lines) + "\n")
+    record_result(
+        ARTIFACT_DIR,
+        {
+            "result_id": f"strategy_suite:{market.value}:{end_date.isoformat()}",
+            "artifact_kind": "strategy_suite",
+            "market": market.value,
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
+            "sort_date": end_date.isoformat(),
+            "summary": {
+                **payload["normalized_summary"],
+                "recommended_presets": recommended,
+                "watchlist_count": len(watchlist),
+                "drop_count": len(drop_list),
+            },
+            "artifacts": {"json": json_path, "markdown": md_path},
+        },
+    )
     return {"summary": payload, "artifacts": {"json": json_path, "markdown": md_path}}
 
 

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from unittest import TestCase
 from unittest.mock import patch
 
+from stock_quantification.engine import InMemoryMarketDataProvider
 from stock_quantification.models import AssetType, Bar, Instrument, Market
-from stock_quantification.research_data import build_default_bundle
+from stock_quantification.research_data import DataAvailability, build_default_bundle
 from stock_quantification.real_data import (
     build_market_snapshot,
     fetch_cn_benchmark_history,
@@ -163,3 +164,53 @@ class RealDataTests(TestCase):
         instrument_ids = {instrument.instrument_id for instrument in snapshot.data_provider.list_instruments(Market.CN)}
         self.assertIn("CN.000001", instrument_ids)
         self.assertNotIn("CN.600000", instrument_ids)
+
+    @patch("stock_quantification.real_data._fetch_market_benchmark_constituents", side_effect=RuntimeError("benchmark unavailable"))
+    @patch("stock_quantification.real_data._fetch_market_fundamentals", side_effect=AssertionError("historical path should not call snapshot fundamentals"))
+    @patch("stock_quantification.real_data.fetch_us_benchmark_history")
+    @patch("stock_quantification.real_data.fetch_us_daily_history")
+    def test_build_market_snapshot_historical_path_uses_safe_metrics_and_marks_benchmark_unavailable(
+        self,
+        mock_fetch_us_daily_history,
+        mock_fetch_us_benchmark_history,
+        _mock_fetch_market_fundamentals,
+        _mock_fetch_market_benchmark_constituents,
+    ) -> None:
+        mock_fetch_us_daily_history.return_value = (
+            Instrument("US.AAPL", Market.US, "AAPL", AssetType.COMMON_STOCK, "USD", "NASDAQ"),
+            [
+                Bar("US.AAPL", datetime(2026, 3, 4, 16, 0, 0), Decimal("98"), Decimal("98"), Decimal("98"), Decimal("98"), 1, Decimal("1000")),
+                Bar("US.AAPL", datetime(2026, 3, 5, 16, 0, 0), Decimal("99"), Decimal("99"), Decimal("99"), Decimal("99"), 1, Decimal("1000")),
+                Bar("US.AAPL", datetime(2026, 3, 6, 16, 0, 0), Decimal("100"), Decimal("100"), Decimal("100"), Decimal("100"), 1, Decimal("1000")),
+                Bar("US.AAPL", datetime(2026, 3, 9, 16, 0, 0), Decimal("101"), Decimal("101"), Decimal("101"), Decimal("101"), 1, Decimal("1000")),
+                Bar("US.AAPL", datetime(2026, 3, 12, 16, 0, 0), Decimal("100"), Decimal("100"), Decimal("100"), Decimal("100"), 1, Decimal("1000")),
+                Bar("US.AAPL", datetime(2026, 3, 13, 16, 0, 0), Decimal("102"), Decimal("102"), Decimal("102"), Decimal("102"), 1, Decimal("1000")),
+                Bar("US.AAPL", datetime(2026, 3, 16, 16, 0, 0), Decimal("104"), Decimal("104"), Decimal("104"), Decimal("104"), 1, Decimal("1000")),
+            ],
+        )
+        mock_fetch_us_benchmark_history.return_value = (
+            Instrument("US.SPY", Market.US, "SPY", AssetType.ETF, "USD", "NYSE"),
+            [
+                Bar("US.SPY", datetime(2026, 3, 4, 16, 0, 0), Decimal("98"), Decimal("98"), Decimal("98"), Decimal("98"), 1, Decimal("1000")),
+                Bar("US.SPY", datetime(2026, 3, 5, 16, 0, 0), Decimal("99"), Decimal("99"), Decimal("99"), Decimal("99"), 1, Decimal("1000")),
+                Bar("US.SPY", datetime(2026, 3, 6, 16, 0, 0), Decimal("100"), Decimal("100"), Decimal("100"), Decimal("100"), 1, Decimal("1000")),
+                Bar("US.SPY", datetime(2026, 3, 9, 16, 0, 0), Decimal("101"), Decimal("101"), Decimal("101"), Decimal("101"), 1, Decimal("1000")),
+                Bar("US.SPY", datetime(2026, 3, 12, 16, 0, 0), Decimal("100"), Decimal("100"), Decimal("100"), Decimal("100"), 1, Decimal("1000")),
+                Bar("US.SPY", datetime(2026, 3, 13, 16, 0, 0), Decimal("101"), Decimal("101"), Decimal("101"), Decimal("101"), 1, Decimal("1000")),
+                Bar("US.SPY", datetime(2026, 3, 16, 16, 0, 0), Decimal("102"), Decimal("102"), Decimal("102"), Decimal("102"), 1, Decimal("1000")),
+            ],
+        )
+
+        snapshot = build_market_snapshot(Market.US, ["AAPL"], as_of_date=date(2026, 3, 13))
+        bundle = snapshot.research_data_bundle
+        self.assertEqual(bundle.benchmark_status(Market.US, snapshot.as_of.date()), DataAvailability.UNAVAILABLE)
+        self.assertFalse(bundle.benchmark_is_available(Market.US, snapshot.as_of.date()))
+        self.assertEqual(bundle.benchmark_weights(Market.US, snapshot.as_of.date()), {})
+        self.assertEqual(bundle.corporate_action_status("US.AAPL", snapshot.as_of.date(), snapshot.as_of.date()), DataAvailability.UNAVAILABLE)
+        enriched = bundle.fundamental_provider.get_snapshot("US.AAPL", snapshot.as_of.date())
+        self.assertIsNotNone(enriched)
+        assert enriched is not None
+        self.assertIn("latest_price", enriched.metrics)
+        self.assertIn("price_return_5", enriched.metrics)
+        self.assertNotIn("profitability", enriched.metrics)
+        self.assertNotIn("quality", enriched.metrics)

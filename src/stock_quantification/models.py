@@ -143,6 +143,10 @@ class RiskCheckResult:
 class BrokerOrder:
     broker_order_id: str
     account_id: str
+    order_intent_id: str
+    instrument_id: str
+    side: str
+    requested_qty: int
     status: str
     submitted_at: datetime
     filled_qty: int

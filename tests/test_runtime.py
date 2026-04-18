@@ -89,7 +89,7 @@ class RuntimeTests(TestCase):
         self.assertEqual(fill.status, ExecutionStatus.PARTIALLY_FILLED)
         self.assertEqual(fill.filled_qty, 1000)
         self.assertGreater(fill.realized_price, Decimal("10.30"))
-        self.assertNotEqual(fill.cash_delta, fill.estimated_cash_delta)
+        self.assertEqual(fill.cash_delta, fill.estimated_cash_delta)
         self.assertLess(result.output_account_state.cash, self.fixture.cn_account.cash)
 
     def test_paper_fills_full_at_current_close(self) -> None:

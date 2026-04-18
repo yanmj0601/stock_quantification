@@ -1,0 +1,1085 @@
+{
+  "updated_at": "2026-04-17T14:57:01",
+  "heartbeats": {
+    "web": "2026-04-17T14:57:01"
+  },
+  "active_job": {
+    "job_id": "67aa9110d95b",
+    "kind": "factor_backtest",
+    "status": "RUNNING",
+    "started_at": "2026-04-06T05:57:22",
+    "progress_pct": 5,
+    "stage": "PREPARING",
+    "detail": "正在准备因子回测窗口与样本。",
+    "metadata": {
+      "market": "CN",
+      "factors": [],
+      "selected_factors": []
+    }
+  },
+  "job_history": [
+    {
+      "job_id": "38cb2e5656b1",
+      "kind": "factor_backtest",
+      "status": "SUCCESS",
+      "started_at": "2026-04-06T00:29:58",
+      "metadata": {
+        "market": "CN",
+        "factors": [
+          "rel_ret_20",
+          "rel_ret_60"
+        ]
+      },
+      "finished_at": "2026-04-06T00:29:58",
+      "duration_seconds": 0,
+      "detail": "CN 因子回测完成",
+      "result_metadata": {
+        "observations": 12
+      }
+    },
+    {
+      "job_id": "be797d699e9a",
+      "kind": "strategy_run",
+      "status": "SUCCESS",
+      "started_at": "2026-04-06T00:29:58",
+      "metadata": {
+        "markets": [
+          "US"
+        ],
+        "execution_mode": "AUTO",
+        "runtime_mode": "LIVE",
+        "broker": "LOCAL_PAPER"
+      },
+      "finished_at": "2026-04-06T00:29:58",
+      "duration_seconds": 0,
+      "detail": "已完成 1 个市场运行",
+      "result_metadata": {
+        "market_count": 1,
+        "trade_count": 1
+      }
+    },
+    {
+      "job_id": "db571a041798",
+      "kind": "factor_backtest",
+      "status": "SUCCESS",
+      "started_at": "2026-04-06T00:30:05",
+      "metadata": {
+        "market": "CN",
+        "factors": [
+          "rel_ret_20",
+          "rel_ret_60"
+        ]
+      },
+      "finished_at": "2026-04-06T00:30:05",
+      "duration_seconds": 0,
+      "detail": "CN 因子回测完成",
+      "result_metadata": {
+        "observations": 12
+      }
+    },
+    {
+      "job_id": "7745ef913d25",
+      "kind": "strategy_run",
+      "status": "SUCCESS",
+      "started_at": "2026-04-06T00:30:05",
+      "metadata": {
+        "markets": [
+          "US"
+        ],
+        "execution_mode": "AUTO",
+        "runtime_mode": "LIVE",
+        "broker": "LOCAL_PAPER"
+      },
+      "finished_at": "2026-04-06T00:30:05",
+      "duration_seconds": 0,
+      "detail": "已完成 1 个市场运行",
+      "result_metadata": {
+        "market_count": 1,
+        "trade_count": 1
+      }
+    },
+    {
+      "job_id": "b2bb49bec5f0",
+      "kind": "factor_backtest",
+      "status": "SUCCESS",
+      "started_at": "2026-04-06T01:03:45",
+      "metadata": {
+        "market": "CN",
+        "factors": [
+          "rel_ret_20",
+          "rel_ret_60"
+        ]
+      },
+      "finished_at": "2026-04-06T01:03:45",
+      "duration_seconds": 0,
+      "detail": "CN 因子回测完成",
+      "result_metadata": {
+        "observations": 12
+      }
+    },
+    {
+      "job_id": "41dc0018a597",
+      "kind": "strategy_run",
+      "status": "SUCCESS",
+      "started_at": "2026-04-06T01:03:45",
+      "metadata": {
+        "markets": [
+          "US"
+        ],
+        "execution_mode": "AUTO",
+        "runtime_mode": "LIVE",
+        "broker": "LOCAL_PAPER"
+      },
+      "finished_at": "2026-04-06T01:03:45",
+      "duration_seconds": 0,
+      "detail": "已完成 1 个市场运行",
+      "result_metadata": {
+        "market_count": 1,
+        "trade_count": 1
+      }
+    },
+    {
+      "job_id": "2183c6d96d70",
+      "kind": "strategy_run",
+      "status": "FAILED",
+      "started_at": "2026-04-06T01:06:07",
+      "metadata": {
+        "markets": [
+          "CN"
+        ],
+        "execution_mode": "AUTO",
+        "runtime_mode": "BACKTEST",
+        "broker": "LOCAL_PAPER"
+      },
+      "finished_at": "2026-04-06T01:07:27",
+      "duration_seconds": 80,
+      "detail": "'US.AAPL'",
+      "result_metadata": {}
+    },
+    {
+      "job_id": "1c2e870be53b",
+      "kind": "factor_backtest",
+      "status": "MANUAL_RELEASED",
+      "started_at": "2026-04-06T01:09:22",
+      "metadata": {
+        "market": "US",
+        "factors": [
+          "rel_ret_20",
+          "rel_ret_60",
+          "trend",
+          "liquidity",
+          "quality",
+          "volatility",
+          "drawdown"
+        ]
+      },
+      "finished_at": "2026-04-06T01:24:39",
+      "duration_seconds": 917,
+      "detail": "Released active job from operations center.",
+      "result_metadata": {
+        "released_from": "web_ops"
+      }
+    },
+    {
+      "job_id": "8847e71317a3",
+      "kind": "strategy_run",
+      "status": "SUCCESS",
+      "started_at": "2026-04-06T01:25:06",
+      "metadata": {
+        "markets": [
+          "CN"
+        ],
+        "execution_mode": "ADVISORY",
+        "runtime_mode": "BACKTEST",
+        "broker": "NONE"
+      },
+      "finished_at": "2026-04-06T01:25:06",
+      "duration_seconds": 0,
+      "detail": "已完成 1 个市场运行",
+      "result_metadata": {
+        "market_count": 1,
+        "trade_count": 0
+      }
+    },
+    {
+      "job_id": "05253cbada25",
+      "kind": "strategy_run",
+      "status": "SUCCESS",
+      "started_at": "2026-04-06T01:26:07",
+      "metadata": {
+        "markets": [
+          "CN",
+          "US"
+        ],
+        "execution_mode": "ADVISORY",
+        "runtime_mode": "PAPER",
+        "broker": "NONE"
+      },
+      "finished_at": "2026-04-06T01:27:12",
+      "duration_seconds": 65,
+      "detail": "已完成 2 个市场运行",
+      "result_metadata": {
+        "market_count": 2,
+        "trade_count": 0
+      }
+    },
+    {
+      "job_id": "56209bed34ff",
+      "kind": "strategy_run",
+      "status": "SUCCESS",
+      "started_at": "2026-04-06T01:47:14",
+      "progress_pct": 95,
+      "stage": "FINALIZING",
+      "detail": "已完成 2 个市场运行",
+      "metadata": {
+        "markets": [
+          "CN",
+          "US"
+        ],
+        "execution_mode": "ADVISORY",
+        "runtime_mode": "PAPER",
+        "broker": "NONE",
+        "total_markets": 2,
+        "completed_markets": 2,
+        "current_market": "US",
+        "selected_symbols": []
+      },
+      "finished_at": "2026-04-06T01:47:14",
+      "duration_seconds": 0,
+      "result_metadata": {
+        "market_count": 2,
+        "trade_count": 0
+      }
+    },
+    {
+      "job_id": "d4337a51a282",
+      "kind": "strategy_run",
+      "status": "SUCCESS",
+      "started_at": "2026-04-06T01:47:21",
+      "progress_pct": 95,
+      "stage": "FINALIZING",
+      "detail": "已完成 2 个市场运行",
+      "metadata": {
+        "markets": [
+          "CN",
+          "US"
+        ],
+        "execution_mode": "ADVISORY",
+        "runtime_mode": "PAPER",
+        "broker": "NONE",
+        "total_markets": 2,
+        "completed_markets": 2,
+        "current_market": "US",
+        "selected_symbols": []
+      },
+      "finished_at": "2026-04-06T01:47:21",
+      "duration_seconds": 0,
+      "result_metadata": {
+        "market_count": 2,
+        "trade_count": 0
+      }
+    },
+    {
+      "job_id": "968f3adcaca2",
+      "kind": "strategy_run",
+      "status": "SUCCESS",
+      "started_at": "2026-04-06T01:47:33",
+      "progress_pct": 95,
+      "stage": "FINALIZING",
+      "detail": "已完成 2 个市场运行",
+      "metadata": {
+        "markets": [
+          "CN",
+          "US"
+        ],
+        "execution_mode": "ADVISORY",
+        "runtime_mode": "PAPER",
+        "broker": "NONE",
+        "total_markets": 2,
+        "completed_markets": 2,
+        "current_market": "US",
+        "selected_symbols": []
+      },
+      "finished_at": "2026-04-06T01:47:33",
+      "duration_seconds": 0,
+      "result_metadata": {
+        "market_count": 2,
+        "trade_count": 0
+      }
+    },
+    {
+      "job_id": "f6f8b197161b",
+      "kind": "strategy_run",
+      "status": "SUCCESS",
+      "started_at": "2026-04-06T01:50:02",
+      "progress_pct": 95,
+      "stage": "FINALIZING",
+      "detail": "已完成 2 个市场运行",
+      "metadata": {
+        "markets": [
+          "CN",
+          "US"
+        ],
+        "execution_mode": "ADVISORY",
+        "runtime_mode": "PAPER",
+        "broker": "NONE",
+        "total_markets": 2,
+        "completed_markets": 2,
+        "current_market": "US",
+        "selected_symbols": []
+      },
+      "finished_at": "2026-04-06T01:50:03",
+      "duration_seconds": 1,
+      "result_metadata": {
+        "market_count": 2,
+        "trade_count": 0
+      }
+    },
+    {
+      "job_id": "f428e6900074",
+      "kind": "strategy_run",
+      "status": "SUCCESS",
+      "started_at": "2026-04-06T01:50:14",
+      "progress_pct": 95,
+      "stage": "FINALIZING",
+      "detail": "已完成 2 个市场运行",
+      "metadata": {
+        "markets": [
+          "CN",
+          "US"
+        ],
+        "execution_mode": "ADVISORY",
+        "runtime_mode": "PAPER",
+        "broker": "NONE",
+        "total_markets": 2,
+        "completed_markets": 2,
+        "current_market": "US",
+        "selected_symbols": []
+      },
+      "finished_at": "2026-04-06T01:50:15",
+      "duration_seconds": 1,
+      "result_metadata": {
+        "market_count": 2,
+        "trade_count": 0
+      }
+    },
+    {
+      "job_id": "2ac66a2ecee6",
+      "kind": "strategy_run",
+      "status": "SUCCESS",
+      "started_at": "2026-04-06T01:52:28",
+      "progress_pct": 95,
+      "stage": "FINALIZING",
+      "detail": "已完成 2 个市场运行",
+      "metadata": {
+        "markets": [
+          "CN",
+          "US"
+        ],
+        "execution_mode": "ADVISORY",
+        "runtime_mode": "PAPER",
+        "broker": "NONE",
+        "total_markets": 2,
+        "completed_markets": 2,
+        "current_market": "US",
+        "selected_symbols": []
+      },
+      "finished_at": "2026-04-06T01:52:28",
+      "duration_seconds": 0,
+      "result_metadata": {
+        "market_count": 2,
+        "trade_count": 0
+      }
+    },
+    {
+      "job_id": "a29282406066",
+      "kind": "strategy_run",
+      "status": "SUCCESS",
+      "started_at": "2026-04-06T01:59:12",
+      "progress_pct": 95,
+      "stage": "FINALIZING",
+      "detail": "已完成 2 个市场运行",
+      "metadata": {
+        "markets": [
+          "CN",
+          "US"
+        ],
+        "execution_mode": "ADVISORY",
+        "runtime_mode": "PAPER",
+        "broker": "NONE",
+        "total_markets": 2,
+        "completed_markets": 2,
+        "current_market": "US",
+        "selected_symbols": []
+      },
+      "finished_at": "2026-04-06T01:59:12",
+      "duration_seconds": 0,
+      "result_metadata": {
+        "market_count": 2,
+        "trade_count": 0
+      }
+    },
+    {
+      "job_id": "e947a68d0af7",
+      "kind": "strategy_run",
+      "status": "SUCCESS",
+      "started_at": "2026-04-06T02:00:34",
+      "progress_pct": 95,
+      "stage": "FINALIZING",
+      "detail": "已完成 2 个市场运行",
+      "metadata": {
+        "markets": [
+          "CN",
+          "US"
+        ],
+        "execution_mode": "ADVISORY",
+        "runtime_mode": "PAPER",
+        "broker": "NONE",
+        "total_markets": 2,
+        "completed_markets": 2,
+        "current_market": "US",
+        "selected_symbols": []
+      },
+      "finished_at": "2026-04-06T02:00:34",
+      "duration_seconds": 0,
+      "result_metadata": {
+        "market_count": 2,
+        "trade_count": 0
+      }
+    },
+    {
+      "job_id": "2f57bfc40794",
+      "kind": "strategy_run",
+      "status": "SUCCESS",
+      "started_at": "2026-04-06T02:00:52",
+      "progress_pct": 95,
+      "stage": "FINALIZING",
+      "detail": "已完成 2 个市场运行",
+      "metadata": {
+        "markets": [
+          "CN",
+          "US"
+        ],
+        "execution_mode": "ADVISORY",
+        "runtime_mode": "PAPER",
+        "broker": "NONE",
+        "total_markets": 2,
+        "completed_markets": 2,
+        "current_market": "US",
+        "selected_symbols": []
+      },
+      "finished_at": "2026-04-06T02:00:52",
+      "duration_seconds": 0,
+      "result_metadata": {
+        "market_count": 2,
+        "trade_count": 0
+      }
+    },
+    {
+      "job_id": "9765b79925ec",
+      "kind": "strategy_run",
+      "status": "SUCCESS",
+      "started_at": "2026-04-06T02:02:14",
+      "progress_pct": 95,
+      "stage": "FINALIZING",
+      "detail": "已完成 1 个市场运行",
+      "metadata": {
+        "markets": [
+          "US"
+        ],
+        "execution_mode": "ADVISORY",
+        "runtime_mode": "PAPER",
+        "broker": "NONE",
+        "total_markets": 1,
+        "completed_markets": 1,
+        "current_market": "US",
+        "selected_symbols": [
+          "AAPL"
+        ]
+      },
+      "finished_at": "2026-04-06T02:02:14",
+      "duration_seconds": 0,
+      "result_metadata": {
+        "market_count": 1,
+        "trade_count": 0
+      }
+    },
+    {
+      "job_id": "8ab7491bbfc1",
+      "kind": "factor_backtest",
+      "status": "FAILED",
+      "started_at": "2026-04-06T05:38:55",
+      "progress_pct": 5,
+      "stage": "PREPARING",
+      "detail": "至少选择一个当前市场可用的因子",
+      "metadata": {
+        "market": "CN",
+        "factors": [],
+        "selected_factors": []
+      },
+      "finished_at": "2026-04-06T05:38:55",
+      "duration_seconds": 0,
+      "result_metadata": {}
+    },
+    {
+      "job_id": "99ba0445f86d",
+      "kind": "factor_backtest",
+      "status": "FAILED",
+      "started_at": "2026-04-06T05:40:09",
+      "progress_pct": 5,
+      "stage": "PREPARING",
+      "detail": "至少选择一个当前市场可用的因子",
+      "metadata": {
+        "market": "CN",
+        "factors": [],
+        "selected_factors": []
+      },
+      "finished_at": "2026-04-06T05:40:09",
+      "duration_seconds": 0,
+      "result_metadata": {}
+    },
+    {
+      "job_id": "96ea9099464b",
+      "kind": "factor_backtest",
+      "status": "FAILED",
+      "started_at": "2026-04-06T05:47:59",
+      "progress_pct": 5,
+      "stage": "PREPARING",
+      "detail": "至少选择一个当前市场可用的因子",
+      "metadata": {
+        "market": "CN",
+        "factors": [],
+        "selected_factors": []
+      },
+      "finished_at": "2026-04-06T05:47:59",
+      "duration_seconds": 0,
+      "result_metadata": {}
+    }
+  ],
+  "audit_events": [
+    {
+      "created_at": "2026-04-06T00:29:58",
+      "category": "collab",
+      "action": "chat_echo",
+      "status": "SUCCESS",
+      "detail": "追加了一条本地聊天记录",
+      "metadata": {
+        "message": "你好，给我看今天的回测结果"
+      }
+    },
+    {
+      "created_at": "2026-04-06T00:29:58",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 因子回测完成：20日相对强度、60日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T00:29:58",
+      "category": "paper",
+      "action": "reset_account",
+      "status": "SUCCESS",
+      "detail": "重置模拟盘账户 web-paper-us",
+      "metadata": {
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T00:29:58",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 1 个市场，execution=AUTO，runtime=LIVE",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T00:29:58",
+      "category": "project",
+      "action": "update_config",
+      "status": "SUCCESS",
+      "detail": "更新了项目默认配置",
+      "metadata": {
+        "market": "US",
+        "broker": "LOCAL_PAPER",
+        "paper_account_id": "paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T00:30:05",
+      "category": "collab",
+      "action": "chat_echo",
+      "status": "SUCCESS",
+      "detail": "追加了一条本地聊天记录",
+      "metadata": {
+        "message": "你好，给我看今天的回测结果"
+      }
+    },
+    {
+      "created_at": "2026-04-06T00:30:05",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 因子回测完成：20日相对强度、60日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T00:30:05",
+      "category": "paper",
+      "action": "reset_account",
+      "status": "SUCCESS",
+      "detail": "重置模拟盘账户 web-paper-us",
+      "metadata": {
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T00:30:05",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 1 个市场，execution=AUTO，runtime=LIVE",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T00:30:05",
+      "category": "project",
+      "action": "update_config",
+      "status": "SUCCESS",
+      "detail": "更新了项目默认配置",
+      "metadata": {
+        "market": "US",
+        "broker": "LOCAL_PAPER",
+        "paper_account_id": "paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T01:03:45",
+      "category": "collab",
+      "action": "chat_echo",
+      "status": "SUCCESS",
+      "detail": "追加了一条本地聊天记录",
+      "metadata": {
+        "message": "你好，给我看今天的回测结果"
+      }
+    },
+    {
+      "created_at": "2026-04-06T01:03:45",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 因子回测完成：20日相对强度、60日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T01:03:45",
+      "category": "paper",
+      "action": "reset_account",
+      "status": "SUCCESS",
+      "detail": "重置模拟盘账户 web-paper-us",
+      "metadata": {
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T01:03:45",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 1 个市场，execution=AUTO，runtime=LIVE",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T01:03:45",
+      "category": "project",
+      "action": "update_config",
+      "status": "SUCCESS",
+      "detail": "更新了项目默认配置",
+      "metadata": {
+        "market": "US",
+        "broker": "LOCAL_PAPER",
+        "paper_account_id": "paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T01:07:27",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "FAILED",
+      "detail": "策略运行失败：'US.AAPL'",
+      "metadata": {
+        "markets": "CN"
+      }
+    },
+    {
+      "created_at": "2026-04-06T01:14:11",
+      "category": "collab",
+      "action": "chat_echo",
+      "status": "SUCCESS",
+      "detail": "追加了一条本地聊天记录",
+      "metadata": {
+        "message": "你好，给我看今天的回测结果"
+      }
+    },
+    {
+      "created_at": "2026-04-06T01:14:11",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "BLOCKED",
+      "detail": "因子回测被运行守护拦截",
+      "metadata": {
+        "active_job": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T01:14:11",
+      "category": "paper",
+      "action": "reset_account",
+      "status": "SUCCESS",
+      "detail": "重置模拟盘账户 web-paper-us",
+      "metadata": {
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T01:14:11",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "BLOCKED",
+      "detail": "策略运行被运行守护拦截",
+      "metadata": {
+        "active_job": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T01:14:11",
+      "category": "project",
+      "action": "update_config",
+      "status": "SUCCESS",
+      "detail": "更新了项目默认配置",
+      "metadata": {
+        "market": "US",
+        "broker": "LOCAL_PAPER",
+        "paper_account_id": "paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T01:15:47",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "BLOCKED",
+      "detail": "策略运行被运行守护拦截",
+      "metadata": {
+        "active_job": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T01:16:06",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "BLOCKED",
+      "detail": "策略运行被运行守护拦截",
+      "metadata": {
+        "active_job": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T01:19:22",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "BLOCKED",
+      "detail": "策略运行被运行守护拦截",
+      "metadata": {
+        "active_job": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T01:24:39",
+      "category": "ops",
+      "action": "release_active_job",
+      "status": "SUCCESS",
+      "detail": "手动释放运行中任务 factor_backtest",
+      "metadata": {
+        "job_id": "1c2e870be53b",
+        "kind": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T01:25:06",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 1 个市场，execution=ADVISORY，runtime=BACKTEST",
+      "metadata": {
+        "markets": "CN",
+        "broker": "NONE",
+        "route_orders": false,
+        "account_id": "web-paper-cn"
+      }
+    },
+    {
+      "created_at": "2026-04-06T01:27:12",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 2 个市场，execution=ADVISORY，runtime=PAPER",
+      "metadata": {
+        "markets": "CN,US",
+        "broker": "NONE",
+        "route_orders": false,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T01:47:14",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 2 个市场，execution=ADVISORY，runtime=PAPER",
+      "metadata": {
+        "markets": "CN,US",
+        "broker": "NONE",
+        "route_orders": false,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T01:47:21",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 2 个市场，execution=ADVISORY，runtime=PAPER",
+      "metadata": {
+        "markets": "CN,US",
+        "broker": "NONE",
+        "route_orders": false,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T01:47:33",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 2 个市场，execution=ADVISORY，runtime=PAPER",
+      "metadata": {
+        "markets": "CN,US",
+        "broker": "NONE",
+        "route_orders": false,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T01:50:03",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 2 个市场，execution=ADVISORY，runtime=PAPER",
+      "metadata": {
+        "markets": "CN,US",
+        "broker": "NONE",
+        "route_orders": false,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T01:50:15",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 2 个市场，execution=ADVISORY，runtime=PAPER",
+      "metadata": {
+        "markets": "CN,US",
+        "broker": "NONE",
+        "route_orders": false,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T01:52:28",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 2 个市场，execution=ADVISORY，runtime=PAPER",
+      "metadata": {
+        "markets": "CN,US",
+        "broker": "NONE",
+        "route_orders": false,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T01:59:12",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 2 个市场，execution=ADVISORY，runtime=PAPER",
+      "metadata": {
+        "markets": "CN,US",
+        "broker": "NONE",
+        "route_orders": false,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T02:00:34",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 2 个市场，execution=ADVISORY，runtime=PAPER",
+      "metadata": {
+        "markets": "CN,US",
+        "broker": "NONE",
+        "route_orders": false,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T02:00:52",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 2 个市场，execution=ADVISORY，runtime=PAPER",
+      "metadata": {
+        "markets": "CN,US",
+        "broker": "NONE",
+        "route_orders": false,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T02:02:14",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "STARTED",
+      "detail": "已提交 1 个市场的策略运行任务",
+      "metadata": {
+        "markets": "US",
+        "broker": "NONE",
+        "route_orders": false,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T02:02:14",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 1 个市场，execution=ADVISORY，runtime=PAPER",
+      "metadata": {
+        "markets": "US",
+        "broker": "NONE",
+        "route_orders": false,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T05:38:55",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": ""
+      }
+    },
+    {
+      "created_at": "2026-04-06T05:38:55",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "FAILED",
+      "detail": "因子回测失败：至少选择一个当前市场可用的因子",
+      "metadata": {
+        "market": "CN"
+      }
+    },
+    {
+      "created_at": "2026-04-06T05:40:09",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": ""
+      }
+    },
+    {
+      "created_at": "2026-04-06T05:40:09",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "FAILED",
+      "detail": "因子回测失败：至少选择一个当前市场可用的因子",
+      "metadata": {
+        "market": "CN"
+      }
+    },
+    {
+      "created_at": "2026-04-06T05:47:59",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": ""
+      }
+    },
+    {
+      "created_at": "2026-04-06T05:47:59",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "FAILED",
+      "detail": "因子回测失败：至少选择一个当前市场可用的因子",
+      "metadata": {
+        "market": "CN"
+      }
+    },
+    {
+      "created_at": "2026-04-06T05:57:22",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": ""
+      }
+    },
+    {
+      "created_at": "2026-04-06T05:57:22",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "FAILED",
+      "detail": "因子回测失败：至少选择一个当前市场可用的因子",
+      "metadata": {
+        "market": "CN"
+      }
+    }
+  ]
+}

@@ -3,11 +3,17 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
+from enum import Enum
 from typing import Dict, Iterable, List, Mapping, Optional, Sequence
 
 from .interfaces import MarketDataProvider
-from .models import Instrument, Market
+from .models import Bar, Instrument, Market
 from .runtime import CorporateAction
+
+
+class DataAvailability(str, Enum):
+    AVAILABLE = "AVAILABLE"
+    UNAVAILABLE = "UNAVAILABLE"
 
 
 @dataclass(frozen=True)
@@ -34,9 +40,15 @@ class CorporateActionProvider:
     def get_actions(self, instrument_id: str, start_date: date, end_date: date) -> List[CorporateAction]:
         raise NotImplementedError
 
+    def availability(self, instrument_id: str, start_date: date, end_date: date) -> DataAvailability:
+        raise NotImplementedError
+
 
 class BenchmarkProvider:
     def get_constituents(self, benchmark_id: str, as_of: date) -> List[BenchmarkConstituent]:
+        raise NotImplementedError
+
+    def availability(self, benchmark_id: str, as_of: date) -> DataAvailability:
         raise NotImplementedError
 
     def get_weights(self, benchmark_id: str, as_of: date) -> Dict[str, Decimal]:
@@ -78,6 +90,23 @@ class InMemoryCorporateActionProvider(CorporateActionProvider):
             if start_date <= action.effective_date <= end_date
         ]
 
+    def availability(self, instrument_id: str, start_date: date, end_date: date) -> DataAvailability:
+        del instrument_id, start_date, end_date
+        return DataAvailability.AVAILABLE
+
+
+class UnavailableCorporateActionProvider(CorporateActionProvider):
+    def __init__(self, reason: str = "corporate_actions_unavailable") -> None:
+        self.reason = reason
+
+    def get_actions(self, instrument_id: str, start_date: date, end_date: date) -> List[CorporateAction]:
+        del instrument_id, start_date, end_date
+        return []
+
+    def availability(self, instrument_id: str, start_date: date, end_date: date) -> DataAvailability:
+        del instrument_id, start_date, end_date
+        return DataAvailability.UNAVAILABLE
+
 
 class InMemoryBenchmarkProvider(BenchmarkProvider):
     def __init__(self, constituents: Iterable[BenchmarkConstituent]) -> None:
@@ -108,6 +137,22 @@ class InMemoryBenchmarkProvider(BenchmarkProvider):
             for item in latest
         ]
 
+    def availability(self, benchmark_id: str, as_of: date) -> DataAvailability:
+        return DataAvailability.AVAILABLE if self.get_constituents(benchmark_id, as_of) else DataAvailability.UNAVAILABLE
+
+
+class UnavailableBenchmarkProvider(BenchmarkProvider):
+    def __init__(self, reason: str = "benchmark_unavailable") -> None:
+        self.reason = reason
+
+    def get_constituents(self, benchmark_id: str, as_of: date) -> List[BenchmarkConstituent]:
+        del benchmark_id, as_of
+        return []
+
+    def availability(self, benchmark_id: str, as_of: date) -> DataAvailability:
+        del benchmark_id, as_of
+        return DataAvailability.UNAVAILABLE
+
 
 @dataclass(frozen=True)
 class ResearchDataBundle:
@@ -120,11 +165,23 @@ class ResearchDataBundle:
     def default_benchmark_id(self, market: Market) -> Optional[str]:
         return self.benchmark_ids_by_market.get(market)
 
+    def benchmark_status(self, market: Market, as_of: date) -> DataAvailability:
+        benchmark_id = self.default_benchmark_id(market)
+        if not benchmark_id:
+            return DataAvailability.UNAVAILABLE
+        return self.benchmark_provider.availability(benchmark_id, as_of)
+
+    def benchmark_is_available(self, market: Market, as_of: date) -> bool:
+        return self.benchmark_status(market, as_of) == DataAvailability.AVAILABLE
+
     def benchmark_weights(self, market: Market, as_of: date) -> Dict[str, Decimal]:
         benchmark_id = self.default_benchmark_id(market)
         if not benchmark_id:
             return {}
         return self.benchmark_provider.get_weights(benchmark_id, as_of)
+
+    def corporate_action_status(self, instrument_id: str, start_date: date, end_date: date) -> DataAvailability:
+        return self.corporate_action_provider.availability(instrument_id, start_date, end_date)
 
     def enrich_instruments(self, instruments: Sequence[Instrument], as_of: date) -> List[Instrument]:
         enriched: List[Instrument] = []
@@ -150,6 +207,36 @@ class ResearchDataBundle:
         return enriched
 
 
+def build_point_in_time_safe_snapshots(
+    market_data_provider: MarketDataProvider,
+    instruments: Iterable[Instrument],
+    as_of: date,
+) -> List[FundamentalSnapshot]:
+    as_of_dt = datetime.combine(as_of, datetime.max.time())
+    snapshots: List[FundamentalSnapshot] = []
+    for instrument in instruments:
+        history = market_data_provider.get_price_history(instrument.instrument_id, as_of_dt, 60)
+        if not history:
+            continue
+        closes = [bar.close for bar in history]
+        turnovers = [bar.turnover for bar in history]
+        metrics: Dict[str, object] = {
+            "latest_price": closes[-1],
+        }
+        if len(closes) >= 6:
+            metrics["price_return_5"] = _safe_return(closes, 5)
+        if len(closes) >= 21:
+            metrics["price_return_20"] = _safe_return(closes, 20)
+            metrics["average_turnover_20"] = _average_decimal(turnovers[-20:])
+        if len(closes) >= 61:
+            metrics["price_return_60"] = _safe_return(closes, 60)
+            metrics["average_turnover_60"] = _average_decimal(turnovers[-60:])
+        elif turnovers:
+            metrics["average_turnover_20"] = _average_decimal(turnovers[-min(20, len(turnovers)) :])
+        snapshots.append(FundamentalSnapshot(instrument.instrument_id, as_of, metrics))
+    return snapshots
+
+
 def build_default_bundle(
     market_data_provider: MarketDataProvider,
     market: Market,
@@ -157,23 +244,28 @@ def build_default_bundle(
     as_of: date,
 ) -> ResearchDataBundle:
     instruments = market_data_provider.list_instruments(market)
-    snapshots = []
-    constituents = []
-    common_metrics = ("profitability", "quality", "leverage", "sector_momentum")
-    equal_weight = Decimal("1") / Decimal(len(instruments)) if instruments else Decimal("0")
-    for instrument in instruments:
-        metrics = {
-            metric: Decimal(str(instrument.attributes.get(metric, "0")))
-            for metric in common_metrics
-            if instrument.attributes.get(metric) is not None
-        }
-        snapshots.append(FundamentalSnapshot(instrument.instrument_id, as_of, metrics))
-        if equal_weight > 0:
-            constituents.append(BenchmarkConstituent(benchmark_id, instrument.instrument_id, equal_weight, as_of))
+    snapshots = build_point_in_time_safe_snapshots(market_data_provider, instruments, as_of)
     return ResearchDataBundle(
         market_data_provider=market_data_provider,
         fundamental_provider=InMemoryFundamentalProvider(snapshots),
-        benchmark_provider=InMemoryBenchmarkProvider(constituents),
-        corporate_action_provider=InMemoryCorporateActionProvider([]),
+        benchmark_provider=UnavailableBenchmarkProvider(),
+        corporate_action_provider=UnavailableCorporateActionProvider(),
         benchmark_ids_by_market={market: benchmark_id},
     )
+
+
+def _safe_return(closes: Sequence[object], window: int) -> Decimal:
+    subset = list(closes)[-(window + 1) :]
+    if len(subset) < window + 1:
+        return Decimal("0")
+    first = subset[0].close if isinstance(subset[0], Bar) else subset[0]
+    last = subset[-1].close if isinstance(subset[-1], Bar) else subset[-1]
+    if first == 0:
+        return Decimal("0")
+    return (last / first) - Decimal("1")
+
+
+def _average_decimal(values: Sequence[Decimal]) -> Decimal:
+    if not values:
+        return Decimal("0")
+    return sum(values, Decimal("0")) / Decimal(len(values))

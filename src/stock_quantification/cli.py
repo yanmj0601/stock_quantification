@@ -4,11 +4,12 @@ import argparse
 import json
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from .analytics import compute_return_beta
 from .agents import Orchestrator, ResearchAgent, ReviewAgent, StrategyAgent
 from .artifacts import write_json_artifact, write_text_artifact
+from .broker import BrokerError, build_broker_adapter
 from .engine import (
     AStockSelectionStrategy,
     EqualWeightPortfolioConstructor,
@@ -29,6 +30,7 @@ from .models import (
     PaperContext,
     RuntimeMode,
 )
+from .local_paper import LocalPaperLedger
 from .real_data import MarketSnapshot, build_market_snapshot
 from .research_data import ResearchDataBundle
 from .reporting import build_beta_extremes, build_candidate_buckets, build_markdown_report, build_ranked_candidates
@@ -59,12 +61,14 @@ def _build_orchestrator(
     account_id: str,
     cash: Decimal,
     top_n: int,
+    initial_account_state: Optional[AccountState] = None,
 ) -> Orchestrator:
     strategy_runner = StandardStrategyRunner(snapshot.data_provider, snapshot.universe_provider, snapshot.calendar_provider)
     execution_planner = StandardExecutionPlanner(snapshot.data_provider)
     state_store = InMemoryStateStore()
     state_store.save_account_state(
-        AccountState(
+        initial_account_state
+        or AccountState(
             account_id=account_id,
             market=market,
             broker_id="paper-%s" % market.value.lower(),
@@ -180,6 +184,34 @@ def _artifact_prefix(market: Market, trade_date: datetime, universe_scope: str) 
     return f"{trade_date.date().isoformat()}/{market.value.lower()}_{universe_scope.lower()}"
 
 
+def _build_price_map(snapshot: MarketSnapshot, instrument_ids: List[str]) -> Dict[str, Decimal]:
+    price_map: Dict[str, Decimal] = {}
+    for instrument_id in instrument_ids:
+        try:
+            price_map[instrument_id] = snapshot.data_provider.get_latest_bar(instrument_id, snapshot.as_of).close
+        except Exception:
+            continue
+    return price_map
+
+
+def _serialize_broker_orders(broker_orders) -> List[Dict[str, object]]:
+    return [
+        {
+            "broker_order_id": broker_order.broker_order_id,
+            "account_id": broker_order.account_id,
+            "order_intent_id": broker_order.order_intent_id,
+            "instrument_id": broker_order.instrument_id,
+            "side": broker_order.side,
+            "requested_qty": broker_order.requested_qty,
+            "status": broker_order.status,
+            "submitted_at": broker_order.submitted_at.isoformat(),
+            "filled_qty": broker_order.filled_qty,
+            "avg_fill_price": str(broker_order.avg_fill_price) if broker_order.avg_fill_price is not None else None,
+        }
+        for broker_order in broker_orders
+    ]
+
+
 def run_market(
     market: Market,
     symbols: List[str],
@@ -192,6 +224,9 @@ def run_market(
     top_n: int,
     as_of_date: date | None = None,
     forward_days: int = 0,
+    broker_name: str | None = None,
+    route_orders: bool = False,
+    broker_account_id: str | None = None,
 ) -> Dict[str, object]:
     universe_scope = "CUSTOM" if symbols else "FULL"
     snapshot = build_market_snapshot(
@@ -201,8 +236,32 @@ def run_market(
         history_limit=history_limit,
         as_of_date=as_of_date,
     )
-    account_id = "%s-default" % market.value.lower()
-    orchestrator = _build_orchestrator(snapshot, market, account_id, cash, top_n)
+    account_id = broker_account_id or ("%s-default" % market.value.lower())
+    broker_adapter = None
+    local_paper = None
+    broker_account_state = None
+    effective_runtime_mode = runtime_mode
+    if broker_name:
+        if broker_name == "LOCAL_PAPER":
+            local_paper = LocalPaperLedger()
+            broker_account_state = local_paper.sync_account_state(account_id=account_id, market=market, initial_cash=cash)
+            if route_orders:
+                effective_runtime_mode = RuntimeMode.PAPER
+        else:
+            if market != Market.US:
+                raise ValueError("Broker integration currently supports US market only")
+            broker_adapter = build_broker_adapter(broker_name)
+            broker_account_state = broker_adapter.sync_account_state(account_id=account_id)
+            if route_orders:
+                effective_runtime_mode = RuntimeMode.LIVE
+    orchestrator = _build_orchestrator(
+        snapshot,
+        market,
+        account_id,
+        cash,
+        top_n,
+        initial_account_state=broker_account_state,
+    )
     strategy = _strategy_for_market(
         market,
         snapshot.research_data_bundle,
@@ -210,7 +269,7 @@ def run_market(
         snapshot.benchmark_instrument_id,
         top_n,
     )
-    context = _build_context(runtime_mode, snapshot.as_of)
+    context = _build_context(effective_runtime_mode, snapshot.as_of)
     result = orchestrator.run(context, strategy, [account_id], execution_mode)
     benchmark_id = snapshot.research_data_bundle.default_benchmark_id(market)
     benchmark_weights = snapshot.research_data_bundle.benchmark_weights(market, snapshot.as_of.date())
@@ -306,16 +365,60 @@ def run_market(
                 holding_sessions=forward_days,
             )
         )
+    broker_orders = []
+    paper_account = local_paper.account_overview(account_id) if local_paper is not None else None
+    paper_trade_records: List[Dict[str, object]] = []
+    paper_paths: Dict[str, str] = {}
+    if route_orders:
+        if execution_mode != ExecutionMode.AUTO:
+            raise ValueError("route_orders requires execution_mode AUTO")
+        if local_paper is not None:
+            tracked_ids = (
+                list(broker_account_state.positions.keys() | {signal.instrument_id for signal in result.proposal.signals})
+                if broker_account_state is not None
+                else [signal.instrument_id for signal in result.proposal.signals]
+            )
+            price_map = _build_price_map(snapshot, tracked_ids)
+            local_paper_result = local_paper.record_execution(
+                account_id=account_id,
+                strategy_id=strategy.strategy_id,
+                market=market,
+                order_intents=result.order_intents,
+                execution_results=result.execution_results,
+                instrument_names=instrument_names,
+                price_map=price_map,
+            )
+            paper_account = local_paper_result["account"]
+            paper_trade_records = list(local_paper_result["trade_records"])
+            paper_paths = dict(local_paper_result["paths"])
+        else:
+            if broker_adapter is None:
+                raise ValueError("route_orders requires a broker adapter")
+            broker_orders = _serialize_broker_orders(broker_adapter.submit_orders(result.order_intents))
     return {
         "market": market.value,
         "requested_as_of_date": as_of_date.isoformat() if as_of_date is not None else None,
         "trade_date": snapshot.as_of.date().isoformat(),
         "runtime_mode": runtime_mode.value,
+        "effective_runtime_mode": effective_runtime_mode.value,
         "universe_scope": universe_scope,
         "symbols": symbols,
         "resolved_symbol_count": len(
             [instrument for instrument in snapshot.data_provider.list_instruments(market)]
         ),
+        "broker": {
+            "name": broker_name,
+            "account_id": broker_account_state.account_id if broker_account_state is not None else None,
+            "cash": str(broker_account_state.cash) if broker_account_state is not None else None,
+            "buying_power": str(broker_account_state.buying_power) if broker_account_state is not None else None,
+            "position_count": len(broker_account_state.positions) if broker_account_state is not None else 0,
+            "orders_routed": bool(route_orders and broker_orders),
+            "routed_order_count": len(broker_orders),
+            "routed_order_statuses": sorted({str(order["status"]) for order in broker_orders}),
+        },
+        "paper_account": paper_account,
+        "paper_trade_records": paper_trade_records,
+        "paper_paths": paper_paths,
         "benchmark": {
             "benchmark_id": benchmark_id,
             "constituent_count": len(benchmark_weights),
@@ -349,6 +452,7 @@ def run_market(
             for risk in result.risk_results
         ],
         "execution_results": execution_results,
+        "broker_orders": broker_orders,
         "review": {"verdict": result.review.verdict.value, "comments": result.review.comments},
     }
 
@@ -379,6 +483,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--execution-mode", choices=["ADVISORY", "AUTO"], default="ADVISORY")
     parser.add_argument("--runtime-mode", choices=["BACKTEST", "PAPER", "LIVE"], default="PAPER")
     parser.add_argument("--forward-days", type=int, default=0, help="Forward holding sessions for post-selection backtest")
+    parser.add_argument("--broker", choices=["ALPACA_PAPER", "LOCAL_PAPER"], help="Optional broker adapter for paper routing")
+    parser.add_argument("--broker-account-id", help="Logical account id used inside the local state store")
+    parser.add_argument("--route-orders", action="store_true", help="Submit approved orders to the configured broker")
     return parser
 
 
@@ -393,7 +500,8 @@ def main() -> None:
     output = []
     for market in markets:
         symbols = _symbols_for_market(market, args.symbols_cn if market == Market.CN else args.symbols_us)
-        market_output = run_market(
+        try:
+            market_output = run_market(
                 market,
                 symbols,
                 execution_mode,
@@ -405,7 +513,12 @@ def main() -> None:
                 args.top_n,
                 as_of_date=as_of_date,
                 forward_days=args.forward_days,
+                broker_name=args.broker,
+                route_orders=args.route_orders,
+                broker_account_id=args.broker_account_id,
             )
+        except BrokerError as exc:
+            raise SystemExit(str(exc)) from exc
         artifact_prefix = _artifact_prefix(
             market,
             datetime.fromisoformat(market_output["trade_date"]),

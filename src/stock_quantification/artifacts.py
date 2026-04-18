@@ -15,8 +15,10 @@ def write_json_artifact(base_dir: str | Path, relative_path: str, payload: Any) 
     root = ensure_directory(Path(base_dir))
     target = root / relative_path
     ensure_directory(target.parent)
-    with target.open("w", encoding="utf-8") as handle:
+    temp_target = target.with_name(f".{target.name}.tmp")
+    with temp_target.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, ensure_ascii=False, indent=2)
+    temp_target.replace(target)
     return str(target)
 
 

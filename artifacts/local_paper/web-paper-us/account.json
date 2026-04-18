@@ -1,0 +1,22 @@
+{
+  "account_id": "web-paper-us",
+  "market": "US",
+  "broker_id": "local-paper",
+  "cash": "68309.33715037",
+  "buying_power": "68309.33715037",
+  "last_sync_at": "2026-04-05T13:33:58.517668",
+  "positions": [
+    {
+      "instrument_id": "US.AAPL",
+      "qty": 109,
+      "avg_cost": "256.3807",
+      "last_trade_date": "2026-04-02"
+    },
+    {
+      "instrument_id": "US.MSFT",
+      "qty": 10,
+      "avg_cost": "374.1322",
+      "last_trade_date": "2026-04-02"
+    }
+  ]
+}

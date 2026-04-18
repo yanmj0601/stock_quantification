@@ -1,0 +1,54 @@
+{
+  "summary": {
+    "artifact_type": "local_paper_run",
+    "account_id": "web-paper-us",
+    "market": "US",
+    "strategy_id": "us_quality_momentum",
+    "trade_count": 1,
+    "cash": "68309.33715037",
+    "buying_power": "68309.33715037",
+    "position_count": 2,
+    "runtime_mode": "LOCAL_PAPER",
+    "as_of": "2026-04-02T16:00:00"
+  },
+  "account": {
+    "account_id": "web-paper-us",
+    "market": "US",
+    "broker_id": "local-paper",
+    "cash": "68309.33715037",
+    "buying_power": "68309.33715037",
+    "last_sync_at": "2026-04-05T13:33:58.517668",
+    "positions": [
+      {
+        "instrument_id": "US.AAPL",
+        "qty": 109,
+        "avg_cost": "256.3807",
+        "last_trade_date": "2026-04-02"
+      },
+      {
+        "instrument_id": "US.MSFT",
+        "qty": 10,
+        "avg_cost": "374.1322",
+        "last_trade_date": "2026-04-02"
+      }
+    ]
+  },
+  "trades": [
+    {
+      "executed_at": "2026-04-02T16:00:00",
+      "trade_date": "2026-04-02",
+      "account_id": "web-paper-us",
+      "market": "US",
+      "strategy_id": "us_quality_momentum",
+      "instrument_id": "US.MSFT",
+      "name": "Microsoft Corporation Common Stock",
+      "side": "BUY",
+      "requested_qty": 3,
+      "filled_qty": 3,
+      "estimated_price": "374.1322",
+      "realized_price": "374.1322",
+      "cash_delta": "-1122.7466",
+      "status": "FILLED"
+    }
+  ]
+}

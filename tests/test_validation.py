@@ -4,6 +4,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from unittest import TestCase
 
+from stock_quantification.result_index import normalize_validation_summary
 from stock_quantification.validation import (
     WalkForwardWindowResult,
     build_parameter_stability_report,
@@ -111,3 +112,35 @@ class ValidationTests(TestCase):
         self.assertEqual(report.recommended_scenario, "stable")
         self.assertEqual(serialized["recommended_scenario"], "stable")
         self.assertEqual(serialized["scenarios"][0]["scenario_name"], "stable")
+        self.assertEqual(serialized["scenarios"][0]["decision"], "KEEP")
+        self.assertEqual(serialized["scenarios"][1]["decision"], "DROP")
+
+    def test_normalize_validation_summary_uses_recommended_scenario_fields(self) -> None:
+        payload = {
+            "market": "US",
+            "scenario_set": "standard",
+            "start_date": "2026-01-01",
+            "end_date": "2026-03-31",
+            "parameter_stability": {
+                "recommended_scenario": "stable",
+                "scenarios": [
+                    {
+                        "scenario_name": "stable",
+                        "decision": "KEEP",
+                        "rationale": "test=0.0200 excess=0.0100",
+                        "stability_score": "0.1234",
+                        "average_test_return": "0.0200",
+                        "average_test_excess_return": "0.0100",
+                    }
+                ],
+            },
+        }
+
+        summary = normalize_validation_summary(payload)
+
+        self.assertEqual(summary["subject_id"], "stable")
+        self.assertEqual(summary["decision"], "KEEP")
+        self.assertEqual(summary["rationale"], "test=0.0200 excess=0.0100")
+        self.assertEqual(summary["return"], "0.0200")
+        self.assertEqual(summary["excess_return"], "0.0100")
+        self.assertIsNone(summary["max_drawdown"])

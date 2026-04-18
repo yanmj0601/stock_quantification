@@ -1,0 +1,97 @@
+{
+  "market": "US",
+  "scenario_set": "standard",
+  "start_date": "2026-03-02",
+  "end_date": "2026-03-13",
+  "holding_sessions": 3,
+  "split": {
+    "train": {
+      "label": "train",
+      "start_date": "2026-03-02",
+      "end_date": "2026-03-09",
+      "session_count": 6
+    },
+    "validate": {
+      "label": "validate",
+      "start_date": "2026-03-10",
+      "end_date": "2026-03-11",
+      "session_count": 2
+    },
+    "test": {
+      "label": "test",
+      "start_date": "2026-03-12",
+      "end_date": "2026-03-13",
+      "session_count": 2
+    }
+  },
+  "walk_forward": {
+    "windows": [],
+    "scenario_summaries": []
+  },
+  "parameter_stability": {
+    "recommended_scenario": "",
+    "scenarios": []
+  },
+  "segment_summaries": {
+    "baseline": {
+      "train": {
+        "average_return": "0.0163",
+        "average_excess_return": "0.0242",
+        "average_win_rate": "0.5000",
+        "observations": 6
+      },
+      "validate": {
+        "average_return": "0.0638",
+        "average_excess_return": "0.0802",
+        "average_win_rate": "1.0000",
+        "observations": 2
+      },
+      "test": {
+        "average_return": "0.1314",
+        "average_excess_return": "0.1284",
+        "average_win_rate": "1.0000",
+        "observations": 2
+      }
+    },
+    "quality_defensive": {
+      "train": {
+        "average_return": "0.0145",
+        "average_excess_return": "0.0224",
+        "average_win_rate": "0.5000",
+        "observations": 6
+      },
+      "validate": {
+        "average_return": "0.0638",
+        "average_excess_return": "0.0802",
+        "average_win_rate": "1.0000",
+        "observations": 2
+      },
+      "test": {
+        "average_return": "0.1314",
+        "average_excess_return": "0.1284",
+        "average_win_rate": "1.0000",
+        "observations": 2
+      }
+    },
+    "balanced_quality_momentum": {
+      "train": {
+        "average_return": "0.0163",
+        "average_excess_return": "0.0242",
+        "average_win_rate": "0.5000",
+        "observations": 6
+      },
+      "validate": {
+        "average_return": "0.0638",
+        "average_excess_return": "0.0802",
+        "average_win_rate": "1.0000",
+        "observations": 2
+      },
+      "test": {
+        "average_return": "0.1314",
+        "average_excess_return": "0.1284",
+        "average_win_rate": "1.0000",
+        "observations": 2
+      }
+    }
+  }
+}

@@ -1,0 +1,2235 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-04-06T10:30:39",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T10:30:39",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 因子回测完成：20日相对强度、60日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T10:30:39",
+      "category": "paper",
+      "action": "reset_account",
+      "status": "SUCCESS",
+      "detail": "重置模拟盘账户 web-paper-us",
+      "metadata": {
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T10:30:39",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "STARTED",
+      "detail": "已提交 1 个市场的策略运行任务",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T10:30:39",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 1 个市场，execution=AUTO，runtime=LIVE",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T10:30:39",
+      "category": "project",
+      "action": "update_config",
+      "status": "SUCCESS",
+      "detail": "更新了项目默认配置",
+      "metadata": {
+        "market": "US",
+        "broker": "LOCAL_PAPER",
+        "paper_account_id": "paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T10:30:39",
+      "category": "ops",
+      "action": "release_active_job",
+      "status": "SUCCESS",
+      "detail": "手动释放运行中任务 factor_backtest",
+      "metadata": {
+        "job_id": "job-1",
+        "kind": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T10:30:39",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "BLOCKED",
+      "detail": "策略运行被运行守护拦截",
+      "metadata": {
+        "active_job": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T11:24:36",
+      "category": "collab",
+      "action": "chat_echo",
+      "status": "SUCCESS",
+      "detail": "追加了一条本地聊天记录",
+      "metadata": {
+        "message": "你好，给我看今天的回测结果"
+      }
+    },
+    {
+      "created_at": "2026-04-06T11:24:36",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T11:24:36",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 因子回测完成：20日相对强度、60日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T11:24:36",
+      "category": "paper",
+      "action": "reset_account",
+      "status": "SUCCESS",
+      "detail": "重置模拟盘账户 web-paper-us",
+      "metadata": {
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T11:24:36",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "STARTED",
+      "detail": "已提交 1 个市场的策略运行任务",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T11:24:36",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 1 个市场，execution=AUTO，runtime=LIVE",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T11:24:36",
+      "category": "project",
+      "action": "update_config",
+      "status": "SUCCESS",
+      "detail": "更新了项目默认配置",
+      "metadata": {
+        "market": "US",
+        "broker": "LOCAL_PAPER",
+        "paper_account_id": "paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T11:24:36",
+      "category": "ops",
+      "action": "release_active_job",
+      "status": "SUCCESS",
+      "detail": "手动释放运行中任务 factor_backtest",
+      "metadata": {
+        "job_id": "job-1",
+        "kind": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T11:24:36",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "BLOCKED",
+      "detail": "策略运行被运行守护拦截",
+      "metadata": {
+        "active_job": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:24:35",
+      "category": "collab",
+      "action": "chat_echo",
+      "status": "SUCCESS",
+      "detail": "追加了一条本地聊天记录",
+      "metadata": {
+        "message": "你好，给我看今天的回测结果"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:24:35",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:24:35",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度、60日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:24:35",
+      "category": "paper",
+      "action": "reset_account",
+      "status": "SUCCESS",
+      "detail": "重置模拟盘账户 web-paper-us",
+      "metadata": {
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:24:35",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "STARTED",
+      "detail": "已提交 1 个市场的策略运行任务",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:24:35",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 1 个市场，execution=AUTO，runtime=LIVE",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:24:35",
+      "category": "project",
+      "action": "update_config",
+      "status": "SUCCESS",
+      "detail": "更新了项目默认配置",
+      "metadata": {
+        "market": "US",
+        "broker": "LOCAL_PAPER",
+        "paper_account_id": "paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:24:35",
+      "category": "ops",
+      "action": "release_active_job",
+      "status": "SUCCESS",
+      "detail": "手动释放运行中任务 factor_backtest",
+      "metadata": {
+        "job_id": "job-1",
+        "kind": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:24:35",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "BLOCKED",
+      "detail": "策略运行被运行守护拦截",
+      "metadata": {
+        "active_job": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:24:55",
+      "category": "collab",
+      "action": "chat_echo",
+      "status": "SUCCESS",
+      "detail": "追加了一条本地聊天记录",
+      "metadata": {
+        "message": "你好，给我看今天的回测结果"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:24:55",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:24:55",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度、60日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:24:55",
+      "category": "paper",
+      "action": "reset_account",
+      "status": "SUCCESS",
+      "detail": "重置模拟盘账户 web-paper-us",
+      "metadata": {
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:24:55",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "STARTED",
+      "detail": "已提交 1 个市场的策略运行任务",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:24:55",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 1 个市场，execution=AUTO，runtime=LIVE",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:24:55",
+      "category": "project",
+      "action": "update_config",
+      "status": "SUCCESS",
+      "detail": "更新了项目默认配置",
+      "metadata": {
+        "market": "US",
+        "broker": "LOCAL_PAPER",
+        "paper_account_id": "paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:24:55",
+      "category": "ops",
+      "action": "release_active_job",
+      "status": "SUCCESS",
+      "detail": "手动释放运行中任务 factor_backtest",
+      "metadata": {
+        "job_id": "job-1",
+        "kind": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:24:55",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "BLOCKED",
+      "detail": "策略运行被运行守护拦截",
+      "metadata": {
+        "active_job": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:25:54",
+      "category": "collab",
+      "action": "chat_echo",
+      "status": "SUCCESS",
+      "detail": "追加了一条本地聊天记录",
+      "metadata": {
+        "message": "你好，给我看今天的回测结果"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:25:54",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:25:54",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度、60日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:25:54",
+      "category": "paper",
+      "action": "reset_account",
+      "status": "SUCCESS",
+      "detail": "重置模拟盘账户 web-paper-us",
+      "metadata": {
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:25:54",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "STARTED",
+      "detail": "已提交 1 个市场的策略运行任务",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:25:54",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 1 个市场，execution=AUTO，runtime=LIVE",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:25:54",
+      "category": "project",
+      "action": "update_config",
+      "status": "SUCCESS",
+      "detail": "更新了项目默认配置",
+      "metadata": {
+        "market": "US",
+        "broker": "LOCAL_PAPER",
+        "paper_account_id": "paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:25:54",
+      "category": "ops",
+      "action": "release_active_job",
+      "status": "SUCCESS",
+      "detail": "手动释放运行中任务 factor_backtest",
+      "metadata": {
+        "job_id": "job-1",
+        "kind": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:25:54",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "BLOCKED",
+      "detail": "策略运行被运行守护拦截",
+      "metadata": {
+        "active_job": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:38:55",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": ""
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:38:55",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "FAILED",
+      "detail": "因子回测失败：至少选择一个当前市场可用的因子",
+      "metadata": {
+        "market": "CN"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:40:09",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": ""
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:40:09",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "FAILED",
+      "detail": "因子回测失败：至少选择一个当前市场可用的因子",
+      "metadata": {
+        "market": "CN"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:44:18",
+      "category": "collab",
+      "action": "chat_echo",
+      "status": "SUCCESS",
+      "detail": "追加了一条本地聊天记录",
+      "metadata": {
+        "message": "你好，给我看今天的回测结果"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:44:18",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,trend"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:44:18",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:44:18",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:44:18",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度、60日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:44:18",
+      "category": "paper",
+      "action": "reset_account",
+      "status": "SUCCESS",
+      "detail": "重置模拟盘账户 web-paper-us",
+      "metadata": {
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:44:18",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "STARTED",
+      "detail": "已提交 1 个市场的策略运行任务",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:44:18",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 1 个市场，execution=AUTO，runtime=LIVE",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:44:18",
+      "category": "project",
+      "action": "update_config",
+      "status": "SUCCESS",
+      "detail": "更新了项目默认配置",
+      "metadata": {
+        "market": "US",
+        "broker": "LOCAL_PAPER",
+        "paper_account_id": "paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:44:18",
+      "category": "ops",
+      "action": "release_active_job",
+      "status": "SUCCESS",
+      "detail": "手动释放运行中任务 factor_backtest",
+      "metadata": {
+        "job_id": "job-1",
+        "kind": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:44:18",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "BLOCKED",
+      "detail": "策略运行被运行守护拦截",
+      "metadata": {
+        "active_job": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:44:54",
+      "category": "collab",
+      "action": "chat_echo",
+      "status": "SUCCESS",
+      "detail": "追加了一条本地聊天记录",
+      "metadata": {
+        "message": "你好，给我看今天的回测结果"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:44:54",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,trend"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:44:54",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:44:54",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:44:54",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度、60日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:44:54",
+      "category": "paper",
+      "action": "reset_account",
+      "status": "SUCCESS",
+      "detail": "重置模拟盘账户 web-paper-us",
+      "metadata": {
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:44:54",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "STARTED",
+      "detail": "已提交 1 个市场的策略运行任务",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:44:54",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 1 个市场，execution=AUTO，runtime=LIVE",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:44:54",
+      "category": "project",
+      "action": "update_config",
+      "status": "SUCCESS",
+      "detail": "更新了项目默认配置",
+      "metadata": {
+        "market": "US",
+        "broker": "LOCAL_PAPER",
+        "paper_account_id": "paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:44:54",
+      "category": "ops",
+      "action": "release_active_job",
+      "status": "SUCCESS",
+      "detail": "手动释放运行中任务 factor_backtest",
+      "metadata": {
+        "job_id": "job-1",
+        "kind": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:44:54",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "BLOCKED",
+      "detail": "策略运行被运行守护拦截",
+      "metadata": {
+        "active_job": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:47:40",
+      "category": "collab",
+      "action": "chat_echo",
+      "status": "SUCCESS",
+      "detail": "追加了一条本地聊天记录",
+      "metadata": {
+        "message": "你好，给我看今天的回测结果"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:47:40",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,trend"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:47:40",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:47:40",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:47:40",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度、60日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:47:40",
+      "category": "paper",
+      "action": "reset_account",
+      "status": "SUCCESS",
+      "detail": "重置模拟盘账户 web-paper-us",
+      "metadata": {
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:47:40",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "STARTED",
+      "detail": "已提交 1 个市场的策略运行任务",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:47:40",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 1 个市场，execution=AUTO，runtime=LIVE",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:47:40",
+      "category": "project",
+      "action": "update_config",
+      "status": "SUCCESS",
+      "detail": "更新了项目默认配置",
+      "metadata": {
+        "market": "US",
+        "broker": "LOCAL_PAPER",
+        "paper_account_id": "paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:47:40",
+      "category": "ops",
+      "action": "release_active_job",
+      "status": "SUCCESS",
+      "detail": "手动释放运行中任务 factor_backtest",
+      "metadata": {
+        "job_id": "job-1",
+        "kind": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:47:40",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "BLOCKED",
+      "detail": "策略运行被运行守护拦截",
+      "metadata": {
+        "active_job": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:47:59",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": ""
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:47:59",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "FAILED",
+      "detail": "因子回测失败：至少选择一个当前市场可用的因子",
+      "metadata": {
+        "market": "CN"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:49:27",
+      "category": "collab",
+      "action": "chat_echo",
+      "status": "SUCCESS",
+      "detail": "追加了一条本地聊天记录",
+      "metadata": {
+        "message": "你好，给我看今天的回测结果"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:49:27",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,trend"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:49:27",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:49:27",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:49:27",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度、60日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:49:27",
+      "category": "paper",
+      "action": "reset_account",
+      "status": "SUCCESS",
+      "detail": "重置模拟盘账户 web-paper-us",
+      "metadata": {
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:49:27",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "STARTED",
+      "detail": "已提交 1 个市场的策略运行任务",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:49:27",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 1 个市场，execution=AUTO，runtime=LIVE",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:49:27",
+      "category": "project",
+      "action": "update_config",
+      "status": "SUCCESS",
+      "detail": "更新了项目默认配置",
+      "metadata": {
+        "market": "US",
+        "broker": "LOCAL_PAPER",
+        "paper_account_id": "paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:49:27",
+      "category": "ops",
+      "action": "release_active_job",
+      "status": "SUCCESS",
+      "detail": "手动释放运行中任务 factor_backtest",
+      "metadata": {
+        "job_id": "job-1",
+        "kind": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:49:27",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "BLOCKED",
+      "detail": "策略运行被运行守护拦截",
+      "metadata": {
+        "active_job": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:50:21",
+      "category": "collab",
+      "action": "chat_echo",
+      "status": "SUCCESS",
+      "detail": "追加了一条本地聊天记录",
+      "metadata": {
+        "message": "你好，给我看今天的回测结果"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:50:21",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,trend"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:50:21",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:50:21",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60,trend"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:50:21",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:50:21",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:50:21",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度、60日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:50:21",
+      "category": "paper",
+      "action": "reset_account",
+      "status": "SUCCESS",
+      "detail": "重置模拟盘账户 web-paper-us",
+      "metadata": {
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:50:21",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "STARTED",
+      "detail": "已提交 1 个市场的策略运行任务",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:50:21",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 1 个市场，execution=AUTO，runtime=LIVE",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:50:21",
+      "category": "project",
+      "action": "update_config",
+      "status": "SUCCESS",
+      "detail": "更新了项目默认配置",
+      "metadata": {
+        "market": "US",
+        "broker": "LOCAL_PAPER",
+        "paper_account_id": "paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:50:21",
+      "category": "ops",
+      "action": "release_active_job",
+      "status": "SUCCESS",
+      "detail": "手动释放运行中任务 factor_backtest",
+      "metadata": {
+        "job_id": "job-1",
+        "kind": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:50:21",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "BLOCKED",
+      "detail": "策略运行被运行守护拦截",
+      "metadata": {
+        "active_job": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:51:15",
+      "category": "collab",
+      "action": "chat_echo",
+      "status": "SUCCESS",
+      "detail": "追加了一条本地聊天记录",
+      "metadata": {
+        "message": "你好，给我看今天的回测结果"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:51:15",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,trend"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:51:15",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:51:15",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60,trend"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:51:15",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:51:15",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:51:15",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度、60日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:51:15",
+      "category": "paper",
+      "action": "reset_account",
+      "status": "SUCCESS",
+      "detail": "重置模拟盘账户 web-paper-us",
+      "metadata": {
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:51:15",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "STARTED",
+      "detail": "已提交 1 个市场的策略运行任务",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:51:15",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 1 个市场，execution=AUTO，runtime=LIVE",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:51:15",
+      "category": "project",
+      "action": "update_config",
+      "status": "SUCCESS",
+      "detail": "更新了项目默认配置",
+      "metadata": {
+        "market": "US",
+        "broker": "LOCAL_PAPER",
+        "paper_account_id": "paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:51:15",
+      "category": "ops",
+      "action": "release_active_job",
+      "status": "SUCCESS",
+      "detail": "手动释放运行中任务 factor_backtest",
+      "metadata": {
+        "job_id": "job-1",
+        "kind": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:51:15",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "BLOCKED",
+      "detail": "策略运行被运行守护拦截",
+      "metadata": {
+        "active_job": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:57:22",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": ""
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:57:22",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "FAILED",
+      "detail": "因子回测失败：至少选择一个当前市场可用的因子",
+      "metadata": {
+        "market": "CN"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:57:25",
+      "category": "collab",
+      "action": "chat_echo",
+      "status": "SUCCESS",
+      "detail": "追加了一条本地聊天记录",
+      "metadata": {
+        "message": "你好，给我看今天的回测结果"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:57:25",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,trend"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:57:25",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:57:25",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60,trend"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:57:25",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:57:25",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:57:25",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度、60日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:57:25",
+      "category": "paper",
+      "action": "reset_account",
+      "status": "SUCCESS",
+      "detail": "重置模拟盘账户 web-paper-us",
+      "metadata": {
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:57:25",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "STARTED",
+      "detail": "已提交 1 个市场的策略运行任务",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:57:25",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 1 个市场，execution=AUTO，runtime=LIVE",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:57:25",
+      "category": "project",
+      "action": "update_config",
+      "status": "SUCCESS",
+      "detail": "更新了项目默认配置",
+      "metadata": {
+        "market": "US",
+        "broker": "LOCAL_PAPER",
+        "paper_account_id": "paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:57:25",
+      "category": "ops",
+      "action": "release_active_job",
+      "status": "SUCCESS",
+      "detail": "手动释放运行中任务 factor_backtest",
+      "metadata": {
+        "job_id": "job-1",
+        "kind": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T13:57:25",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "BLOCKED",
+      "detail": "策略运行被运行守护拦截",
+      "metadata": {
+        "active_job": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:01:41",
+      "category": "collab",
+      "action": "chat_echo",
+      "status": "SUCCESS",
+      "detail": "追加了一条本地聊天记录",
+      "metadata": {
+        "message": "你好，给我看今天的回测结果"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:01:41",
+      "category": "collab",
+      "action": "chat_echo",
+      "status": "SUCCESS",
+      "detail": "追加了一条本地聊天记录",
+      "metadata": {
+        "message": "你好，给我看今天的回测结果"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:01:41",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,trend"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:01:41",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:01:41",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60,trend"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:01:41",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:01:41",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:01:41",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度、60日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:01:41",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,trend"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:01:41",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:01:41",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60,trend"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:01:41",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:01:41",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:01:41",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度、60日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:01:41",
+      "category": "paper",
+      "action": "reset_account",
+      "status": "SUCCESS",
+      "detail": "重置模拟盘账户 web-paper-us",
+      "metadata": {
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:01:41",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "STARTED",
+      "detail": "已提交 1 个市场的策略运行任务",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:01:41",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 1 个市场，execution=AUTO，runtime=LIVE",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:01:41",
+      "category": "project",
+      "action": "update_config",
+      "status": "SUCCESS",
+      "detail": "更新了项目默认配置",
+      "metadata": {
+        "market": "US",
+        "broker": "LOCAL_PAPER",
+        "paper_account_id": "paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:01:41",
+      "category": "ops",
+      "action": "release_active_job",
+      "status": "SUCCESS",
+      "detail": "手动释放运行中任务 factor_backtest",
+      "metadata": {
+        "job_id": "job-1",
+        "kind": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:01:41",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "BLOCKED",
+      "detail": "策略运行被运行守护拦截",
+      "metadata": {
+        "active_job": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:01:41",
+      "category": "paper",
+      "action": "reset_account",
+      "status": "SUCCESS",
+      "detail": "重置模拟盘账户 web-paper-us",
+      "metadata": {
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:01:41",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "STARTED",
+      "detail": "已提交 1 个市场的策略运行任务",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:01:41",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 1 个市场，execution=AUTO，runtime=LIVE",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:01:41",
+      "category": "project",
+      "action": "update_config",
+      "status": "SUCCESS",
+      "detail": "更新了项目默认配置",
+      "metadata": {
+        "market": "US",
+        "broker": "LOCAL_PAPER",
+        "paper_account_id": "paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:01:41",
+      "category": "ops",
+      "action": "release_active_job",
+      "status": "SUCCESS",
+      "detail": "手动释放运行中任务 factor_backtest",
+      "metadata": {
+        "job_id": "job-1",
+        "kind": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:01:41",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "BLOCKED",
+      "detail": "策略运行被运行守护拦截",
+      "metadata": {
+        "active_job": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:02:33",
+      "category": "collab",
+      "action": "chat_echo",
+      "status": "SUCCESS",
+      "detail": "追加了一条本地聊天记录",
+      "metadata": {
+        "message": "你好，给我看今天的回测结果"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:02:33",
+      "category": "collab",
+      "action": "chat_echo",
+      "status": "SUCCESS",
+      "detail": "追加了一条本地聊天记录",
+      "metadata": {
+        "message": "你好，给我看今天的回测结果"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:02:33",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,trend"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:02:33",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:02:33",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60,trend"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:02:33",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:02:33",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:02:33",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度、60日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:02:33",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,trend"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:02:33",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:02:33",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60,trend"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:02:33",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:02:33",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:02:33",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度、60日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:02:33",
+      "category": "paper",
+      "action": "reset_account",
+      "status": "SUCCESS",
+      "detail": "重置模拟盘账户 web-paper-us",
+      "metadata": {
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:02:33",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "STARTED",
+      "detail": "已提交 1 个市场的策略运行任务",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:02:33",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 1 个市场，execution=AUTO，runtime=LIVE",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:02:33",
+      "category": "project",
+      "action": "update_config",
+      "status": "SUCCESS",
+      "detail": "更新了项目默认配置",
+      "metadata": {
+        "market": "US",
+        "broker": "LOCAL_PAPER",
+        "paper_account_id": "paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:02:33",
+      "category": "ops",
+      "action": "release_active_job",
+      "status": "SUCCESS",
+      "detail": "手动释放运行中任务 factor_backtest",
+      "metadata": {
+        "job_id": "job-1",
+        "kind": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:02:33",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "BLOCKED",
+      "detail": "策略运行被运行守护拦截",
+      "metadata": {
+        "active_job": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:02:33",
+      "category": "paper",
+      "action": "reset_account",
+      "status": "SUCCESS",
+      "detail": "重置模拟盘账户 web-paper-us",
+      "metadata": {
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:02:33",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "STARTED",
+      "detail": "已提交 1 个市场的策略运行任务",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:02:33",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 1 个市场，execution=AUTO，runtime=LIVE",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:02:33",
+      "category": "project",
+      "action": "update_config",
+      "status": "SUCCESS",
+      "detail": "更新了项目默认配置",
+      "metadata": {
+        "market": "US",
+        "broker": "LOCAL_PAPER",
+        "paper_account_id": "paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:02:33",
+      "category": "ops",
+      "action": "release_active_job",
+      "status": "SUCCESS",
+      "detail": "手动释放运行中任务 factor_backtest",
+      "metadata": {
+        "job_id": "job-1",
+        "kind": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-06T14:02:33",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "BLOCKED",
+      "detail": "策略运行被运行守护拦截",
+      "metadata": {
+        "active_job": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-18T00:13:23",
+      "category": "collab",
+      "action": "chat_echo",
+      "status": "SUCCESS",
+      "detail": "追加了一条本地聊天记录",
+      "metadata": {
+        "message": "你好，给我看今天的回测结果"
+      }
+    },
+    {
+      "created_at": "2026-04-18T00:13:23",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,trend"
+      }
+    },
+    {
+      "created_at": "2026-04-18T00:13:23",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20"
+      }
+    },
+    {
+      "created_at": "2026-04-18T00:13:23",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60,trend"
+      }
+    },
+    {
+      "created_at": "2026-04-18T00:13:23",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20"
+      }
+    },
+    {
+      "created_at": "2026-04-18T00:13:23",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "STARTED",
+      "detail": "已提交 CN 因子回测任务",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-18T00:13:23",
+      "category": "research",
+      "action": "factor_backtest",
+      "status": "SUCCESS",
+      "detail": "CN 策略实验完成：20日相对强度、60日相对强度",
+      "metadata": {
+        "market": "CN",
+        "factors": "rel_ret_20,rel_ret_60"
+      }
+    },
+    {
+      "created_at": "2026-04-18T00:13:23",
+      "category": "paper",
+      "action": "reset_account",
+      "status": "SUCCESS",
+      "detail": "重置模拟盘账户 web-paper-us",
+      "metadata": {
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-18T00:13:23",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "STARTED",
+      "detail": "已提交 1 个市场的策略运行任务",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-18T00:13:23",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "SUCCESS",
+      "detail": "运行 1 个市场，execution=AUTO，runtime=LIVE",
+      "metadata": {
+        "markets": "US",
+        "broker": "LOCAL_PAPER",
+        "route_orders": true,
+        "account_id": "web-paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-18T00:13:23",
+      "category": "project",
+      "action": "update_config",
+      "status": "SUCCESS",
+      "detail": "更新了项目默认配置",
+      "metadata": {
+        "market": "US",
+        "broker": "LOCAL_PAPER",
+        "paper_account_id": "paper-us"
+      }
+    },
+    {
+      "created_at": "2026-04-18T00:13:23",
+      "category": "ops",
+      "action": "release_active_job",
+      "status": "SUCCESS",
+      "detail": "手动释放运行中任务 factor_backtest",
+      "metadata": {
+        "job_id": "job-1",
+        "kind": "factor_backtest"
+      }
+    },
+    {
+      "created_at": "2026-04-18T00:13:23",
+      "category": "runtime",
+      "action": "strategy_run",
+      "status": "BLOCKED",
+      "detail": "策略运行被运行守护拦截",
+      "metadata": {
+        "active_job": "factor_backtest"
+      }
+    }
+  ]
+}

@@ -1,0 +1,88 @@
+{
+  "account_id": "web-paper-us",
+  "trades": [
+    {
+      "executed_at": "2026-04-02T16:00:00",
+      "trade_date": "2026-04-02",
+      "account_id": "web-paper-us",
+      "market": "US",
+      "strategy_id": "us_quality_momentum",
+      "instrument_id": "US.AAPL",
+      "name": "Apple Inc. Common Stock",
+      "side": "BUY",
+      "requested_qty": 109,
+      "filled_qty": 109,
+      "estimated_price": "256.3807",
+      "realized_price": "256.3807",
+      "cash_delta": "-27948.2908",
+      "status": "FILLED"
+    },
+    {
+      "executed_at": "2026-04-02T16:00:00",
+      "trade_date": "2026-04-02",
+      "account_id": "web-paper-us",
+      "market": "US",
+      "strategy_id": "us_quality_momentum",
+      "instrument_id": "US.MSFT",
+      "name": "Microsoft Corporation Common Stock",
+      "side": "BUY",
+      "requested_qty": 5,
+      "filled_qty": 5,
+      "estimated_price": "374.1322",
+      "realized_price": "374.1322",
+      "cash_delta": "-1871.0110",
+      "status": "FILLED"
+    },
+    {
+      "executed_at": "2026-04-02T16:00:00",
+      "trade_date": "2026-04-02",
+      "account_id": "web-paper-us",
+      "market": "US",
+      "strategy_id": "us_quality_momentum",
+      "instrument_id": "US.MSFT",
+      "name": "Microsoft Corporation Common Stock",
+      "side": "BUY",
+      "requested_qty": 2,
+      "filled_qty": 2,
+      "estimated_price": "374.1322",
+      "realized_price": "374.1322",
+      "cash_delta": "-748.6144",
+      "status": "FILLED"
+    },
+    {
+      "executed_at": "2026-04-02T16:00:00",
+      "trade_date": "2026-04-02",
+      "account_id": "web-paper-us",
+      "market": "US",
+      "strategy_id": "us_quality_momentum",
+      "instrument_id": "US.MSFT",
+      "name": "Microsoft Corporation Common Stock",
+      "side": "BUY",
+      "requested_qty": 3,
+      "filled_qty": 3,
+      "estimated_price": "374.1322",
+      "realized_price": "374.1322",
+      "cash_delta": "-1122.7466",
+      "status": "FILLED"
+    }
+  ],
+  "nav_history": [
+    {
+      "as_of": "2026-04-02T16:00:00",
+      "trade_date": "2026-04-02",
+      "nav": "99941.5838",
+      "cash": "69432.0838",
+      "position_value": "30509.5000",
+      "cumulative_return": "0.4394"
+    },
+    {
+      "as_of": "2026-04-05T23:44:09.636975",
+      "trade_date": "2026-04-02",
+      "nav": "99939.2172",
+      "cash": "68309.3372",
+      "position_value": "31629.8800",
+      "cumulative_return": "-0.0006"
+    }
+  ],
+  "starting_cash": "100000.0000"
+}

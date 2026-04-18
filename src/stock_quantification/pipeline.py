@@ -97,6 +97,7 @@ class FeatureConfig:
     trend_window: int = 20
     liquidity_window: int = 20
     benchmark_window: int = 20
+    neutralize_by_sector: bool = False
 
     @property
     def max_lookback(self) -> int:

@@ -25,6 +25,7 @@ from stock_quantification.real_data import (
     fetch_cn_benchmark_history,
     fetch_us_benchmark_history,
 )
+from stock_quantification.result_index import normalize_validation_summary, record_result
 from stock_quantification.runtime import RuntimeEngine
 from stock_quantification.state import InMemoryStateStore
 from stock_quantification.validation import (
@@ -497,6 +498,7 @@ def main() -> None:
     )
     suffix = "validation_study" if args.scenario_set == "standard" else f"{args.scenario_set}_validation_study"
     relative_base = f"{end_date.isoformat()}/{market.value.lower()}_{suffix}"
+    payload["normalized_summary"] = normalize_validation_summary(payload)
     json_path = write_json_artifact(ARTIFACT_DIR, f"{relative_base}.json", payload)
     lines = [
         f"# {market.value} Validation Study",
@@ -506,11 +508,36 @@ def main() -> None:
         f"- holding_sessions: {args.holding_sessions}",
         f"- recommended_scenario: {payload['parameter_stability']['recommended_scenario']}",
         "",
-        "## Segment Summaries",
+        "## Stability Decisions",
     ]
+    for row in payload["parameter_stability"]["scenarios"]:
+        lines.append(
+            f"- {row['scenario_name']}: decision={row['decision']} score={row['stability_score']} rationale={row['rationale']}"
+        )
+    lines.extend([
+        "",
+        "## Segment Summaries",
+    ])
     for scenario_name, segments in payload["segment_summaries"].items():
         lines.append(f"- {scenario_name}: train={segments['train']['average_return']} validate={segments['validate']['average_return']} test={segments['test']['average_return']}")
     md_path = write_text_artifact(ARTIFACT_DIR, f"{relative_base}.md", "\n".join(lines) + "\n")
+    record_result(
+        ARTIFACT_DIR,
+        {
+            "result_id": f"validation_study:{market.value}:{args.scenario_set}:{end_date.isoformat()}",
+            "artifact_kind": "validation_study",
+            "market": market.value,
+            "scenario_set": args.scenario_set,
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
+            "sort_date": end_date.isoformat(),
+            "summary": {
+                **payload["normalized_summary"],
+                "scenario_count": len(payload["parameter_stability"]["scenarios"]),
+            },
+            "artifacts": {"json": json_path, "markdown": md_path},
+        },
+    )
     print(json.dumps({"json": json_path, "markdown": md_path, "recommended_scenario": payload["parameter_stability"]["recommended_scenario"]}, ensure_ascii=False, indent=2))
 
 

@@ -104,6 +104,8 @@ class ParameterStabilityScenario:
     positive_test_windows: int
     total_windows: int
     stability_score: Decimal
+    decision: str = "REVIEW"
+    rationale: str = ""
 
 
 @dataclass(frozen=True)
@@ -246,6 +248,20 @@ def build_parameter_stability_report(
                 positive_test_windows=positive_test_windows,
                 total_windows=len(rows),
                 stability_score=stability_score,
+                decision=_stability_decision(
+                    average_test_return=avg_test,
+                    average_test_excess_return=avg_test_excess,
+                    average_test_win_rate=avg_test_win_rate,
+                    test_return_std=test_std,
+                    validate_test_gap=gap,
+                ),
+                rationale=_stability_rationale(
+                    average_test_return=avg_test,
+                    average_test_excess_return=avg_test_excess,
+                    average_test_win_rate=avg_test_win_rate,
+                    test_return_std=test_std,
+                    validate_test_gap=gap,
+                ),
             )
         )
     scenarios.sort(key=lambda item: item.stability_score, reverse=True)
@@ -310,4 +326,44 @@ def _slice(label: str, dates: Sequence[date]) -> DateSlice:
         start_date=dates[0],
         end_date=dates[-1],
         session_count=len(dates),
+    )
+
+
+def _stability_decision(
+    average_test_return: Decimal,
+    average_test_excess_return: Decimal,
+    average_test_win_rate: Decimal,
+    test_return_std: Decimal,
+    validate_test_gap: Decimal,
+) -> str:
+    if (
+        average_test_return <= 0
+        and average_test_excess_return <= 0
+        and average_test_win_rate < Decimal("0.45")
+    ):
+        return "DROP"
+    if (
+        average_test_return > 0
+        and average_test_excess_return >= 0
+        and average_test_win_rate >= Decimal("0.50")
+        and abs(validate_test_gap) <= Decimal("0.02")
+        and test_return_std <= Decimal("0.03")
+    ):
+        return "KEEP"
+    return "REVIEW"
+
+
+def _stability_rationale(
+    average_test_return: Decimal,
+    average_test_excess_return: Decimal,
+    average_test_win_rate: Decimal,
+    test_return_std: Decimal,
+    validate_test_gap: Decimal,
+) -> str:
+    return (
+        f"test={average_test_return.quantize(Decimal('0.0001'))} "
+        f"excess={average_test_excess_return.quantize(Decimal('0.0001'))} "
+        f"win_rate={average_test_win_rate.quantize(Decimal('0.0001'))} "
+        f"std={test_return_std.quantize(Decimal('0.0001'))} "
+        f"gap={validate_test_gap.quantize(Decimal('0.0001'))}"
     )
