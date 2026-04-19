@@ -46,7 +46,8 @@ class WebTests(TestCase):
         self.assertIn('<section class="page-shell">', body)
         self.assertIn('<header class="page-header">', body)
         self.assertIn('<section class="summary-strip">', body)
-        self.assertIn('status-strip__link--active" href="/">项目总览</a>', body)
+        self.assertNotIn("status-strip__nav", body)
+        self.assertNotIn("status-strip__link", body)
         self.assertNotIn('class="app-shell shell"', body)
         self.assertNotIn('class="side-nav workspace__nav"', body)
         self.assertNotIn('class="page-shell workspace__content"', body)
@@ -146,6 +147,8 @@ class WebTests(TestCase):
         self.assertIn("Factor Backtest / 因子回测", body)
         self.assertIn("Current Defaults / 当前默认配置", body)
         self.assertIn("Recent Execution / 最近执行反馈", body)
+        self.assertNotIn("status-strip__nav", body)
+        self.assertNotIn("status-strip__link", body)
         self.assertNotIn("Result Group / 结果分组", body)
         self.assertNotIn("Data Group / 数据分组", body)
 
@@ -255,8 +258,179 @@ class WebTests(TestCase):
         self.assertEqual(response.status, 200)
         self.assertIn("Research Results / 研究结果中心", body)
         self.assertIn("Runtime Results / 运行结果", body)
+
+    def test_results_page_renders_filter_bar_grouped_lists_and_detail_panel(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            write_json_artifact(
+                artifact_root,
+                "web/result_index.json",
+                {
+                    "records": [
+                        {
+                            "result_id": "strategy_suite:US:2026-03-31",
+                            "artifact_kind": "strategy_suite",
+                            "market": "US",
+                            "sort_date": "2026-03-31",
+                            "summary": {
+                                "subject_name": "美股基线质量动量",
+                                "subject_id": "us_baseline",
+                                "decision": "KEEP",
+                                "score": "1.2345",
+                                "return": "0.1200",
+                                "excess_return": "0.0310",
+                                "result_type": "strategy_suite",
+                                "rationale": "质量和动量信号同时稳定。",
+                            },
+                            "artifacts": {"json": "2026-03-31/us_strategy_suite.json", "markdown": "2026-03-31/us_strategy_suite.md"},
+                        },
+                        {
+                            "result_id": "local_paper_run:US:web-paper-us:2026-04-18T10:00:00",
+                            "artifact_kind": "local_paper_run",
+                            "market": "US",
+                            "sort_date": "2026-04-18T10:00:00",
+                            "summary": {
+                                "subject_name": "web-paper-us / us_quality_momentum",
+                                "decision": "RECORDED",
+                                "score": "2",
+                                "return": "80000",
+                                "result_type": "local_paper_run",
+                                "rationale": "记录模拟盘执行结果。",
+                            },
+                            "artifacts": {"json": "local_paper/web-paper-us/runs/demo.json", "markdown": "local_paper/web-paper-us/runs/demo.md"},
+                        },
+                    ]
+                },
+            )
+            write_json_artifact(
+                artifact_root,
+                "2026-03-31/us_strategy_suite.json",
+                {
+                    "normalized_summary": {
+                        "subject_name": "美股基线质量动量",
+                        "subject_id": "us_baseline",
+                        "decision": "KEEP",
+                        "score": "1.2345",
+                        "return": "0.1200",
+                        "excess_return": "0.0310",
+                        "max_drawdown": "-0.0800",
+                        "rationale": "质量和动量信号同时稳定。",
+                    },
+                    "metrics": {
+                        "sharpe_ratio": "1.82",
+                        "turnover": "0.14",
+                    },
+                    "artifacts": {
+                        "json": "2026-03-31/us_strategy_suite.json",
+                        "markdown": "2026-03-31/us_strategy_suite.md",
+                    },
+                },
+            )
+            write_json_artifact(
+                artifact_root,
+                "local_paper/web-paper-us/runs/demo.json",
+                {
+                    "normalized_summary": {
+                        "subject_name": "web-paper-us / us_quality_momentum",
+                        "decision": "RECORDED",
+                        "score": "2",
+                        "return": "80000",
+                        "rationale": "记录模拟盘执行结果。",
+                    },
+                    "metrics": {
+                        "trade_count": "3",
+                        "filled_trade_count": "2",
+                    },
+                    "artifacts": {
+                        "json": "local_paper/web-paper-us/runs/demo.json",
+                        "markdown": "local_paper/web-paper-us/runs/demo.md",
+                    },
+                },
+            )
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                response = self.app.render_home({"view": ["results"]})
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn("Result Group / 结果分组", body)
+        self.assertIn("Result Type / 结果类型", body)
+        self.assertIn("Market / 市场", body)
+        self.assertIn("Recent Window / 最近窗口", body)
+        self.assertIn("Research Results / 研究结果中心", body)
+        self.assertIn("Runtime Results / 运行结果", body)
+        self.assertIn("Result Detail / 结果详情", body)
+        self.assertIn("Normalized Summary / 统一摘要", body)
+        self.assertIn("Rationale / 依据", body)
+        self.assertIn("Metrics / 指标", body)
+        self.assertIn("Artifact Links / 工件链接", body)
         self.assertIn("美股基线质量动量", body)
         self.assertIn("web-paper-us / us_quality_momentum", body)
+        self.assertNotIn("Strategy Run / 策略运行", body)
+        self.assertNotIn("Factor Backtest / 因子回测", body)
+        self.assertNotIn("重置模拟盘账户", body)
+        self.assertNotIn("释放任务", body)
+        self.assertNotIn("项目配置页", body)
+
+    def test_results_page_filters_runtime_rows_and_preserves_get_query_in_links(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            write_json_artifact(
+                artifact_root,
+                "web/result_index.json",
+                {
+                    "records": [
+                        {
+                            "result_id": "strategy_suite:US:2026-03-31",
+                            "artifact_kind": "strategy_suite",
+                            "market": "US",
+                            "sort_date": "2026-03-31",
+                            "summary": {
+                                "subject_name": "美股基线质量动量",
+                                "result_type": "strategy_suite",
+                            },
+                            "artifacts": {"json": "2026-03-31/us_strategy_suite.json"},
+                        },
+                        {
+                            "result_id": "local_paper_run:US:web-paper-us:2026-04-18T10:00:00",
+                            "artifact_kind": "local_paper_run",
+                            "market": "US",
+                            "sort_date": "2026-04-18T10:00:00",
+                            "summary": {
+                                "subject_name": "web-paper-us / us_quality_momentum",
+                                "result_type": "local_paper_run",
+                            },
+                            "artifacts": {"json": "local_paper/web-paper-us/runs/demo.json"},
+                        },
+                    ]
+                },
+            )
+            write_json_artifact(
+                artifact_root,
+                "local_paper/web-paper-us/runs/demo.json",
+                {
+                    "normalized_summary": {
+                        "subject_name": "web-paper-us / us_quality_momentum",
+                        "decision": "RECORDED",
+                        "rationale": "记录模拟盘执行结果。",
+                    }
+                },
+            )
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                response = self.app.render_home(
+                    {
+                        "view": ["results"],
+                        "result_group": ["runtime"],
+                        "market": ["US"],
+                        "recent_window": ["30d"],
+                    }
+                )
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn('option value="runtime" selected', body)
+        self.assertIn('option value="US" selected', body)
+        self.assertIn('option value="30d" selected', body)
+        self.assertIn("web-paper-us / us_quality_momentum", body)
+        self.assertNotIn("美股基线质量动量", body)
+        self.assertIn("/?view=results&result_group=runtime&market=US&recent_window=30d&artifact=local_paper/web-paper-us/runs/demo.json", body)
 
     @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
     @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")

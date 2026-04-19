@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import deque
 from copy import deepcopy
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 import hashlib
 from html import escape
@@ -824,6 +824,21 @@ class DashboardApp:
 
         normalized_summary = artifact.summary.get("normalized_summary", {})
         if isinstance(normalized_summary, dict) and normalized_summary:
+            metrics = artifact.summary.get("metrics", {})
+            if not isinstance(metrics, dict):
+                metrics = {}
+            artifact_links = artifact.summary.get("artifacts", {})
+            if not isinstance(artifact_links, dict):
+                artifact_links = {}
+            metric_tiles = "".join(
+                self._summary_tile(str(key).replace("_", " ").title(), value, "工件里提取出的关键指标")
+                for key, value in list(metrics.items())[:6]
+            ) or self._summary_tile("Metrics / 指标", "暂无", "当前工件没有额外结构化指标")
+            artifact_link_html = "".join(
+                f'<a class="button button--ghost" href="/artifact-file?path={quote(self._artifact_query_path(str(path)))}" target="_blank" rel="noreferrer">{escape(str(name).upper())}</a>'
+                for name, path in artifact_links.items()
+                if str(path).strip()
+            ) or '<span class="muted">暂无额外工件链接</span>'
             return f"""
             <section class="panel panel--selected">
               <div class="panel__header">
@@ -851,6 +866,16 @@ class DashboardApp:
                 <div>
                   <h3>Rationale / 依据</h3>
                   <p>{escape(str(normalized_summary.get("rationale", "暂无摘要说明")))}</p>
+                </div>
+                <div>
+                  <h3>Metrics / 指标</h3>
+                  <div class="summary-grid">{metric_tiles}</div>
+                </div>
+              </div>
+              <div class="panel__split">
+                <div>
+                  <h3>Artifact Links / 工件链接</h3>
+                  <div class="panel__actions panel__actions--inline">{artifact_link_html}</div>
                 </div>
                 <div>
                   <h3>Payload / 原始工件</h3>
@@ -2663,23 +2688,283 @@ class DashboardApp:
 
     def _render_results_page(self, query: Dict[str, List[str]]) -> WebResponse:
         flash_html = self._render_flash_messages()
-        indexed_results_html = self._render_indexed_result_cards(view="results")
-        selected_artifact = self._resolve_selected_artifact(query.get("artifact", [None])[0])
-        artifact_cards_html = self._render_recent_artifact_cards(selected_artifact.relative_path if selected_artifact else None, view="results")
+        filters = self._result_filters_from_query(query)
+        records = self._filter_result_records(self._recent_indexed_results(limit=40), filters)
+        selected_artifact = self._resolve_selected_result_artifact(records, query.get("artifact", [None])[0])
+        selected_path = selected_artifact.relative_path if selected_artifact else None
         body = f"""
           {flash_html}
-          {indexed_results_html}
-          {artifact_cards_html}
+          {self._render_results_filter_bar(filters, records)}
+          {self._render_result_center(records, filters, selected_path)}
+          <section class="panel">
+            <div class="panel__header">
+              <div>
+                <p class="eyebrow">Result Detail</p>
+                <h2>Result Detail / 结果详情</h2>
+              </div>
+            </div>
+            {self._render_selected_artifact(selected_artifact)}
+          </section>
         """
         return self._html_page(
             self._render_page_shell(
                 "results",
-                title="Research Results / 研究结果",
+                title="Research Results / 研究结果中心",
                 eyebrow="Research Results",
-                description="统一查看研究、回测和运行结果的索引与归档。",
+                description="只负责浏览、筛选、比较和阅读研究/运行输出，不承载工作台或运维操作。",
                 body=body,
             )
         )
+
+    def _result_filters_from_query(self, query: Dict[str, List[str]]) -> Dict[str, str]:
+        return {
+            "result_group": query.get("result_group", ["all"])[0].strip().lower() or "all",
+            "result_type": query.get("result_type", ["all"])[0].strip() or "all",
+            "market": query.get("market", ["all"])[0].strip().upper() or "all",
+            "recent_window": query.get("recent_window", ["all"])[0].strip().lower() or "all",
+            "date_from": query.get("date_from", [""])[0].strip(),
+            "date_to": query.get("date_to", [""])[0].strip(),
+        }
+
+    def _result_group_for_row(self, row: Dict[str, Any]) -> str:
+        return "runtime" if str(row.get("artifact_kind")) == "local_paper_run" else "research"
+
+    def _result_type_for_row(self, row: Dict[str, Any]) -> str:
+        summary = row.get("summary", {}) if isinstance(row.get("summary"), dict) else {}
+        return str(summary.get("result_type") or row.get("artifact_kind") or "unknown")
+
+    def _result_date_string(self, row: Dict[str, Any]) -> str:
+        summary = row.get("summary", {}) if isinstance(row.get("summary"), dict) else {}
+        for candidate in (
+            row.get("sort_date"),
+            summary.get("as_of"),
+            summary.get("end_date"),
+            summary.get("trade_date"),
+        ):
+            value = str(candidate or "").strip()
+            if value:
+                return value
+        return ""
+
+    def _parse_result_datetime(self, raw_value: str) -> Optional[datetime]:
+        value = str(raw_value or "").strip()
+        if not value:
+            return None
+        normalized = value.replace("Z", "+00:00")
+        try:
+            return datetime.fromisoformat(normalized)
+        except ValueError:
+            pass
+        if len(value) >= 10:
+            try:
+                return datetime.combine(date.fromisoformat(value[:10]), datetime.min.time())
+            except ValueError:
+                return None
+        return None
+
+    def _filter_result_records(self, records: List[Dict[str, Any]], filters: Dict[str, str]) -> List[Dict[str, Any]]:
+        filtered = list(records)
+        if filters["result_group"] in {"research", "runtime"}:
+            filtered = [row for row in filtered if self._result_group_for_row(row) == filters["result_group"]]
+        if filters["result_type"] != "all":
+            filtered = [row for row in filtered if self._result_type_for_row(row) == filters["result_type"]]
+        if filters["market"] != "ALL":
+            filtered = [row for row in filtered if str(row.get("market", "")).upper() == filters["market"]]
+
+        dated_rows = [(row, self._parse_result_datetime(self._result_date_string(row))) for row in filtered]
+        recent_window = filters["recent_window"]
+        if recent_window.endswith("d") and recent_window[:-1].isdigit():
+            latest_seen = max((parsed for _, parsed in dated_rows if parsed is not None), default=None)
+            if latest_seen is not None:
+                window_days = int(recent_window[:-1])
+                threshold = latest_seen - timedelta(days=window_days)
+                filtered = [row for row, parsed in dated_rows if parsed is None or parsed >= threshold]
+                dated_rows = [(row, self._parse_result_datetime(self._result_date_string(row))) for row in filtered]
+
+        date_from = self._parse_result_datetime(filters["date_from"])
+        if date_from is not None:
+            filtered = [row for row, parsed in dated_rows if parsed is None or parsed >= date_from]
+            dated_rows = [(row, self._parse_result_datetime(self._result_date_string(row))) for row in filtered]
+        date_to = self._parse_result_datetime(filters["date_to"])
+        if date_to is not None:
+            filtered = [row for row, parsed in dated_rows if parsed is None or parsed <= date_to]
+        return filtered
+
+    def _artifact_entry_from_relative_path(self, relative_path: str) -> Optional[ArtifactEntry]:
+        normalized_path = self._artifact_query_path(relative_path)
+        safe_path = self._safe_artifact_path(normalized_path)
+        if safe_path is None or not safe_path.exists():
+            return None
+        try:
+            summary = read_json_artifact(ARTIFACT_ROOT, normalized_path)
+        except Exception:
+            return None
+        if not isinstance(summary, dict):
+            return None
+        return ArtifactEntry(
+            relative_path=normalized_path,
+            display_name=safe_path.name,
+            mtime=safe_path.stat().st_mtime,
+            summary=summary,
+        )
+
+    def _resolve_selected_result_artifact(self, records: List[Dict[str, Any]], artifact_query: Optional[str]) -> Optional[ArtifactEntry]:
+        requested_path = self._artifact_query_path(unquote(artifact_query)) if artifact_query else None
+        candidate_paths: List[str] = []
+        if requested_path:
+            candidate_paths.append(requested_path)
+        for row in records:
+            artifacts = row.get("artifacts", {}) if isinstance(row.get("artifacts"), dict) else {}
+            json_path = str(artifacts.get("json", "") or "").strip()
+            if json_path and json_path not in candidate_paths:
+                candidate_paths.append(json_path)
+        for path in candidate_paths:
+            entry = self._artifact_entry_from_relative_path(path)
+            if entry is not None:
+                return entry
+        return None
+
+    def _result_query_params(self, filters: Dict[str, str], artifact: Optional[str] = None) -> Dict[str, str]:
+        params = {
+            "result_group": filters["result_group"] if filters["result_group"] != "all" else "",
+            "result_type": filters["result_type"] if filters["result_type"] != "all" else "",
+            "market": filters["market"] if filters["market"] != "ALL" else "",
+            "recent_window": filters["recent_window"] if filters["recent_window"] != "all" else "",
+            "date_from": filters["date_from"],
+            "date_to": filters["date_to"],
+        }
+        if artifact:
+            params["artifact"] = artifact
+        return params
+
+    def _render_results_filter_bar(self, filters: Dict[str, str], records: List[Dict[str, Any]]) -> str:
+        result_types = sorted({self._result_type_for_row(row) for row in records if self._result_type_for_row(row)})
+        result_type_options = ['<option value="all">All / 全部</option>'] + [
+            f'<option value="{escape(result_type)}"{" selected" if filters["result_type"] == result_type else ""}>{escape(result_type)}</option>'
+            for result_type in result_types
+        ]
+        return f"""
+        <section class="panel result-filter-bar">
+          <form class="grid-form result-filter-bar__form" method="get" action="/">
+            <input type="hidden" name="view" value="results" />
+            <label>Result Group / 结果分组
+              <select name="result_group">
+                <option value="all"{' selected' if filters['result_group'] == 'all' else ''}>All / 全部</option>
+                <option value="research"{' selected' if filters['result_group'] == 'research' else ''}>Research / 研究</option>
+                <option value="runtime"{' selected' if filters['result_group'] == 'runtime' else ''}>Runtime / 运行</option>
+              </select>
+            </label>
+            <label>Result Type / 结果类型
+              <select name="result_type">{''.join(result_type_options)}</select>
+            </label>
+            <label>Market / 市场
+              <select name="market">
+                <option value="ALL"{' selected' if filters['market'] == 'ALL' else ''}>All / 全部</option>
+                <option value="CN"{' selected' if filters['market'] == 'CN' else ''}>CN</option>
+                <option value="US"{' selected' if filters['market'] == 'US' else ''}>US</option>
+              </select>
+            </label>
+            <label>Recent Window / 最近窗口
+              <select name="recent_window">
+                <option value="all"{' selected' if filters['recent_window'] == 'all' else ''}>All / 全部</option>
+                <option value="7d"{' selected' if filters['recent_window'] == '7d' else ''}>7d</option>
+                <option value="30d"{' selected' if filters['recent_window'] == '30d' else ''}>30d</option>
+                <option value="90d"{' selected' if filters['recent_window'] == '90d' else ''}>90d</option>
+              </select>
+            </label>
+            <label>Date From / 开始日期
+              <input type="date" name="date_from" value="{escape(filters['date_from'])}" />
+            </label>
+            <label>Date To / 结束日期
+              <input type="date" name="date_to" value="{escape(filters['date_to'])}" />
+            </label>
+            <div class="grid-form__actions result-filter-bar__actions">
+              <button class="button button--primary" type="submit">Apply Filters / 应用筛选</button>
+            </div>
+          </form>
+        </section>
+        """
+
+    def _render_result_center(self, records: List[Dict[str, Any]], filters: Dict[str, str], selected_path: Optional[str]) -> str:
+        if not records:
+            return """
+            <section class="panel panel--empty">
+              <h2>Research Results / 研究结果中心</h2>
+              <p>当前筛选条件下没有匹配结果，请调整分组、类型、市场或日期窗口。</p>
+            </section>
+            """
+        research_records = [row for row in records if self._result_group_for_row(row) == "research"]
+        runtime_records = [row for row in records if self._result_group_for_row(row) == "runtime"]
+        return f"""
+        <section class="panel result-center">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Canonical Result Center</p>
+              <h2>Indexed Results / 索引结果中心</h2>
+            </div>
+          </div>
+          <div class="result-center__grid">
+            {self._render_result_group_table("Research Results / 研究结果中心", "研究输出、回测和策略套件", research_records, filters, selected_path)}
+            {self._render_result_group_table("Runtime Results / 运行结果", "模拟盘与运行归档", runtime_records, filters, selected_path)}
+          </div>
+        </section>
+        """
+
+    def _render_result_group_table(
+        self,
+        title: str,
+        description: str,
+        records: List[Dict[str, Any]],
+        filters: Dict[str, str],
+        selected_path: Optional[str],
+    ) -> str:
+        if not records:
+            rows_html = '<div class="result-row result-row--empty"><span class="muted">当前分组没有匹配结果。</span></div>'
+        else:
+            rendered_rows = []
+            for row in records:
+                summary = row.get("summary", {}) if isinstance(row.get("summary"), dict) else {}
+                artifacts = row.get("artifacts", {}) if isinstance(row.get("artifacts"), dict) else {}
+                json_path = self._artifact_query_path(str(artifacts.get("json", "") or ""))
+                href = self._view_url("results", query=self._result_query_params(filters, artifact=json_path if json_path else None))
+                selected_class = " result-row--active" if json_path and json_path == selected_path else ""
+                rendered_rows.append(
+                    f"""
+                    <a class="result-row{selected_class}" href="{href}">
+                      <span class="result-row__subject">{escape(str(summary.get('subject_name') or summary.get('subject_id') or row.get('result_id', 'N/A')))}</span>
+                      <span>{escape(self._result_type_for_row(row))}</span>
+                      <span>{escape(str(row.get('market', 'N/A')))}</span>
+                      <span>{escape(str(summary.get('decision', 'N/A')))}</span>
+                      <span>{escape(str(summary.get('score', 'N/A')))}</span>
+                      <span>{escape(str(summary.get('return', 'N/A')))}</span>
+                      <span>{escape(self._result_date_string(row) or 'N/A')}</span>
+                    </a>
+                    """
+                )
+            rows_html = "".join(rendered_rows)
+        return f"""
+        <section class="result-group">
+          <div class="result-group__header">
+            <div>
+              <p class="eyebrow">{escape(title.split(' / ')[0])}</p>
+              <h3>{escape(title)}</h3>
+            </div>
+            <p class="muted">{escape(description)}</p>
+          </div>
+          <div class="result-table" role="table" aria-label="{escape(title)}">
+            <div class="result-table__head" role="row">
+              <span>Subject / 对象</span>
+              <span>Type / 类型</span>
+              <span>Market / 市场</span>
+              <span>Decision / 结论</span>
+              <span>Score / 评分</span>
+              <span>Return / 收益</span>
+              <span>Date / 日期</span>
+            </div>
+            <div class="result-table__body">{rows_html}</div>
+          </div>
+        </section>
+        """
 
     def _render_paper_page(self, query: Dict[str, List[str]]) -> WebResponse:
         flash_html = self._render_flash_messages()
@@ -2741,16 +3026,6 @@ class DashboardApp:
         local_account = self.state.last_local_paper_account or LocalPaperLedger().latest_account_overview()
         recent_artifacts = self._recent_artifacts(limit=12)
         task_logs = self._load_task_logs()
-        links = [
-            ("overview", "/", "项目总览"),
-            ("config", "/project/config", "项目配置页"),
-            ("logs", "/project/logs", "任务日志页"),
-            ("ops", "/project/ops", "运维中心"),
-        ]
-        link_html = "".join(
-            f"<a class=\"status-strip__link{' status-strip__link--active' if key == active_page else ''}\" href=\"{href}\">{label}</a>"
-            for key, href, label in links
-        )
         return f"""
         <section class="status-strip">
           <div class="status-strip__brand">
@@ -2767,7 +3042,6 @@ class DashboardApp:
             <span class="status-strip__pill">Artifacts / {len(recent_artifacts)}</span>
             <span class="status-strip__pill">Logs / {len(task_logs)}</span>
           </div>
-          <nav class="status-strip__nav">{link_html}</nav>
         </section>
         """
 

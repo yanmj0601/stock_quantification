@@ -1910,3 +1910,104 @@ body.dashboard-app {
     display: block;
   }
 }
+
+.dashboard-app .result-filter-bar {
+  margin-top: 0;
+}
+
+.dashboard-app .result-filter-bar__form {
+  align-items: end;
+}
+
+.dashboard-app .result-filter-bar__actions {
+  display: flex;
+  align-items: end;
+}
+
+.dashboard-app .result-center__grid {
+  display: grid;
+  gap: 18px;
+}
+
+.dashboard-app .result-group {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 20px;
+  background: rgba(255, 250, 242, 0.52);
+  border: 1px solid rgba(133, 108, 81, 0.12);
+}
+
+.dashboard-app .result-group__header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dashboard-app .result-table {
+  display: grid;
+  gap: 8px;
+}
+
+.dashboard-app .result-table__head,
+.dashboard-app .result-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.8fr) repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  align-items: center;
+}
+
+.dashboard-app .result-table__head {
+  padding: 0 14px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.dashboard-app .result-table__body {
+  display: grid;
+  gap: 8px;
+}
+
+.dashboard-app .result-row {
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(255, 253, 248, 0.96);
+  border: 1px solid rgba(133, 108, 81, 0.14);
+  box-shadow: var(--shadow-soft);
+}
+
+.dashboard-app .result-row--active {
+  border-color: rgba(138, 91, 57, 0.45);
+  box-shadow: 0 0 0 1px rgba(138, 91, 57, 0.12) inset, var(--shadow-soft);
+}
+
+.dashboard-app .result-row--empty {
+  grid-template-columns: 1fr;
+}
+
+.dashboard-app .result-row__subject {
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+@media (max-width: 1100px) {
+  .dashboard-app .result-table__head,
+  .dashboard-app .result-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .dashboard-app .result-group__header {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .dashboard-app .result-table__head,
+  .dashboard-app .result-row {
+    grid-template-columns: 1fr;
+  }
+}
