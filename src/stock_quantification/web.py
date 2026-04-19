@@ -55,6 +55,20 @@ DEFAULT_PAGE_TITLE = "Stock Quantification Dashboard"
 WEB_STATE_RELATIVE_ROOT = "web"
 PROJECT_CONFIG_RELATIVE_PATH = f"{WEB_STATE_RELATIVE_ROOT}/project_config.json"
 TASK_LOG_RELATIVE_PATH = f"{WEB_STATE_RELATIVE_ROOT}/task_logs.json"
+PRIMARY_VIEW_ALIASES = {
+    "overview": "paper",
+    "paper": "paper",
+    "workbench": "optimize",
+    "optimize": "optimize",
+    "run": "run",
+    "results": "results",
+}
+PRIMARY_VIEW_TABS = {
+    "paper": [("account", "账户"), ("ledger", "流水"), ("runtime", "运行")],
+    "optimize": [("factor", "因子"), ("lab", "实验"), ("defaults", "默认值")],
+    "run": [("strategy", "策略运行"), ("feedback", "反馈"), ("defaults", "默认值")],
+    "results": [("research", "研究结果"), ("runtime", "运行结果"), ("archive", "归档")],
+}
 DEFAULT_PROJECT_CONFIG: Dict[str, Dict[str, Any]] = {
     "run_defaults": {
         "market": "ALL",
@@ -185,13 +199,15 @@ class DashboardApp:
 
     def render_home(self, query: Dict[str, List[str]]) -> WebResponse:
         view = self._dashboard_view(query)
-        if view == "workbench":
-            return self._render_workbench_page(query)
+        primary_view = self._primary_view_for_view(view)
+        subview = self._primary_subview_for_view(primary_view, query)
+        if view in {"workbench", "optimize", "run"}:
+            return self._render_workbench_page(query, primary_view=primary_view, subview=subview)
         if view == "results":
-            return self._render_results_page(query)
+            return self._render_results_page(query, primary_view=primary_view, subview=subview)
         if view == "paper":
-            return self._render_paper_page(query)
-        return self._render_overview_page(query)
+            return self._render_paper_page(query, primary_view=primary_view, subview=subview)
+        return self._render_overview_page(query, primary_view=primary_view, subview=subview)
 
     def render_project_config(self) -> WebResponse:
         config = self._load_project_config()
@@ -2527,12 +2543,20 @@ class DashboardApp:
                 return artifact_path
         return artifact_path
 
-    def _html_page(self, content: str, title: str = DEFAULT_PAGE_TITLE) -> WebResponse:
+    def _html_page(
+        self,
+        content: str,
+        title: str = DEFAULT_PAGE_TITLE,
+        primary_view: str = "paper",
+        subview: str = "default",
+    ) -> WebResponse:
         template = self._load_template("dashboard.html")
         body = Template(template).safe_substitute(
             page_title=escape(title),
             content=content,
             body_class="dashboard-app",
+            primary_view=escape(primary_view),
+            subview=escape(subview),
         )
         return WebResponse(
             status=HTTPStatus.OK,
@@ -2543,9 +2567,19 @@ class DashboardApp:
 
     def _dashboard_view(self, query: Dict[str, List[str]]) -> str:
         raw_view = query.get("view", ["overview"])[0].strip().lower()
-        if raw_view in {"overview", "workbench", "results", "paper"}:
+        if raw_view in {"overview", "workbench", "results", "paper", "optimize", "run"}:
             return raw_view
         return "overview"
+
+    def _primary_view_for_view(self, view: str) -> str:
+        return PRIMARY_VIEW_ALIASES.get(view, "paper")
+
+    def _primary_subview_for_view(self, primary_view: str, query: Dict[str, List[str]]) -> str:
+        tabs = PRIMARY_VIEW_TABS.get(primary_view, [])
+        default_subview = tabs[0][0] if tabs else "default"
+        raw_subview = query.get("subview", [default_subview])[0].strip().lower()
+        tab_ids = {tab_id for tab_id, _ in tabs}
+        return raw_subview if raw_subview in tab_ids else default_subview
 
     def _view_url(self, view: str, path: str = "/", query: Optional[Dict[str, str]] = None) -> str:
         params = [("view", view)]
@@ -2556,18 +2590,22 @@ class DashboardApp:
 
     def _requested_view(self, body: Dict[str, List[str]], default: str = "overview") -> str:
         raw_view = body.get("view", [default])[0].strip().lower()
-        if raw_view in {"overview", "workbench", "results", "paper"}:
+        if raw_view in {"overview", "workbench", "results", "paper", "optimize", "run"}:
             return raw_view
         return default
 
-    def _render_page_shell(self, active_page: str, title: str, eyebrow: str, description: str, body: str) -> str:
-        status_active_page = "overview" if active_page in {"overview", "workbench", "results", "paper"} else active_page
+    def _render_page_shell(self, active_page: str, title: str, eyebrow: str, description: str, body: str, subview: str = "default") -> str:
+        status_active_page = active_page if active_page in {"paper", "optimize", "run", "results"} else "paper"
         return f"""
-        <main class="app-shell">
+        <main class="app-shell app-shell--paper-first">
           {self._render_status_bar(status_active_page)}
           <div class="app-shell__frame">
             <aside class="side-nav">
-              {self._render_sidebar_nav(active_page)}
+              <div class="side-nav__panel">
+                <p class="eyebrow">Section Tabs</p>
+                <h2>{escape(title.split(' / ')[0])}</h2>
+                {self._render_section_tabs(active_page, subview)}
+              </div>
             </aside>
             <section class="page-shell">
               <header class="page-header">
@@ -2586,19 +2624,16 @@ class DashboardApp:
         </main>
         """
 
-    def _render_sidebar_nav(self, active_page: str) -> str:
+    def _render_primary_nav(self, active_page: str) -> str:
         items = [
-            ("overview", "/", "Overview / 总览", "项目总览与运行状态"),
-            ("workbench", "/?view=workbench", "Research Workbench / 研究工作台", "因子实验与工作台"),
-            ("results", "/?view=results", "Research Results / 研究结果", "研究和运行结果索引"),
-            ("paper", "/?view=paper", "Local Paper / 模拟盘", "模拟盘账户与流水"),
-            ("logs", "/project/logs", "Logs / 任务日志", "任务与审计流水"),
-            ("ops", "/project/ops", "Ops / 运维中心", "健康检查与后台守护"),
-            ("config", "/project/config", "Config / 项目配置", "运行与研究默认值"),
+            ("paper", "/?view=paper", "模拟盘", "账户、流水与执行结果"),
+            ("optimize", "/?view=optimize", "策略优化", "因子回测与实验迭代"),
+            ("run", "/?view=run", "策略运行", "提交运行与查看反馈"),
+            ("results", "/?view=results", "结果中心", "研究与运行结果索引"),
         ]
         links = "".join(
             f"""
-            <a class="side-nav__link{' side-nav__link--active' if key == active_page else ''}" href="{href}">
+            <a class="primary-nav__link{' primary-nav__link--active' if key == active_page else ''}" href="{href}">
               <strong>{escape(label)}</strong>
               <span>{escape(description)}</span>
             </a>
@@ -2606,14 +2641,33 @@ class DashboardApp:
             for key, href, label, description in items
         )
         return f"""
-        <div class="side-nav__panel">
-          <p class="eyebrow">Workspace Navigation</p>
-          <h2>工作区导航</h2>
-          <div class="side-nav__links">{links}</div>
+        <div class="status-strip__nav-shell">
+          <p class="eyebrow">Primary Navigation</p>
+          <nav class="primary-nav" aria-label="Primary Navigation">
+            {links}
+          </nav>
         </div>
         """
 
-    def _render_overview_page(self, query: Dict[str, List[str]]) -> WebResponse:
+    def _render_section_tabs(self, primary_view: str, subview: str) -> str:
+        tabs = PRIMARY_VIEW_TABS.get(primary_view, [])
+        if not tabs:
+            return ""
+        links = "".join(
+            f"""
+            <a class="section-tabs__link{' section-tabs__link--active' if tab_id == subview else ''}" href="{self._view_url(primary_view, query={'subview': tab_id})}" data-subview="{escape(tab_id)}">
+              <strong>{escape(label)}</strong>
+            </a>
+            """
+            for tab_id, label in tabs
+        )
+        return f"""
+        <nav class="section-tabs" aria-label="{escape(primary_view)} section tabs" data-primary-view="{escape(primary_view)}" data-subview="{escape(subview)}">
+          {links}
+        </nav>
+        """
+
+    def _render_overview_page(self, query: Dict[str, List[str]], primary_view: str, subview: str) -> WebResponse:
         flash_html = self._render_flash_messages("overview")
         body = f"""
           {flash_html}
@@ -2621,12 +2675,15 @@ class DashboardApp:
         """
         return self._html_page(
             self._render_page_shell(
-                "overview",
+                primary_view,
                 title="Morning Brief / 今日总览",
                 eyebrow="Morning Brief",
                 description="30 秒看完今天的状态、最近研究、最近运行和常用入口。",
                 body=body,
-            )
+                subview=subview,
+            ),
+            primary_view=primary_view,
+            subview=subview,
         )
 
     def _render_strategy_run_form(self, view: str = "workbench") -> str:
@@ -2852,12 +2909,20 @@ class DashboardApp:
         </section>
         """
 
-    def _render_workbench_page(self, query: Dict[str, List[str]]) -> WebResponse:
+    def _render_workbench_page(self, query: Dict[str, List[str]], primary_view: str, subview: str) -> WebResponse:
         flash_html = self._render_flash_messages("workbench")
-        strategy_run_html = self._render_strategy_run_form(view="workbench")
-        factor_form_html = self._render_factor_backtest_form(view="workbench")
+        strategy_run_html = self._render_strategy_run_form(view=primary_view)
+        factor_form_html = self._render_factor_backtest_form(view=primary_view)
         current_defaults_html = self._render_current_defaults_panel()
         recent_execution_html = self._render_recent_execution_panel()
+        if primary_view == "run":
+            page_title = "Strategy Run / 策略运行"
+            page_eyebrow = "Strategy Run"
+            page_description = "围绕策略提交、执行和反馈的运行工作台。"
+        else:
+            page_title = "Strategy Optimize / 策略优化"
+            page_eyebrow = "Strategy Optimize"
+            page_description = "围绕因子回测和参数实验的优化工作台。"
         body = f"""
           {flash_html}
           <section class="module" id="module-research">
@@ -2876,15 +2941,18 @@ class DashboardApp:
         """
         return self._html_page(
             self._render_page_shell(
-                "workbench",
-                title="Research Workbench / 研究工作台",
-                eyebrow="Research Workbench",
-                description="因子实验、回测结果和研究工件都放在这里。",
+                primary_view,
+                title=page_title,
+                eyebrow=page_eyebrow,
+                description=page_description,
                 body=body,
-            )
+                subview=subview,
+            ),
+            primary_view=primary_view,
+            subview=subview,
         )
 
-    def _render_results_page(self, query: Dict[str, List[str]]) -> WebResponse:
+    def _render_results_page(self, query: Dict[str, List[str]], primary_view: str, subview: str) -> WebResponse:
         flash_html = self._render_flash_messages("results")
         filters = self._result_filters_from_query(query)
         all_records = self._recent_indexed_results(limit=None)
@@ -2907,12 +2975,15 @@ class DashboardApp:
         """
         return self._html_page(
             self._render_page_shell(
-                "results",
+                primary_view,
                 title="Research Results / 研究结果中心",
                 eyebrow="Research Results",
                 description="只负责浏览、筛选、比较和阅读研究/运行输出，不承载工作台或运维操作。",
                 body=body,
-            )
+                subview=subview,
+            ),
+            primary_view=primary_view,
+            subview=subview,
         )
 
     def _result_filters_from_query(self, query: Dict[str, List[str]]) -> Dict[str, str]:
@@ -3165,7 +3236,7 @@ class DashboardApp:
         </section>
         """
 
-    def _render_paper_page(self, query: Dict[str, List[str]]) -> WebResponse:
+    def _render_paper_page(self, query: Dict[str, List[str]], primary_view: str, subview: str) -> WebResponse:
         flash_html = self._render_flash_messages("paper")
         local_paper_html = self._render_local_paper_panel(query, view="paper")
         body = f"""
@@ -3174,12 +3245,15 @@ class DashboardApp:
         """
         return self._html_page(
             self._render_page_shell(
-                "paper",
+                primary_view,
                 title="Local Paper / 模拟盘",
                 eyebrow="Local Paper",
                 description="以账户为中心查看模拟盘结论、状态、风险与执行明细。",
                 body=body,
-            )
+                subview=subview,
+            ),
+            primary_view=primary_view,
+            subview=subview,
         )
 
     def _render_project_overview(self) -> str:
@@ -3239,6 +3313,7 @@ class DashboardApp:
             <span class="status-strip__pill">Artifacts / {len(recent_artifacts)}</span>
             <span class="status-strip__pill">Logs / {len(task_logs)}</span>
           </div>
+          {self._render_primary_nav(active_page)}
         </section>
         """
 
