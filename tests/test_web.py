@@ -101,6 +101,56 @@ class WebTests(TestCase):
         self.assertIn("Local Paper / 模拟盘", body)
         self.assertIn('action="/?view=paper"', body)
         self.assertIn('name="view" value="paper"', body)
+        self.assertNotIn("<p class=\"eyebrow\">Project Overview</p>", body)
+        self.assertNotIn("<h2>项目总览</h2>", body)
+        self.assertIn("Account Conclusion / 账户结论", body)
+        self.assertIn("Account Snapshot / 账户摘要", body)
+        self.assertIn("Account Workspace / 账户工作区", body)
+        self.assertIn("Risk Alerts / 风险告警", body)
+        self.assertIn("Current Positions / 当前持仓盈亏", body)
+        self.assertIn("Recent Trades / 最近成交", body)
+
+    @patch("stock_quantification.web.LocalPaperLedger")
+    def test_home_page_paper_view_keeps_account_context_sections(self, mock_ledger_cls) -> None:
+        ledger = mock_ledger_cls.return_value
+        overview = {
+            "account_id": "web-paper-us",
+            "market": "US",
+            "cash": "100000",
+            "buying_power": "80000",
+            "position_count": 2,
+            "trade_count": 5,
+            "filtered_trade_count": 3,
+            "latest_nav": "105000",
+            "cumulative_return": "0.05",
+            "positions": [],
+            "nav_history": [
+                {"trade_date": "2026-04-17", "nav": "101000"},
+                {"trade_date": "2026-04-18", "nav": "105000"},
+            ],
+            "recent_trades": [{"trade_date": "2026-04-18", "side": "BUY", "instrument_id": "US.AAPL", "filled_qty": "10", "realized_price": "180", "cash_delta": "-1800"}],
+            "today_summary": {"trade_date": "2026-04-18", "buy_count": "1", "sell_count": "0", "gross_buy_notional": "1800", "gross_sell_notional": "0", "net_cash_flow": "-1800"},
+            "sector_exposure_rows": [{"sector": "Tech", "weight_pct": "50", "market_value": "50000"}],
+            "risk_alerts": [{"level": "warn", "title": "集中度", "detail": "单一行业占比偏高"}],
+            "position_rows": [{"instrument_id": "US.AAPL", "qty": "10", "current_price": "180", "unrealized_pnl": "100", "pnl_pct": "5"}],
+            "filter_start_date": "2026-04-01",
+            "filter_end_date": "2026-04-30",
+        }
+        ledger.latest_account_overview.return_value = overview
+        ledger.account_overview.return_value = overview
+        ledger.list_accounts.return_value = ["web-paper-us", "web-paper-cn"]
+
+        response = self.app.render_home({"view": ["paper"], "paper_account_id": ["web-paper-us"]})
+        body = response.body.decode("utf-8")
+
+        self.assertEqual(response.status, 200)
+        self.assertIn("Latest NAV / 最新净值", body)
+        self.assertIn("Cumulative Return / 累计收益", body)
+        self.assertIn("Estimated NAV / 估算净值", body)
+        self.assertIn("Today Summary / 当日成交汇总", body)
+        self.assertIn("Holdings Detail / 持仓详情", body)
+        self.assertIn("Sector Exposure / 行业暴露", body)
+        self.assertIn("Reset Account / 重置当前账户", body)
 
     def test_home_page_falls_back_to_overview_for_invalid_view(self) -> None:
         response = self.app.render_home({"view": ["not-a-real-view"]})
@@ -1045,7 +1095,7 @@ class WebTests(TestCase):
                 ledger.list_accounts.return_value = ["web-paper-us"]
                 html = self.app._render_local_paper_panel({})
 
-        self.assertIn("Latest Paper Run / 最近模拟盘运行", html)
+        self.assertIn("Recent Run Context / 最近运行上下文", html)
         self.assertIn("us_quality_momentum", html)
         self.assertIn("2026-04-06T16:00:00", html)
 
@@ -1100,6 +1150,6 @@ class WebTests(TestCase):
                         ledger.list_accounts.return_value = ["web-paper-us"]
                         html = self.app._render_local_paper_panel({})
 
-        self.assertIn("Latest Paper Run / 最近模拟盘运行", html)
+        self.assertIn("Recent Run Context / 最近运行上下文", html)
         self.assertIn("us_quality_momentum", html)
         self.assertIn("2026-04-18T10:00:00", html)

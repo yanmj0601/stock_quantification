@@ -340,6 +340,40 @@ a {
   margin-top: 16px;
 }
 
+.paper-identity,
+.paper-section {
+  margin-top: 18px;
+}
+
+.paper-identity {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(133, 108, 81, 0.16);
+  background: linear-gradient(180deg, rgba(255, 253, 248, 0.96), rgba(245, 236, 222, 0.92));
+  box-shadow: var(--shadow-soft);
+}
+
+.paper-identity__intro {
+  display: grid;
+  gap: 6px;
+}
+
+.paper-identity__intro h3 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--text-strong);
+}
+
+.panel__header--section {
+  margin-bottom: 12px;
+}
+
+.paper-workspace__context {
+  align-items: start;
+}
+
 @media (max-width: 1100px) {
   .dashboard-app .workbench-grid,
   .dashboard-app .workbench-feedback-grid {
