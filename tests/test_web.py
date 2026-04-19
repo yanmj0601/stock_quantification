@@ -134,6 +134,23 @@ class WebTests(TestCase):
 
     @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
     @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")
+    @patch.object(DashboardApp, "_load_project_config", return_value=DEFAULT_PROJECT_CONFIG)
+    def test_workbench_page_groups_strategy_run_and_factor_backtest(self, _mock_config, _mock_paper_panel, _mock_symbol_catalog) -> None:
+        response = self.app.render_home({"view": ["workbench"]})
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn("Research Workbench / 研究工作台", body)
+        self.assertIn("Strategy Run / 策略运行", body)
+        self.assertIn('data-async-job-form="strategy_run"', body)
+        self.assertIn('name="view" value="workbench"', body)
+        self.assertIn("Factor Backtest / 因子回测", body)
+        self.assertIn("Current Defaults / 当前默认配置", body)
+        self.assertIn("Recent Execution / 最近执行反馈", body)
+        self.assertNotIn("Result Group / 结果分组", body)
+        self.assertNotIn("Data Group / 数据分组", body)
+
+    @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
+    @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")
     def test_home_page_renders_morning_briefing_overview(self, _mock_paper_panel, _mock_symbol_catalog) -> None:
         response = self.app.render_home({})
         body = response.body.decode("utf-8")
@@ -578,7 +595,7 @@ class WebTests(TestCase):
     def test_handle_run_invalid_form_value_redirects_with_flash(self) -> None:
         response = self.app.handle_run({"market": ["US"], "cash": ["abc"]})
         self.assertEqual(response.status, 303)
-        self.assertEqual(response.headers["Location"], "/?view=overview")
+        self.assertEqual(response.headers["Location"], "/?view=workbench")
         self.assertIn("策略运行参数错误", self.app.state.flash_messages[-1])
         self.assertFalse(self.ops_store.begin_job.called)
 

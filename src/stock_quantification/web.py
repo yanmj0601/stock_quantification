@@ -513,7 +513,7 @@ class DashboardApp:
     def handle_run(self, body: Dict[str, List[str]]) -> WebResponse:
         config = self._load_project_config()
         defaults = config["run_defaults"]
-        view = self._requested_view(body)
+        view = self._requested_view(body, "workbench")
         try:
             markets = self._markets_from_form(body.get("market", [str(defaults["market"])])[0])
             execution_mode = ExecutionMode(body.get("execution_mode", [str(defaults["execution_mode"])])[0])
@@ -1132,14 +1132,14 @@ class DashboardApp:
         if not self.state.last_factor_backtest_result:
             return """
             <section class="panel panel--empty">
-              <h2>策略实验结果</h2>
+              <h2>Factor Backtest / 因子回测结果</h2>
               <p>先在下方选择因子、调整权重倍率，再运行一轮实验。这里会显示最近一次收益分析、回测和归因。</p>
             </section>
             """
         return self._render_strategy_lab_workspace(
             self.state.last_factor_backtest_result,
-            title="最近一次策略实验",
-            eyebrow="Strategy Lab",
+            title="Factor Backtest / 因子回测结果",
+            eyebrow="Factor Backtest",
             artifact_href=f"/artifact-file?path={quote(self._artifact_query_path(self.state.last_factor_backtest_result['artifacts']['json']))}",
         )
 
@@ -1169,8 +1169,8 @@ class DashboardApp:
         <section class="panel panel--form">
           <div class="panel__header">
             <div>
-              <p class="eyebrow">Strategy Lab</p>
-              <h2>策略实验台</h2>
+              <p class="eyebrow">Factor Backtest</p>
+              <h2>Factor Backtest / 因子回测</h2>
             </div>
           </div>
           <form class="stack" method="post" action="/factor-backtest" id="factor-backtest-form" data-async-job-form="factor_backtest">
@@ -1198,7 +1198,7 @@ class DashboardApp:
             <div class="factor-grid">{''.join(factor_cards)}</div>
             <input type="hidden" name="factor_selection_payload" value="" data-factor-selection-payload />
             <div class="research-lab__actions">
-              <button class="button button--primary" type="submit">运行策略实验</button>
+              <button class="button button--primary" type="submit">运行因子回测</button>
               <span class="field-note">本次会同时输出选股收益分析、组合滚动回测和归因结论。</span>
             </div>
           </form>
@@ -2408,6 +2408,127 @@ class DashboardApp:
             )
         )
 
+    def _render_strategy_run_form(self, view: str = "workbench") -> str:
+        defaults = self._load_project_config()["run_defaults"]
+        recommended_account_id = self._recommended_account_id(str(defaults["market"]))
+        cn_picker = self._render_symbol_picker(
+            "run-cn",
+            Market.CN,
+            "symbols_cn",
+            str(defaults["symbols_cn"]),
+        )
+        us_picker = self._render_symbol_picker(
+            "run-us",
+            Market.US,
+            "symbols_us",
+            str(defaults["symbols_us"]),
+        )
+        return f"""
+        <section class="panel">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Strategy Run</p>
+              <h2>Strategy Run / 策略运行</h2>
+            </div>
+          </div>
+          <form class="stack" method="post" action="/run" id="run-form" data-async-job-form="strategy_run">
+            <input type="hidden" name="view" value="{escape(view)}" />
+            <div class="grid-form">
+              <label>Market / 市场<span class="field-note">默认策略运行市场</span><select id="run-market-select" name="market"><option value="ALL"{' selected' if defaults['market'] == 'ALL' else ''}>ALL</option><option value="CN"{' selected' if defaults['market'] == 'CN' else ''}>CN</option><option value="US"{' selected' if defaults['market'] == 'US' else ''}>US</option></select></label>
+              <label>Runtime / 运行语义<span class="field-note">默认实时/回放语义</span><select name="runtime_mode"><option value="PAPER"{' selected' if defaults['runtime_mode'] == 'PAPER' else ''}>PAPER</option><option value="BACKTEST"{' selected' if defaults['runtime_mode'] == 'BACKTEST' else ''}>BACKTEST</option><option value="LIVE"{' selected' if defaults['runtime_mode'] == 'LIVE' else ''}>LIVE</option></select></label>
+              <label>Execution / 执行模式<span class="field-note">默认 advisory 或 auto</span><select name="execution_mode"><option value="ADVISORY"{' selected' if defaults['execution_mode'] == 'ADVISORY' else ''}>ADVISORY</option><option value="AUTO"{' selected' if defaults['execution_mode'] == 'AUTO' else ''}>AUTO</option></select></label>
+              <label>Broker / 接入口<span class="field-note">默认 broker 类型</span><select name="broker"><option value="NONE"{' selected' if defaults['broker'] == 'NONE' else ''}>NONE</option><option value="LOCAL_PAPER"{' selected' if defaults['broker'] == 'LOCAL_PAPER' else ''}>LOCAL_PAPER</option></select></label>
+              <label>Cash / 初始资金<span class="field-note">新账户起始现金</span><input name="cash" value="{escape(str(defaults['cash']))}" /></label>
+              <label>Paper Account ID / 模拟盘账户<span class="field-note">默认本地模拟盘 ID</span><input id="run-broker-account-id" name="broker_account_id" value="{escape(str(defaults['broker_account_id']))}" data-recommended-account="{escape(recommended_account_id)}" /><span class="field-note field-note--accent" id="run-broker-account-recommendation">推荐账户名: {escape(recommended_account_id)}</span></label>
+              <label>Top N / 选股数<span class="field-note">默认组合容量</span><input name="top_n" value="{escape(str(defaults['top_n']))}" /></label>
+              <label>Detail Limit / 细节样本<span class="field-note">默认详细抓取数量</span><input name="detail_limit" value="{escape(str(defaults['detail_limit']))}" /></label>
+              <label>History Limit / 历史窗口<span class="field-note">默认研究窗口 bars</span><input name="history_limit" value="{escape(str(defaults['history_limit']))}" /></label>
+              <label>Beta Window / Beta 窗口<span class="field-note">默认 beta 估算区间</span><input name="beta_window" value="{escape(str(defaults['beta_window']))}" /></label>
+              <label>Forward Days / 前瞻天数<span class="field-note">默认 forward report 持有天数</span><input name="forward_days" value="{escape(str(defaults['forward_days']))}" /></label>
+              <label>As Of Date / 历史日期<span class="field-note">留空表示最近有效交易日</span><input name="as_of_date" value="{escape(str(defaults['as_of_date']))}" placeholder="2026-03-15" /></label>
+              <label class="checkbox-field"><input type="checkbox" name="route_orders"{' checked' if defaults.get('route_orders') else ''} />Route Orders / 默认写入模拟盘</label>
+            </div>
+            <div class="field-group field-group--full">
+              <span>A 股 Symbols / A 股股票池</span>
+              <span class="field-note">默认 A 股自选池，留空表示全市场</span>
+              {cn_picker}
+            </div>
+            <div class="field-group field-group--full">
+              <span>美股 Symbols / 美股股票池</span>
+              <span class="field-note">默认美股自选池，留空表示全市场</span>
+              {us_picker}
+            </div>
+            <div class="research-lab__actions">
+              <button class="button button--primary" type="submit">提交策略运行</button>
+              <span class="field-note">提交后会启动后台运行，并刷新最近执行反馈。</span>
+            </div>
+          </form>
+        </section>
+        """
+
+    def _render_current_defaults_panel(self) -> str:
+        config = self._load_project_config()
+        run_defaults = config["run_defaults"]
+        factor_defaults = config["factor_defaults"]
+        ui_defaults = config["ui_defaults"]
+        return f"""
+        <section class="panel">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Current Defaults</p>
+              <h2>Current Defaults / 当前默认配置</h2>
+            </div>
+          </div>
+          <div class="summary-grid">
+            {self._summary_tile("Run Market / 运行市场", run_defaults.get("market", "N/A"), "默认策略运行市场")}
+            {self._summary_tile("Runtime / 运行语义", run_defaults.get("runtime_mode", "N/A"), "默认运行语义")}
+            {self._summary_tile("Execution / 执行模式", run_defaults.get("execution_mode", "N/A"), "默认执行模式")}
+            {self._summary_tile("Broker / 接入口", run_defaults.get("broker", "N/A"), "默认 broker 类型")}
+            {self._summary_tile("Cash / 初始资金", run_defaults.get("cash", "N/A"), "默认起始现金")}
+            {self._summary_tile("Account / 模拟盘", ui_defaults.get("paper_account_id", "N/A"), "默认模拟盘账户")}
+            {self._summary_tile("Factor Market / 因子市场", factor_defaults.get("factor_market", "N/A"), "默认因子回测市场")}
+            {self._summary_tile("Factor Window / 回测区间", f"{factor_defaults.get('factor_start_date', 'N/A')} -> {factor_defaults.get('factor_end_date', 'N/A')}", "默认因子回测日期窗口")}
+            {self._summary_tile("Holding / 持有周期", factor_defaults.get("factor_holding_sessions", "N/A"), "默认持有交易日数")}
+            {self._summary_tile("Turnover Cap / 换手上限", factor_defaults.get("factor_turnover_cap", "N/A"), "默认组合换手上限")}
+          </div>
+        </section>
+        """
+
+    def _render_recent_execution_panel(self) -> str:
+        system_status = self._build_system_status()
+        display_job = system_status.get("display_job") if isinstance(system_status.get("display_job"), dict) else None
+        active_job_label = "N/A"
+        if display_job:
+            active_job_label = str(display_job.get("kind") or display_job.get("job_kind") or display_job.get("status") or "N/A")
+            stage = str(display_job.get("stage") or "").strip()
+            if stage:
+                active_job_label = f"{active_job_label} / {stage}"
+        latest_run = self.state.last_run_results[-1] if self.state.last_run_results else {}
+        latest_factor = self.state.last_factor_backtest_result if isinstance(self.state.last_factor_backtest_result, dict) else {}
+        latest_factor_summary = latest_factor.get("summary", {}) if isinstance(latest_factor.get("summary"), dict) else {}
+        return f"""
+        <section class="panel workbench-panel--wide">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Recent Execution</p>
+              <h2>Recent Execution / 最近执行反馈</h2>
+            </div>
+          </div>
+          <div class="summary-grid">
+            {self._summary_tile("Run Status / 运行状态", "READY" if latest_run else "EMPTY", "最近一次策略运行是否已有结果")}
+            {self._summary_tile("Backtest Status / 回测状态", "READY" if latest_factor else "EMPTY", "最近一次因子回测是否已有结果")}
+            {self._summary_tile("Task Status / 当前任务", active_job_label, "当前后台任务状态")}
+            {self._summary_tile("Run Count / 运行次数", len(self.state.last_run_results), "本次会话内的运行数量")}
+            {self._summary_tile("Backtest Market / 回测市场", latest_factor_summary.get("market", "N/A") if latest_factor_summary else "N/A", "最近一次因子回测市场")}
+          </div>
+          <div class="workbench-feedback-grid">
+            {self._render_run_results()}
+            {self._render_factor_backtest_results()}
+            {self._render_job_progress_panel(display_job, "workbench-job-progress")}
+          </div>
+        </section>
+        """
+
     def _render_morning_briefing(self) -> str:
         system_status = self._build_system_status()
         display_job = system_status.get("display_job") if isinstance(system_status.get("display_job"), dict) else None
@@ -2509,23 +2630,25 @@ class DashboardApp:
         """
 
     def _render_workbench_page(self, query: Dict[str, List[str]]) -> WebResponse:
-        artifact_query = query.get("artifact", [None])[0]
-        selected_artifact = self._resolve_selected_artifact(artifact_query)
         flash_html = self._render_flash_messages()
+        strategy_run_html = self._render_strategy_run_form(view="workbench")
         factor_form_html = self._render_factor_backtest_form(view="workbench")
-        factor_backtest_html = self._render_factor_backtest_results()
-        artifact_html = self._render_selected_artifact(selected_artifact)
+        current_defaults_html = self._render_current_defaults_panel()
+        recent_execution_html = self._render_recent_execution_panel()
         body = f"""
           {flash_html}
           <section class="module" id="module-research">
             <div class="module__header">
               <p class="eyebrow">Module 03</p>
               <h2>研究工作台</h2>
-              <p class="hero__copy">在这里集中做因子挑选、收益分析、滚动回测和归因，不再和运行页混在一起。</p>
+              <p class="hero__copy">在这里集中做策略运行、因子回测、默认配置检查和最近执行反馈，不再和 overview 混在一起。</p>
             </div>
-            {factor_form_html}
-            {factor_backtest_html}
-            {artifact_html}
+            <div class="workbench-grid">
+              {strategy_run_html}
+              {factor_form_html}
+              {current_defaults_html}
+              {recent_execution_html}
+            </div>
           </section>
         """
         return self._html_page(
