@@ -784,7 +784,9 @@ class WebTests(TestCase):
         response = self.app.render_project_config()
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
-        self.assertIn("项目配置页", body)
+        self.assertIn("Project Settings / 项目设置", body)
+        self.assertIn("Default Rules / 默认规则", body)
+        self.assertIn("只影响未来运行和默认页面行为", body)
         self.assertIn("保存项目配置", body)
         self.assertIn("推荐账户名", body)
         self.assertIn("立即搜索", body)
@@ -792,10 +794,12 @@ class WebTests(TestCase):
 
     @patch.object(DashboardApp, "_load_task_logs", return_value=[{"created_at": "2026-04-06T09:30:00", "category": "runtime", "action": "strategy_run", "status": "SUCCESS", "detail": "ok", "metadata": {"market": "US"}}])
     def test_task_logs_page_renders(self, _mock_logs) -> None:
-        response = self.app.render_task_logs()
+        response = self.app.render_task_logs({})
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
-        self.assertIn("任务日志页", body)
+        self.assertIn("任务日志", body)
+        self.assertIn("Current Log State / 当前日志状态", body)
+        self.assertIn("Log Filters / 日志筛选", body)
         self.assertIn("strategy_run", body)
 
     @patch.object(DashboardApp, "_build_system_status", return_value={"overall_status": "WARN", "artifact_count": 5, "task_log_count": 3, "paper_account_count": 1, "broker_credentials_ready": False, "latest_review": "WARN", "active_job": None, "job_history": [], "audit_events": [], "components": [{"name": "artifact_storage", "status": "UP", "detail": "ok"}]})
@@ -803,7 +807,9 @@ class WebTests(TestCase):
         response = self.app.render_ops_center()
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
-        self.assertIn("后台运维中心", body)
+        self.assertIn("Operations / 运维中心", body)
+        self.assertIn("System Conclusion / 系统结论", body)
+        self.assertIn("Operational Snapshot / 运维摘要", body)
         self.assertIn("artifact_storage", body)
 
     def test_release_active_job_redirects_and_flashes(self) -> None:
@@ -982,6 +988,46 @@ class WebTests(TestCase):
         self.assertIn("项目配置保存失败", self.app.state.flash_messages[-1])
         self.assertFalse(mock_save.called)
 
+    @patch.object(DashboardApp, "_save_project_config")
+    def test_project_config_rejects_reversed_paper_default_window(self, mock_save) -> None:
+        response = self.app.handle_project_config(
+            {
+                "market": ["US"],
+                "runtime_mode": ["LIVE"],
+                "execution_mode": ["AUTO"],
+                "broker": ["LOCAL_PAPER"],
+                "cash": ["100000"],
+                "broker_account_id": ["paper-us"],
+                "top_n": ["8"],
+                "detail_limit": ["16"],
+                "history_limit": ["120"],
+                "beta_window": ["30"],
+                "forward_days": ["5"],
+                "as_of_date": [""],
+                "symbols_cn": [""],
+                "symbols_us": ["AAPL,MSFT,NVDA"],
+                "route_orders": ["on"],
+                "factor_market": ["US"],
+                "factor_start_date": ["2026-01-01"],
+                "factor_end_date": ["2026-03-31"],
+                "factor_holding_sessions": ["5"],
+                "factor_top_n": ["6"],
+                "factor_detail_limit": ["10"],
+                "factor_history_limit": ["90"],
+                "factor_initial_cash": ["150000"],
+                "factor_turnover_cap": ["0.16"],
+                "factor_rebalance_buffer": ["0.06"],
+                "paper_account_id": ["paper-us"],
+                "paper_start_date": ["2026-05-01"],
+                "paper_end_date": ["2026-04-01"],
+                "paper_recent_trade_limit": ["20"],
+            }
+        )
+        self.assertEqual(response.status, 303)
+        self.assertEqual(response.headers["Location"], "/project/config")
+        self.assertIn("项目配置保存失败", self.app.state.flash_messages[-1])
+        self.assertFalse(mock_save.called)
+
     def test_load_project_config_sanitizes_bad_persisted_values(self) -> None:
         broken_payload = {
             "run_defaults": {
@@ -996,7 +1042,7 @@ class WebTests(TestCase):
                 "beta_window": "",
                 "forward_days": "-5",
                 "as_of_date": "2026/01/01",
-                "route_orders": "yes",
+                "route_orders": "false",
             },
             "factor_defaults": {
                 "factor_market": "ALL",
@@ -1021,6 +1067,7 @@ class WebTests(TestCase):
             config = self.app._load_project_config()
         self.assertEqual(config["run_defaults"]["market"], DEFAULT_PROJECT_CONFIG["run_defaults"]["market"])
         self.assertEqual(config["run_defaults"]["cash"], DEFAULT_PROJECT_CONFIG["run_defaults"]["cash"])
+        self.assertFalse(config["run_defaults"]["route_orders"])
         self.assertEqual(config["factor_defaults"]["factor_market"], DEFAULT_PROJECT_CONFIG["factor_defaults"]["factor_market"])
         self.assertEqual(config["ui_defaults"]["paper_recent_trade_limit"], DEFAULT_PROJECT_CONFIG["ui_defaults"]["paper_recent_trade_limit"])
 

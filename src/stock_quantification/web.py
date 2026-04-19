@@ -151,7 +151,7 @@ class DashboardApp:
                 return self.handle_project_config(body)
             return self.render_project_config()
         if path == "/project/logs":
-            return self.render_task_logs()
+            return self.render_task_logs(query)
         if path == "/project/ops":
             if method == "POST":
                 return self.handle_release_active_job(body)
@@ -190,7 +190,6 @@ class DashboardApp:
 
     def render_project_config(self) -> WebResponse:
         config = self._load_project_config()
-        status_bar = self._render_status_bar("config")
         flash_html = self._render_flash_messages()
         run_defaults = config["run_defaults"]
         factor_defaults = config["factor_defaults"]
@@ -208,17 +207,22 @@ class DashboardApp:
             "symbols_us",
             str(run_defaults["symbols_us"]),
         )
-        content = f"""
-        <main class="app-shell">
-          {status_bar}
-          <section class="hero">
-            <div>
-              <p class="eyebrow">Project Config</p>
-              <h1>项目配置页</h1>
-              <p class="hero__copy">把默认运行参数、研究窗口和页面偏好集中在一页维护，让项目的日常操作更像一个真正的量化产品。</p>
+        body = f"""
+          {flash_html}
+          <section class="panel settings-summary">
+            <div class="panel__header">
+              <div>
+                <p class="eyebrow">Settings Contract</p>
+                <h2>Default Rules / 默认规则</h2>
+                <p class="muted">这些设置只影响未来运行和默认页面行为，不会改写已经生成的结果或日志。</p>
+              </div>
+            </div>
+            <div class="summary-grid">
+              {self._summary_tile("Runtime Defaults / 运行默认值", f"{run_defaults.get('market', 'N/A')} · {run_defaults.get('runtime_mode', 'N/A')} · {run_defaults.get('execution_mode', 'N/A')}", "未来策略运行默认沿用这组运行规则")}
+              {self._summary_tile("Research Defaults / 研究默认值", f"{factor_defaults.get('factor_market', 'N/A')} · {factor_defaults.get('factor_start_date', 'N/A')} -> {factor_defaults.get('factor_end_date', 'N/A')}", "未来因子回测默认沿用这组研究窗口")}
+              {self._summary_tile("UI Defaults / 页面默认值", f"{ui_defaults.get('paper_account_id', 'N/A')} · {ui_defaults.get('paper_start_date', 'N/A')} -> {ui_defaults.get('paper_end_date', 'N/A')}", "页面打开时会优先使用这组展示偏好")}
             </div>
           </section>
-          {flash_html}
           <section class="panel">
             <div class="panel__header">
               <div>
@@ -277,15 +281,23 @@ class DashboardApp:
               <button class="button button--primary" type="submit">保存项目配置</button>
             </form>
           </section>
-          {self._render_interactive_script()}
-        </main>
         """
-        return self._html_page(content, title="Project Config")
+        return self._html_page(
+            self._render_page_shell(
+                "config",
+                title="Project Settings / 项目设置",
+                eyebrow="Project Settings",
+                description="集中维护运行默认值、研究默认值和页面偏好，让未来的默认行为更可预测。",
+                body=body,
+            ),
+            title="Project Settings",
+        )
 
-    def render_task_logs(self) -> WebResponse:
-        status_bar = self._render_status_bar("logs")
+    def render_task_logs(self, query: Optional[Dict[str, List[str]]] = None) -> WebResponse:
         flash_html = self._render_flash_messages()
-        logs = list(reversed(self._load_task_logs()))
+        filters = self._task_log_filters_from_query(query or {})
+        raw_logs = list(reversed(self._load_task_logs()))
+        logs = self._filter_task_logs(raw_logs, filters)
         rows = []
         for row in logs[:80]:
             metadata = row.get("metadata", {})
@@ -303,41 +315,84 @@ class DashboardApp:
                 """
             )
         table_rows = "".join(rows) if rows else "<tr><td colspan='6'>当前还没有任务日志</td></tr>"
-        content = f"""
-        <main class="app-shell">
-          {status_bar}
-          <section class="hero">
-            <div>
-              <p class="eyebrow">Task Logs</p>
-              <h1>任务日志页</h1>
-              <p class="hero__copy">把策略运行、因子回测、配置更新和模拟盘操作都收进统一日志，方便你回看项目每天究竟做了什么。</p>
-            </div>
-          </section>
+        categories = sorted({str(row.get("category", "")).strip() for row in raw_logs if str(row.get("category", "")).strip()})
+        statuses = sorted({str(row.get("status", "")).strip() for row in raw_logs if str(row.get("status", "")).strip()})
+        category_options = ['<option value="">All / 全部</option>'] + [
+            f'<option value="{escape(value)}"{" selected" if filters["category"] == value else ""}>{escape(value)}</option>'
+            for value in categories
+        ]
+        status_options = ['<option value="">All / 全部</option>'] + [
+            f'<option value="{escape(value)}"{" selected" if filters["status"] == value else ""}>{escape(value)}</option>'
+            for value in statuses
+        ]
+        body = f"""
           {flash_html}
           <section class="panel">
             <div class="panel__header">
               <div>
-                <p class="eyebrow">Project Activity</p>
-                <h2>项目任务流水</h2>
+                <p class="eyebrow">Log Summary</p>
+                <h2>Current Log State / 当前日志状态</h2>
+                <p class="muted">先看最近发生了什么，再进入筛选后的流水表，减少在大表里盲找的时间。</p>
               </div>
-              <a class="button button--ghost" href="/project/logs">刷新日志</a>
             </div>
             <div class="summary-grid">
-              {self._summary_tile("Log Count / 日志条数", len(logs), "当前持久化的项目日志数量")}
-              {self._summary_tile("Latest Action / 最近动作", logs[0].get("action", "N/A") if logs else "N/A", "最近一条日志对应的动作")}
-              {self._summary_tile("Latest Status / 最近状态", logs[0].get("status", "N/A") if logs else "N/A", "最近一条日志的结果状态")}
+              {self._summary_tile("Visible Logs / 当前日志", len(logs), "当前筛选条件下可见的日志条数")}
+              {self._summary_tile("Latest Action / 最近动作", logs[0].get("action", "N/A") if logs else "N/A", "最近一条可见日志对应的动作")}
+              {self._summary_tile("Latest Status / 最近状态", logs[0].get("status", "N/A") if logs else "N/A", "最近一条可见日志的结果状态")}
+              {self._summary_tile("Latest Time / 最近时间", logs[0].get("created_at", "N/A") if logs else "N/A", "最近一条可见日志的时间")}
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel__header">
+              <div>
+                <p class="eyebrow">Log Filters</p>
+                <h2>Log Filters / 日志筛选</h2>
+              </div>
+            </div>
+            <form class="grid-form report-filter-bar" method="get" action="/project/logs">
+              <label>Start Date / 开始日期
+                <input type="date" name="start_date" value="{escape(filters['start_date'])}" />
+              </label>
+              <label>End Date / 结束日期
+                <input type="date" name="end_date" value="{escape(filters['end_date'])}" />
+              </label>
+              <label>Category / 类别
+                <select name="category">{''.join(category_options)}</select>
+              </label>
+              <label>Status / 状态
+                <select name="status">{''.join(status_options)}</select>
+              </label>
+              <div class="grid-form__actions">
+                <button class="button button--primary" type="submit">应用筛选</button>
+                <a class="button button--ghost" href="/project/logs">清空筛选</a>
+              </div>
+            </form>
+          </section>
+          <section class="panel">
+            <div class="panel__header">
+              <div>
+                <p class="eyebrow">Project Activity</p>
+                <h2>Task Ledger / 任务流水</h2>
+              </div>
             </div>
             <table class="data-table data-table--logs">
               <thead><tr><th>Time / 时间</th><th>Category / 类别</th><th>Action / 动作</th><th>Status / 状态</th><th>Detail / 说明</th><th>Metadata / 元数据</th></tr></thead>
               <tbody>{table_rows}</tbody>
             </table>
           </section>
-        </main>
         """
-        return self._html_page(content, title="Task Logs")
+        return self._html_page(
+            self._render_page_shell(
+                "logs",
+                title="Tasks & Logs / 任务日志",
+                eyebrow="Tasks & Logs",
+                description="按时间、类别和状态筛选项目流水，快速回看后台最近做了什么。",
+                body=body,
+            ),
+            title="Tasks & Logs",
+        )
 
     def render_ops_center(self) -> WebResponse:
-        status_bar = self._render_status_bar("ops")
         flash_html = self._render_flash_messages()
         system_status = self._build_system_status()
         component_rows = "".join(
@@ -384,32 +439,62 @@ class DashboardApp:
               <button class="button button--ghost" type="submit">释放卡住任务</button>
             </form>
             """
-        content = f"""
-        <main class="app-shell">
-          {status_bar}
-          <section class="hero">
-            <div>
-              <p class="eyebrow">Operations Center</p>
-              <h1>后台运维中心</h1>
-              <p class="hero__copy">这里集中展示服务健康、运行守护、审计事件和后台任务历史，补上量化后台离上线最近的一层运营基础设施。</p>
-            </div>
-          </section>
+        active_job_label = "无运行中任务"
+        if isinstance(display_job, dict):
+            active_job_label = str(display_job.get("kind") or display_job.get("job_kind") or display_job.get("status") or "RUNNING")
+            stage = str(display_job.get("stage") or "").strip()
+            if stage:
+                active_job_label = f"{active_job_label} / {stage}"
+        if system_status["overall_status"] == "READY" and not active_job:
+            ops_conclusion = "系统可用，当前没有卡住任务。"
+            ops_next_action = "继续观察，无需人工处理。"
+        elif active_job:
+            ops_conclusion = f"系统有运行中任务：{active_job_label}"
+            ops_next_action = "先确认任务是否正常推进；若长时间无进展，再手动释放。"
+        else:
+            ops_conclusion = "系统存在告警，请优先检查组件健康和最近异常。"
+            ops_next_action = "先看组件状态和审计事件，确认是否需要人工介入。"
+        body = f"""
           {flash_html}
-          <section class="panel">
+          <section class="panel ops-conclusion">
             <div class="panel__header">
               <div>
-                <p class="eyebrow">System Health</p>
-                <h2>系统状态</h2>
+                <p class="eyebrow">System Conclusion</p>
+                <h2>System Conclusion / 系统结论</h2>
+                <p class="muted">{escape(ops_conclusion)}</p>
               </div>
             </div>
             <div class="summary-grid">
-              {self._summary_tile("Overall / 总体状态", system_status["overall_status"], "READY 表示后台具备基本运行条件")}
+              {self._summary_tile("Overall / 总体状态", system_status["overall_status"], "当前后台是否具备基本可用性")}
+              {self._summary_tile("Active Job / 当前任务", active_job_label, "最近心跳中的后台任务状态")}
+              {self._summary_tile("Next Action / 建议动作", ops_next_action, "值班人员下一步应该先做什么")}
+              {self._summary_tile("Components / 组件数", len(system_status["components"]), "当前纳入健康检查的组件数量")}
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel__header">
+              <div>
+                <p class="eyebrow">Operational Snapshot</p>
+                <h2>Operational Snapshot / 运维摘要</h2>
+              </div>
+            </div>
+            <div class="summary-grid">
               {self._summary_tile("Artifacts / 工件数", system_status["artifact_count"], "最近归档可见工件数量")}
               {self._summary_tile("Logs / 任务日志", system_status["task_log_count"], "持久化任务日志条数")}
               {self._summary_tile("Paper Accounts / 模拟盘账户", system_status["paper_account_count"], "本地模拟盘账户数量")}
-              {self._summary_tile("Broker Credentials / 券商凭证", "READY" if system_status["broker_credentials_ready"] else "MISSING", "Alpaca paper 凭证是否就绪")}
-              {self._summary_tile("Last Review / 最近审核", system_status["latest_review"], "最近一次策略审核结论")}
+              {self._summary_tile("Broker / 券商凭证", "READY" if system_status["broker_credentials_ready"] else "MISSING", "券商凭证当前是否就绪")}
             </div>
+          </section>
+          <section class="panel">
+            <div class="panel__header">
+              <div>
+                <p class="eyebrow">Run Guard</p>
+                <h2>Run Guard / 运行守护</h2>
+              </div>
+            </div>
+            <div class="alert-grid">{active_job_html}</div>
+          </section>
+          <section class="panel">
             <div class="panel__split">
               <div>
                 <h3>Components / 组件健康</h3>
@@ -419,30 +504,57 @@ class DashboardApp:
                 </table>
               </div>
               <div>
-                <h3>Run Guard / 运行守护</h3>
-                <div class="alert-grid">{active_job_html}</div>
-              </div>
-            </div>
-            <div class="panel__split">
-              <div>
                 <h3>Job History / 后台任务历史</h3>
                 <table class="data-table">
                   <thead><tr><th>Start / 开始</th><th>Kind / 类型</th><th>Status / 状态</th><th>Duration / 耗时</th><th>Detail / 说明</th></tr></thead>
                   <tbody>{job_history_rows}</tbody>
                 </table>
               </div>
-              <div>
-                <h3>Audit Events / 审计事件</h3>
-                <table class="data-table">
-                  <thead><tr><th>Time / 时间</th><th>Category / 类别</th><th>Action / 动作</th><th>Status / 状态</th><th>Detail / 说明</th></tr></thead>
-                  <tbody>{audit_rows}</tbody>
-                </table>
-              </div>
             </div>
           </section>
-        </main>
+          <section class="panel">
+            <div class="panel__header">
+              <div>
+                <p class="eyebrow">Audit Events</p>
+                <h2>Audit Events / 审计事件</h2>
+              </div>
+            </div>
+            <table class="data-table">
+              <thead><tr><th>Time / 时间</th><th>Category / 类别</th><th>Action / 动作</th><th>Status / 状态</th><th>Detail / 说明</th></tr></thead>
+              <tbody>{audit_rows}</tbody>
+            </table>
+          </section>
         """
-        return self._html_page(content, title="Operations Center")
+        return self._html_page(
+            self._render_page_shell(
+                "ops",
+                title="Operations / 运维中心",
+                eyebrow="Operations",
+                description="先判断系统能不能用、有没有卡住任务，再进入组件健康、任务历史和审计细节。",
+                body=body,
+            ),
+            title="Operations",
+        )
+
+    def _task_log_filters_from_query(self, query: Dict[str, List[str]]) -> Dict[str, str]:
+        return {
+            "start_date": query.get("start_date", [""])[0].strip(),
+            "end_date": query.get("end_date", [""])[0].strip(),
+            "category": query.get("category", [""])[0].strip(),
+            "status": query.get("status", [""])[0].strip(),
+        }
+
+    def _filter_task_logs(self, logs: List[Dict[str, Any]], filters: Dict[str, str]) -> List[Dict[str, Any]]:
+        filtered = list(logs)
+        if filters["category"]:
+            filtered = [row for row in filtered if str(row.get("category", "")).strip() == filters["category"]]
+        if filters["status"]:
+            filtered = [row for row in filtered if str(row.get("status", "")).strip() == filters["status"]]
+        if filters["start_date"]:
+            filtered = [row for row in filtered if str(row.get("created_at", ""))[:10] >= filters["start_date"]]
+        if filters["end_date"]:
+            filtered = [row for row in filtered if str(row.get("created_at", ""))[:10] <= filters["end_date"]]
+        return filtered
 
     def handle_release_active_job(self, body: Dict[str, List[str]]) -> WebResponse:
         action = body.get("action", [""])[0].strip()
@@ -769,6 +881,10 @@ class DashboardApp:
             }
             if updated["factor_defaults"]["factor_start_date"] > updated["factor_defaults"]["factor_end_date"]:
                 raise ValueError("因子开始日期不能晚于结束日期。")
+            paper_start = updated["ui_defaults"]["paper_start_date"]
+            paper_end = updated["ui_defaults"]["paper_end_date"]
+            if paper_start and paper_end and paper_start > paper_end:
+                raise ValueError("模拟盘默认开始日期不能晚于结束日期。")
         except (InvalidOperation, ValueError) as exc:
             self.state.push_flash(f"项目配置保存失败：{exc}")
             return self._redirect("/project/config")
@@ -3471,7 +3587,7 @@ class DashboardApp:
                 "as_of_date": self._normalize_optional_date_string(run_source.get("as_of_date"), DEFAULT_PROJECT_CONFIG["run_defaults"]["as_of_date"]),
                 "symbols_cn": str(run_source.get("symbols_cn") or "").strip(),
                 "symbols_us": str(run_source.get("symbols_us") or "").strip(),
-                "route_orders": bool(run_source.get("route_orders", DEFAULT_PROJECT_CONFIG["run_defaults"]["route_orders"])),
+                "route_orders": self._normalize_bool_value(run_source.get("route_orders"), DEFAULT_PROJECT_CONFIG["run_defaults"]["route_orders"]),
             }
         )
         sanitized["factor_defaults"].update(
@@ -3499,7 +3615,28 @@ class DashboardApp:
                 "paper_recent_trade_limit": self._normalize_int_string(ui_source.get("paper_recent_trade_limit"), DEFAULT_PROJECT_CONFIG["ui_defaults"]["paper_recent_trade_limit"], minimum=1),
             }
         )
+        if (
+            sanitized["ui_defaults"]["paper_start_date"]
+            and sanitized["ui_defaults"]["paper_end_date"]
+            and sanitized["ui_defaults"]["paper_start_date"] > sanitized["ui_defaults"]["paper_end_date"]
+        ):
+            sanitized["ui_defaults"]["paper_start_date"] = DEFAULT_PROJECT_CONFIG["ui_defaults"]["paper_start_date"]
+            sanitized["ui_defaults"]["paper_end_date"] = DEFAULT_PROJECT_CONFIG["ui_defaults"]["paper_end_date"]
         return sanitized
+
+    def _normalize_bool_value(self, raw_value: Any, default: bool) -> bool:
+        if isinstance(raw_value, bool):
+            return raw_value
+        if raw_value is None:
+            return default
+        if isinstance(raw_value, (int, float)):
+            return bool(raw_value)
+        normalized = str(raw_value).strip().lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off", ""}:
+            return False
+        return default
 
     def _parse_int_field(self, raw_value: Any, field_label: str, minimum: Optional[int] = None) -> int:
         text = str(raw_value).strip()

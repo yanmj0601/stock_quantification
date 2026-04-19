@@ -374,6 +374,21 @@ a {
   align-items: start;
 }
 
+.report-filter-bar,
+.settings-summary,
+.ops-conclusion {
+  margin-top: 18px;
+}
+
+.report-filter-bar {
+  align-items: end;
+}
+
+.settings-summary .summary-grid,
+.ops-conclusion .summary-grid {
+  margin-top: 10px;
+}
+
 @media (max-width: 1100px) {
   .dashboard-app .workbench-grid,
   .dashboard-app .workbench-feedback-grid {
