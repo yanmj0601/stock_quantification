@@ -1,0 +1,134 @@
+<h2>第 2 步：页内信息层级怎么排</h2>
+<p class="subtitle">重点不是多漂亮，而是每一页打开后都能立刻知道“先看什么、再做什么”。</p>
+
+<div class="cards">
+  <div class="card" data-choice="overview-layout" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">总览页</div>
+        <div class="mockup-body" style="display:grid;gap:10px;">
+          <div style="padding:12px;border:1px solid #d8d2c8;border-radius:12px;background:#fbf8f2;">
+            <div style="font-size:12px;color:#8b5e34;text-transform:uppercase;letter-spacing:.08em;">1. 页面定位</div>
+            <div style="font-weight:700;font-size:22px;margin-top:4px;">今天发生了什么</div>
+            <div style="font-size:14px;color:#6b7280;margin-top:4px;">一句话摘要 + 跳转建议</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+            <div class="placeholder">2. 最近运行</div>
+            <div class="placeholder">2. 研究结论</div>
+            <div class="placeholder">2. 系统健康</div>
+            <div class="placeholder">2. 风险提醒</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1.2fr .8fr;gap:8px;">
+            <div class="placeholder" style="min-height:112px;">3. 最新结果摘要列表</div>
+            <div class="placeholder" style="min-height:112px;">3. 下一步去哪里</div>
+          </div>
+          <div class="placeholder" style="min-height:68px;">4. 少量快捷动作，不放复杂表单</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>总览页层级</h3>
+      <p>先给结论，再给状态，再给去向。首页不允许出现长表单、大表格、深度分析块。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="workbench-layout" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">研究工作台</div>
+        <div class="mockup-body" style="display:grid;gap:10px;">
+          <div style="padding:12px;border:1px solid #d8d2c8;border-radius:12px;background:#fbf8f2;">
+            <div style="font-size:12px;color:#8b5e34;text-transform:uppercase;letter-spacing:.08em;">1. 页面定位</div>
+            <div style="font-weight:700;font-size:22px;margin-top:4px;">运行、回测、实验都在这里做</div>
+            <div style="font-size:14px;color:#6b7280;margin-top:4px;">操作页可以重，但只能重在同一类任务上</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+            <div class="placeholder">2. 最近一次运行状态</div>
+            <div class="placeholder">2. 最近一次回测状态</div>
+            <div class="placeholder">2. 当前默认配置</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div class="placeholder" style="min-height:150px;">3. 策略运行表单</div>
+            <div class="placeholder" style="min-height:150px;">3. 因子回测表单</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div class="placeholder" style="min-height:98px;">4. 最近执行结果</div>
+            <div class="placeholder" style="min-height:98px;">4. 参数提示 / 说明</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>研究工作台层级</h3>
+      <p>把“操作”和“最新执行反馈”放在一起，但不混入历史归档、模拟盘流水、系统日志。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="results-layout" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">研究结果页</div>
+        <div class="mockup-body" style="display:grid;gap:10px;">
+          <div style="padding:12px;border:1px solid #d8d2c8;border-radius:12px;background:#fbf8f2;">
+            <div style="font-size:12px;color:#8b5e34;text-transform:uppercase;letter-spacing:.08em;">1. 页面定位</div>
+            <div style="font-weight:700;font-size:22px;margin-top:4px;">浏览、筛选、对比结果</div>
+            <div style="font-size:14px;color:#6b7280;margin-top:4px;">研究结果和运行结果分区展示，但进入同一结果中心</div>
+          </div>
+          <div class="placeholder" style="min-height:60px;">2. 筛选条：结果分组 / 类型 / 市场 / 时间</div>
+          <div style="display:grid;grid-template-columns:1.05fr .95fr;gap:8px;">
+            <div class="placeholder" style="min-height:190px;">3. 结果列表 / 紧凑卡片表</div>
+            <div class="placeholder" style="min-height:190px;">3. 选中结果详情面板</div>
+          </div>
+          <div class="placeholder" style="min-height:68px;">4. 工件下载与跳转</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>研究结果页层级</h3>
+      <p>先筛选，再看列表，再看详情。结果页不承担运行表单和系统控制按钮。</p>
+    </div>
+  </div>
+</div>
+
+<div class="pros-cons">
+  <div class="pros">
+    <h4>这套层级的好处</h4>
+    <ul>
+      <li>用户打开任意页面时，第一屏就能知道这个页面值不值得继续停留。</li>
+      <li>首页不再沦为“所有功能的堆场”，研究和结果也不会互相干扰。</li>
+      <li>顶部状态栏终于只做状态，不再和左侧导航抢职责。</li>
+    </ul>
+  </div>
+  <div class="cons">
+    <h4>需要注意的点</h4>
+    <ul>
+      <li>研究工作台会成为最重的页面，需要做明显的表单分区。</li>
+      <li>结果页必须把“研究结果”和“运行结果”清楚分组，否则还是会混。</li>
+      <li>总览页必须克制，不能把后续新功能又往首页塞回去。</li>
+    </ul>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="hierarchy-ok" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>层级对，继续下一步</h3>
+      <p>这一套已经能解决现在的混乱问题。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="overview-too-heavy" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>总览还是偏重</h3>
+      <p>希望首页再更轻一些。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="workbench-adjust" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>研究工作台需要调整</h3>
+      <p>操作区内部的分法还要再改。</p>
+    </div>
+  </div>
+</div>

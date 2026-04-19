@@ -1,0 +1,125 @@
+<h2>后台重构方向：先拆职责，再清导航</h2>
+<p class="subtitle">这张图只回答两件事：页面怎么拆，入口怎么收。</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">新应用骨架</div>
+    <div class="mockup-body">
+      <div style="display:grid;grid-template-columns:180px 1fr;gap:14px;min-height:420px;">
+        <div style="border:1px solid #d8d2c8;border-radius:14px;background:#f6f1e8;padding:12px;">
+          <div style="font-weight:700;margin-bottom:12px;">左侧主导航</div>
+          <div style="display:grid;gap:8px;font-size:14px;">
+            <div style="padding:10px 12px;border-radius:10px;background:#1e293b;color:#fff;">总览</div>
+            <div style="padding:10px 12px;border-radius:10px;background:#fff;border:1px solid #ddd4c8;">研究工作台</div>
+            <div style="padding:10px 12px;border-radius:10px;background:#fff;border:1px solid #ddd4c8;">研究结果</div>
+            <div style="padding:10px 12px;border-radius:10px;background:#fff;border:1px solid #ddd4c8;">本地模拟盘</div>
+            <div style="padding:10px 12px;border-radius:10px;background:#fff;border:1px solid #ddd4c8;">任务日志</div>
+            <div style="padding:10px 12px;border-radius:10px;background:#fff;border:1px solid #ddd4c8;">运维中心</div>
+            <div style="padding:10px 12px;border-radius:10px;background:#fff;border:1px solid #ddd4c8;">项目设置</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-rows:auto auto 1fr;gap:12px;">
+          <div style="border:1px solid #d8d2c8;border-radius:14px;background:#fbf8f2;padding:12px;">
+            <div style="font-size:13px;color:#6b7280;margin-bottom:6px;">顶部只保留状态，不再承担导航</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <div style="padding:6px 10px;border-radius:999px;background:#eef2f7;">Market: US</div>
+              <div style="padding:6px 10px;border-radius:999px;background:#eef2f7;">Latest Run: 09:42</div>
+              <div style="padding:6px 10px;border-radius:999px;background:#eef2f7;">System: WARN</div>
+            </div>
+          </div>
+          <div style="border:1px solid #d8d2c8;border-radius:14px;background:#fff;padding:14px;">
+            <div style="font-size:12px;color:#8b5e34;letter-spacing:.08em;text-transform:uppercase;">总览页</div>
+            <div style="font-size:24px;font-weight:700;margin:4px 0 10px;">今天先看什么</div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px;">
+              <div class="placeholder">最近运行</div>
+              <div class="placeholder">结果结论</div>
+              <div class="placeholder">系统健康</div>
+              <div class="placeholder">待处理提醒</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1.2fr .8fr;gap:10px;">
+              <div class="placeholder" style="min-height:120px;">最新研究结果摘要</div>
+              <div class="placeholder" style="min-height:120px;">去研究工作台 / 去结果页 / 去运维</div>
+            </div>
+          </div>
+          <div style="border:1px dashed #d8d2c8;border-radius:14px;background:#fcfaf6;padding:14px;color:#6b7280;">
+            重点变化：首页不再承载运行表单、因子回测、模拟盘明细、日志表、聊天等重内容。
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">页面职责边界</div>
+    <div class="mockup-body">
+      <div class="cards">
+        <div class="card">
+          <div class="card-body">
+            <h3>总览</h3>
+            <p>只看状态、结论和下一步入口，不做重操作。</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <h3>研究工作台</h3>
+            <p>专门承接策略运行、因子回测、实验配置等重操作。</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <h3>研究结果</h3>
+            <p>只负责筛选、浏览、对比研究与运行产出。</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <h3>本地模拟盘</h3>
+            <p>专注账户、净值、持仓、成交和最近一次运行结果。</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <h3>任务日志</h3>
+            <p>只看执行流水，不混入系统状态和配置表单。</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <h3>运维中心</h3>
+            <p>只看健康检查、后台任务、审计事件和运行守护。</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <h3>项目设置</h3>
+            <p>集中维护默认参数和页面偏好，不与执行入口混排。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="continue" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>这个结构对，继续细化</h3>
+      <p>页面拆分和导航收口都符合预期。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="trim" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>页面还可以更少</h3>
+      <p>希望继续合并某些页面。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="rename" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>边界对，但命名或归属要调</h3>
+      <p>结构大体正确，但某几个页面的内容归属需要改。</p>
+    </div>
+  </div>
+</div>
