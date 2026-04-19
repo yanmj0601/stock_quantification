@@ -56,6 +56,7 @@ DEFAULT_PAGE_TITLE = "Stock Quantification Dashboard"
 WEB_STATE_RELATIVE_ROOT = "web"
 PROJECT_CONFIG_RELATIVE_PATH = f"{WEB_STATE_RELATIVE_ROOT}/project_config.json"
 TASK_LOG_RELATIVE_PATH = f"{WEB_STATE_RELATIVE_ROOT}/task_logs.json"
+MAX_RECENT_RUN_RESULTS = 48
 PRIMARY_VIEW_ALIASES = {
     "overview": "paper",
     "paper": "paper",
@@ -75,7 +76,7 @@ PAPER_SUBVIEW_ALIASES = {
 PRIMARY_VIEW_TABS = {
     "paper": [("main", "Main / 主页面"), ("holdings", "Holdings / 持仓"), ("trades", "Trades / 交易")],
     "optimize": [("create", "Create / 创建"), ("history", "History / 历史"), ("detail", "Detail / 详情")],
-    "run": [("strategy", "策略运行"), ("feedback", "反馈"), ("defaults", "默认值")],
+    "run": [("create", "Create / 创建"), ("history", "History / 历史"), ("detail", "Detail / 详情")],
     "results": [("research", "研究结果"), ("runtime", "运行结果"), ("archive", "归档")],
 }
 DEFAULT_PROJECT_CONFIG: Dict[str, Dict[str, Any]] = {
@@ -213,7 +214,7 @@ class DashboardApp:
         if view in {"workbench", "optimize"}:
             return self._render_optimize_page(query, primary_view=primary_view, subview=subview)
         if view == "run":
-            return self._render_workbench_page(query, primary_view=primary_view, subview=subview)
+            return self._render_run_page(query, primary_view=primary_view, subview=subview)
         if view == "results":
             return self._render_results_page(query, primary_view=primary_view, subview=subview)
         if view == "paper":
@@ -1124,8 +1125,7 @@ class DashboardApp:
                         "selected_symbols": symbols[:24],
                     },
                 )
-                run_results.append(
-                    run_market(
+                run_result = run_market(
                         market=market,
                         symbols=symbols,
                         execution_mode=execution_mode,
@@ -1142,7 +1142,9 @@ class DashboardApp:
                         broker_account_id=broker_account_id,
                         selected_preset_id=selected_strategy_ids.get(market.value),
                     )
-                )
+                history_offset = len(self.state.last_run_results) + len(run_results)
+                run_result["run_instance_id"] = f"{job_id}:{index}:{market.value}:{history_offset}"
+                run_results.append(run_result)
                 end_progress = int(10 + (index / total_markets) * 70)
                 self._ops_store().update_active_job(
                     job_id,
@@ -1162,7 +1164,7 @@ class DashboardApp:
                 stage="FINALIZING",
                 detail="正在整理运行结果和写入工件。",
             )
-            self.state.last_run_results = run_results
+            self.state.last_run_results = (self.state.last_run_results + run_results)[-MAX_RECENT_RUN_RESULTS:]
             paper_results = [result for result in run_results if result.get("paper_account")]
             if paper_results:
                 self.state.last_local_paper_account = paper_results[-1]["paper_account"]
@@ -2818,8 +2820,36 @@ class DashboardApp:
             subview=subview,
         )
 
-    def _render_strategy_run_form(self, view: str = "workbench") -> str:
+    def _strategy_default_preset_id(self, market: Market) -> str:
+        state = self._strategy_state_store().load_market_state(market)
+        current_execution_preset_id = str(state.get("current_execution_preset_id") or "").strip()
+        if current_execution_preset_id:
+            try:
+                lookup_strategy_preset(market, current_execution_preset_id)
+                return current_execution_preset_id
+            except KeyError:
+                pass
+        presets = strategy_presets_for_market(market)
+        return presets[0].preset_id if presets else ""
+
+    def _render_strategy_preset_picker(self, market: Market, field_name: str, selected_preset_id: Optional[str] = None) -> str:
+        default_preset_id = selected_preset_id or self._strategy_default_preset_id(market)
         defaults = self._load_project_config()["run_defaults"]
+        recommended_account_id = self._recommended_account_id(str(defaults["market"]))
+        return f"""
+        <label>Selected Strategy / 选择策略<span class="field-note">{escape(market.value)} 市场可选预设</span>
+          <select name="{escape(field_name)}">
+            {''.join(
+                f'<option value="{escape(preset.preset_id)}"{" selected" if preset.preset_id == default_preset_id else ""}>{escape(preset.display_name)} ({escape(preset.preset_id)})</option>'
+                for preset in strategy_presets_for_market(market)
+            )}
+          </select>
+        </label>
+        """
+
+    def _render_strategy_run_form(self, view: str = "run") -> str:
+        config = self._load_project_config()
+        defaults = config["run_defaults"]
         recommended_account_id = self._recommended_account_id(str(defaults["market"]))
         cn_picker = self._render_symbol_picker(
             "run-cn",
@@ -3363,20 +3393,245 @@ class DashboardApp:
         </section>
         """
 
+    def _run_result_ref(self, result: Dict[str, Any]) -> str:
+        trade_date = str(result.get("trade_date") or result.get("paper_run_summary", {}).get("as_of") or "").strip()
+        market = str(result.get("market") or "").strip()
+        strategy_id = str(result.get("strategy_id") or result.get("paper_run_summary", {}).get("strategy_id") or "").strip()
+        run_instance_id = str(result.get("run_instance_id") or "").strip()
+        return "|".join(part for part in (trade_date, market, strategy_id, run_instance_id or self._run_result_signature(result)) if part)
+
+    def _run_result_signature(self, result: Dict[str, Any]) -> str:
+        try:
+            payload = json.dumps(result, sort_keys=True, ensure_ascii=False, separators=(",", ":"), default=str)
+        except TypeError:
+            payload = str(result)
+        return hashlib.sha1(payload.encode("utf-8")).hexdigest()[:12]
+
+    def _run_history_records(self) -> List[Dict[str, Any]]:
+        return list(reversed(self.state.last_run_results))
+
+    def _resolve_selected_run_result(self, query: Dict[str, List[str]]) -> Optional[Dict[str, Any]]:
+        run_ref = str(query.get("run_ref", [""])[0]).strip()
+        records = self._run_history_records()
+        if run_ref:
+            for result in records:
+                if self._run_result_ref(result) == run_ref:
+                    return result
+            return None
+        return records[0] if records else None
+
+    def _render_run_history_page(self, query: Dict[str, List[str]], primary_view: str, subview: str) -> WebResponse:
+        flash_html = self._render_flash_messages("workbench")
+        records = self._run_history_records()
+        if not records:
+            body = f"""
+              {flash_html}
+              <section class="panel panel--empty">
+                <h2>Run History / 运行历史</h2>
+                <p>先提交一次策略运行后，这里会按时间顺序列出历史记录。</p>
+              </section>
+            """
+        else:
+            cards = []
+            for index, result in enumerate(records, start=1):
+                paper_summary = result.get("paper_run_summary", {}) if isinstance(result.get("paper_run_summary"), dict) else {}
+                run_ref = self._run_result_ref(result)
+                trade_count = len(result.get("paper_trade_records", [])) or paper_summary.get("trade_count", 0)
+                cards.append(
+                    f"""
+                    <article class="result-card">
+                      <p class="eyebrow">Run {index}</p>
+                      <h3>{escape(str(result.get('strategy_id') or paper_summary.get('strategy_id') or 'N/A'))}</h3>
+                      <p>Market / 市场: {escape(str(result.get('market', 'N/A')))} | Trade Date / 交易日: {escape(str(result.get('trade_date', paper_summary.get('as_of', 'N/A'))))}</p>
+                      <p>Review / 审核: {escape(str(result.get('review', {}).get('verdict', 'N/A')))} | Trades / 成交 {escape(str(trade_count))}</p>
+                      <p><a href="{escape(self._view_url('run', query={'subview': 'detail', 'run_ref': run_ref}))}">Open Detail / 打开详情</a></p>
+                    </article>
+                    """
+                )
+            body = f"""
+              {flash_html}
+              <section class="panel">
+                <div class="panel__header">
+                  <div>
+                    <p class="eyebrow">Run History</p>
+                    <h2>Run History / 运行历史</h2>
+                  </div>
+                </div>
+                <div class="card-grid">{''.join(cards)}</div>
+              </section>
+            """
+        return self._html_page(
+            self._render_page_shell(
+                primary_view,
+                title="Strategy Run / 策略运行",
+                eyebrow="Strategy Run",
+                description="查看历史运行的时间顺序列表，并进入单个运行详情。",
+                body=body,
+                subview=subview,
+                query=query,
+            ),
+            primary_view=primary_view,
+            subview=subview,
+        )
+
+    def _render_run_detail_page(self, query: Dict[str, List[str]], primary_view: str, subview: str) -> WebResponse:
+        flash_html = self._render_flash_messages("workbench")
+        selected_run = self._resolve_selected_run_result(query)
+        if selected_run is None:
+            body = f"""
+              {flash_html}
+              <section class="panel panel--empty">
+                <h2>Run Detail / 运行详情</h2>
+                <p>先执行一次策略运行后，这里会展示选中的信号、交易建议、审核和模拟盘影响。</p>
+              </section>
+            """
+        else:
+            signals = selected_run.get("signals", []) if isinstance(selected_run.get("signals"), list) else []
+            trade_suggestions = selected_run.get("trade_suggestions", []) if isinstance(selected_run.get("trade_suggestions"), list) else []
+            review = selected_run.get("review", {}) if isinstance(selected_run.get("review"), dict) else {}
+            paper_account = selected_run.get("paper_account", {}) if isinstance(selected_run.get("paper_account"), dict) else {}
+            paper_run_summary = selected_run.get("paper_run_summary", {}) if isinstance(selected_run.get("paper_run_summary"), dict) else {}
+            signal_cards = "".join(
+                f"""
+                <article class="result-card">
+                  <h3>{escape(str(signal.get('instrument_id', 'N/A')))}</h3>
+                  <p>Score / 评分: {escape(str(signal.get('score', 'N/A')))}</p>
+                  <p>Reason / 原因: {escape(str(signal.get('reason', 'N/A')))}</p>
+                  <p>Beta / Beta: {escape(str(signal.get('beta', 'N/A')))}</p>
+                </article>
+                """
+                for signal in signals
+                if isinstance(signal, dict)
+            ) or "<p class='muted'>暂无选中信号。</p>"
+            suggestion_cards = "".join(
+                f"""
+                <article class="result-card">
+                  <h3>{escape(str(suggestion.get('instrument_id', 'N/A')))}</h3>
+                  <p>Side / 方向: {escape(str(suggestion.get('side', 'N/A')))} | Qty / 数量: {escape(str(suggestion.get('qty', 'N/A')))}</p>
+                  <p>Rationale / 理由: {escape(str(suggestion.get('rationale', 'N/A')))}</p>
+                </article>
+                """
+                for suggestion in trade_suggestions
+                if isinstance(suggestion, dict)
+            ) or "<p class='muted'>暂无交易建议。</p>"
+            account_effect = f"""
+            <div class="summary-grid">
+              {self._summary_tile("Account / 账户", paper_account.get("account_id", "N/A"), "本次运行写入的模拟盘账户")}
+              {self._summary_tile("Latest NAV / 最新净值", paper_account.get("latest_nav", paper_run_summary.get("latest_nav", "N/A")), "运行后的模拟盘净值")}
+              {self._summary_tile("Cash / 现金", paper_account.get("cash", paper_run_summary.get("cash", "N/A")), "运行后的可用现金")}
+              {self._summary_tile("Buying Power / 购买力", paper_account.get("buying_power", paper_run_summary.get("buying_power", "N/A")), "运行后的购买力")}
+              {self._summary_tile("Positions / 持仓数", paper_account.get("position_count", paper_run_summary.get("position_count", "N/A")), "运行后的持仓数量")}
+              {self._summary_tile("Trades / 成交数", paper_account.get("trade_count", paper_run_summary.get("trade_count", "N/A")), "运行后的成交数量")}
+            </div>
+            """
+            body = f"""
+              {flash_html}
+              <section class="panel">
+                <div class="panel__header">
+                  <div>
+                    <p class="eyebrow">Run Detail</p>
+                    <h2>Run Detail / 运行详情</h2>
+                  </div>
+                </div>
+                <div class="summary-grid">
+                  {self._summary_tile("Strategy / 策略", selected_run.get("strategy_id", "N/A"), "选中的策略 ID")}
+                  {self._summary_tile("Market / 市场", selected_run.get("market", "N/A"), "选中的市场")}
+                  {self._summary_tile("Trade Date / 交易日", selected_run.get("trade_date", paper_run_summary.get("as_of", "N/A")), "本次运行日期")}
+                  {self._summary_tile("Review / 审核", review.get("verdict", "N/A"), "运行审核结论")}
+                </div>
+              </section>
+              <section class="panel">
+                <div class="panel__header">
+                  <div>
+                    <p class="eyebrow">Selected Signals</p>
+                    <h2>Selected Signals / 选中信号</h2>
+                  </div>
+                </div>
+                <div class="card-grid">{signal_cards}</div>
+              </section>
+              <section class="panel">
+                <div class="panel__header">
+                  <div>
+                    <p class="eyebrow">Trade Suggestions</p>
+                    <h2>Trade Suggestions / 交易建议</h2>
+                  </div>
+                </div>
+                <div class="card-grid">{suggestion_cards}</div>
+              </section>
+              <section class="panel">
+                <div class="panel__header">
+                  <div>
+                    <p class="eyebrow">Review</p>
+                    <h2>Review / 审核</h2>
+                  </div>
+                </div>
+                <p><strong>{escape(str(review.get('verdict', 'N/A')))}</strong></p>
+                <p>{escape('；'.join(str(item) for item in review.get('comments', []))) if isinstance(review.get('comments'), list) and review.get('comments') else '暂无审核评论'}</p>
+              </section>
+              <section class="panel">
+                <div class="panel__header">
+                  <div>
+                    <p class="eyebrow">Simulated Account Effect</p>
+                    <h2>Simulated Account Effect / 模拟盘影响</h2>
+                  </div>
+                </div>
+                {account_effect}
+              </section>
+            """
+        return self._html_page(
+            self._render_page_shell(
+                primary_view,
+                title="Strategy Run / 策略运行",
+                eyebrow="Strategy Run",
+                description="查看选中运行的信号、交易建议、审核和模拟盘影响。",
+                body=body,
+                subview=subview,
+                query=query,
+            ),
+            primary_view=primary_view,
+            subview=subview,
+        )
+
+    def _render_run_page(self, query: Dict[str, List[str]], primary_view: str, subview: str) -> WebResponse:
+        if subview == "history":
+            return self._render_run_history_page(query, primary_view=primary_view, subview=subview)
+        if subview == "detail":
+            return self._render_run_detail_page(query, primary_view=primary_view, subview=subview)
+        flash_html = self._render_flash_messages("workbench")
+        body = f"""
+          {flash_html}
+          <section class="module" id="module-run-create">
+            <div class="module__header">
+              <p class="eyebrow">Module 03</p>
+              <h2>策略运行</h2>
+              <p class="hero__copy">这里只保留策略运行表单，方便快速提交和切换策略预设。</p>
+            </div>
+            {self._render_strategy_run_form(view=primary_view)}
+          </section>
+        """
+        return self._html_page(
+            self._render_page_shell(
+                primary_view,
+                title="Strategy Run / 策略运行",
+                eyebrow="Strategy Run",
+                description="提交策略运行，不混入历史、默认值或其他工作台内容。",
+                body=body,
+                subview=subview,
+                query=query,
+            ),
+            primary_view=primary_view,
+            subview=subview,
+        )
+
     def _render_workbench_page(self, query: Dict[str, List[str]], primary_view: str, subview: str) -> WebResponse:
         flash_html = self._render_flash_messages("workbench")
-        strategy_run_html = self._render_strategy_run_form(view=primary_view)
-        factor_form_html = self._render_factor_backtest_form(view=primary_view)
+        strategy_run_html = self._render_strategy_run_form(view="workbench")
+        factor_form_html = self._render_factor_backtest_form(view="workbench")
         current_defaults_html = self._render_current_defaults_panel()
         recent_execution_html = self._render_recent_execution_panel()
-        if primary_view == "run":
-            page_title = "Strategy Run / 策略运行"
-            page_eyebrow = "Strategy Run"
-            page_description = "围绕策略提交、执行和反馈的运行工作台。"
-        else:
-            page_title = "Strategy Optimize / 策略优化"
-            page_eyebrow = "Strategy Optimize"
-            page_description = "围绕因子回测和参数实验的优化工作台。"
+        page_title = "Strategy Optimize / 策略优化"
+        page_eyebrow = "Strategy Optimize"
+        page_description = "围绕因子回测和参数实验的优化工作台。"
         body = f"""
           {flash_html}
           <section class="module" id="module-research">

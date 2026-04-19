@@ -321,6 +321,288 @@ class WebTests(TestCase):
         self.assertIn("策略优化", body)
         self.assertIn("section-tabs", body)
 
+    @patch("stock_quantification.web.StrategyStateStore")
+    @patch("stock_quantification.web.LocalPaperLedger")
+    def test_home_page_run_create_view_defaults_strategy_selectors_from_state(self, mock_ledger_cls, mock_strategy_state_cls) -> None:
+        ledger = mock_ledger_cls.return_value
+        ledger.latest_account_overview.return_value = {
+            "account_id": "web-paper-us",
+            "market": "US",
+            "cash": "100000",
+            "buying_power": "80000",
+            "position_count": 0,
+            "trade_count": 0,
+            "filtered_trade_count": 0,
+            "latest_nav": "100000",
+            "cumulative_return": "0",
+            "positions": [],
+            "nav_history": [],
+            "recent_trades": [],
+            "today_summary": {},
+            "sector_exposure_rows": [],
+            "risk_alerts": [],
+            "position_rows": [],
+            "filter_start_date": None,
+            "filter_end_date": None,
+        }
+        ledger.list_accounts.return_value = ["web-paper-us"]
+        ledger.account_overview.return_value = ledger.latest_account_overview.return_value
+        mock_strategy_state = mock_strategy_state_cls.return_value
+        mock_strategy_state.load_market_state.side_effect = lambda market: {
+            "CN": {
+                "champion_preset_id": "cn_baseline",
+                "challenger_preset_id": "cn_quality_momentum",
+                "current_execution_preset_id": "cn_quality_momentum",
+            },
+            "US": {
+                "champion_preset_id": "us_baseline",
+                "challenger_preset_id": "us_quality_focus",
+                "current_execution_preset_id": "us_quality_focus",
+            },
+        }[market.value]
+
+        response = self.app.render_home({"view": ["run"], "subview": ["create"]})
+        body = response.body.decode("utf-8")
+
+        self.assertEqual(response.status, 200)
+        self.assertIn("Strategy Run / 策略运行", body)
+        self.assertIn('value="cn_quality_momentum" selected', body)
+        self.assertIn('value="us_quality_focus" selected', body)
+        self.assertNotIn("Current Defaults / 当前默认配置", body)
+        self.assertNotIn("Recent Execution / 最近执行反馈", body)
+        self.assertNotIn("workbench-grid", body)
+
+    @patch("stock_quantification.web.StrategyStateStore")
+    @patch("stock_quantification.web.LocalPaperLedger")
+    def test_home_page_run_create_view_falls_back_to_market_default_preset(self, mock_ledger_cls, mock_strategy_state_cls) -> None:
+        ledger = mock_ledger_cls.return_value
+        ledger.latest_account_overview.return_value = {
+            "account_id": "web-paper-us",
+            "market": "US",
+            "cash": "100000",
+            "buying_power": "80000",
+            "position_count": 0,
+            "trade_count": 0,
+            "filtered_trade_count": 0,
+            "latest_nav": "100000",
+            "cumulative_return": "0",
+            "positions": [],
+            "nav_history": [],
+            "recent_trades": [],
+            "today_summary": {},
+            "sector_exposure_rows": [],
+            "risk_alerts": [],
+            "position_rows": [],
+            "filter_start_date": None,
+            "filter_end_date": None,
+        }
+        ledger.list_accounts.return_value = ["web-paper-us"]
+        ledger.account_overview.return_value = ledger.latest_account_overview.return_value
+        mock_strategy_state = mock_strategy_state_cls.return_value
+        mock_strategy_state.load_market_state.side_effect = lambda market: {
+            "CN": {
+                "champion_preset_id": "cn_baseline",
+                "challenger_preset_id": "cn_quality_momentum",
+                "current_execution_preset_id": None,
+            },
+            "US": {
+                "champion_preset_id": "us_baseline",
+                "challenger_preset_id": "us_quality_focus",
+                "current_execution_preset_id": None,
+            },
+        }[market.value]
+
+        response = self.app.render_home({"view": ["run"], "subview": ["create"]})
+        body = response.body.decode("utf-8")
+
+        self.assertEqual(response.status, 200)
+        self.assertIn('value="cn_baseline" selected', body)
+        self.assertIn('value="us_baseline" selected', body)
+
+    @patch("stock_quantification.web.LocalPaperLedger")
+    def test_home_page_run_history_view_lists_runs_most_recent_first(self, mock_ledger_cls) -> None:
+        ledger = mock_ledger_cls.return_value
+        ledger.latest_account_overview.return_value = {
+            "account_id": "web-paper-us",
+            "market": "US",
+            "cash": "100000",
+            "buying_power": "80000",
+            "position_count": 0,
+            "trade_count": 0,
+            "filtered_trade_count": 0,
+            "latest_nav": "100000",
+            "cumulative_return": "0",
+            "positions": [],
+            "nav_history": [],
+            "recent_trades": [],
+            "today_summary": {},
+            "sector_exposure_rows": [],
+            "risk_alerts": [],
+            "position_rows": [],
+            "filter_start_date": None,
+            "filter_end_date": None,
+        }
+        ledger.list_accounts.return_value = ["web-paper-us"]
+        ledger.account_overview.return_value = ledger.latest_account_overview.return_value
+        self.app.state.last_run_results = [
+            {
+                "market": "US",
+                "trade_date": "2026-04-18",
+                "strategy_id": "us_baseline",
+                "signals": [{"instrument_id": "US.AAPL", "score": "0.8", "reason": "older"}],
+                "trade_suggestions": [{"instrument_id": "US.AAPL", "side": "BUY", "qty": 10, "rationale": "older"}],
+                "review": {"verdict": "PASS", "comments": ["older"]},
+                "paper_account": {"account_id": "web-paper-us", "latest_nav": "100000", "cash": "90000", "buying_power": "80000", "position_count": 1, "trade_count": 1},
+                "paper_run_summary": {"account_id": "web-paper-us", "strategy_id": "us_baseline", "trade_count": 1, "position_count": 1, "cash": "90000", "buying_power": "80000"},
+            },
+            {
+                "market": "US",
+                "trade_date": "2026-04-19",
+                "strategy_id": "us_quality_focus",
+                "signals": [{"instrument_id": "US.MSFT", "score": "0.9", "reason": "newer"}],
+                "trade_suggestions": [{"instrument_id": "US.MSFT", "side": "BUY", "qty": 5, "rationale": "newer"}],
+                "review": {"verdict": "REVIEW", "comments": ["newer"]},
+                "paper_account": {"account_id": "web-paper-us", "latest_nav": "101000", "cash": "91000", "buying_power": "81000", "position_count": 2, "trade_count": 2},
+                "paper_run_summary": {"account_id": "web-paper-us", "strategy_id": "us_quality_focus", "trade_count": 2, "position_count": 2, "cash": "91000", "buying_power": "81000"},
+            },
+        ]
+
+        response = self.app.render_home({"view": ["run"], "subview": ["history"]})
+        body = response.body.decode("utf-8")
+        latest_run_ref = self.app._run_result_ref(self.app.state.last_run_results[-1])
+
+        self.assertEqual(response.status, 200)
+        self.assertIn("Run History / 运行历史", body)
+        self.assertLess(body.index("us_quality_focus"), body.index("us_baseline"))
+        self.assertIn(f"run_ref={web_module.quote(latest_run_ref)}", body)
+        self.assertIn("view=run&amp;subview=detail", body)
+
+    @patch("stock_quantification.web.LocalPaperLedger")
+    def test_home_page_run_detail_view_renders_selected_run(self, mock_ledger_cls) -> None:
+        ledger = mock_ledger_cls.return_value
+        ledger.latest_account_overview.return_value = {
+            "account_id": "web-paper-us",
+            "market": "US",
+            "cash": "100000",
+            "buying_power": "80000",
+            "position_count": 0,
+            "trade_count": 0,
+            "filtered_trade_count": 0,
+            "latest_nav": "100000",
+            "cumulative_return": "0",
+            "positions": [],
+            "nav_history": [],
+            "recent_trades": [],
+            "today_summary": {},
+            "sector_exposure_rows": [],
+            "risk_alerts": [],
+            "position_rows": [],
+            "filter_start_date": None,
+            "filter_end_date": None,
+        }
+        ledger.list_accounts.return_value = ["web-paper-us"]
+        ledger.account_overview.return_value = ledger.latest_account_overview.return_value
+        self.app.state.last_run_results = [
+            {
+                "market": "US",
+                "trade_date": "2026-04-18",
+                "strategy_id": "us_baseline",
+                "signals": [{"instrument_id": "US.AAPL", "name": "Apple", "score": "0.8", "reason": "signal-old"}],
+                "trade_suggestions": [{"instrument_id": "US.AAPL", "name": "Apple", "side": "BUY", "qty": 10, "rationale": "suggestion-old"}],
+                "review": {"verdict": "PASS", "comments": ["older"]},
+                "paper_account": {"account_id": "web-paper-us", "latest_nav": "100000", "cash": "90000", "buying_power": "80000", "position_count": 1, "trade_count": 1},
+                "paper_run_summary": {"account_id": "web-paper-us", "strategy_id": "us_baseline", "trade_count": 1, "position_count": 1, "cash": "90000", "buying_power": "80000"},
+            },
+            {
+                "market": "US",
+                "trade_date": "2026-04-19",
+                "strategy_id": "us_quality_focus",
+                "signals": [{"instrument_id": "US.MSFT", "name": "Microsoft", "score": "0.9", "reason": "signal-new"}],
+                "trade_suggestions": [{"instrument_id": "US.MSFT", "name": "Microsoft", "side": "BUY", "qty": 5, "rationale": "suggestion-new"}],
+                "review": {"verdict": "REVIEW", "comments": ["newer", "check risk"]},
+                "paper_account": {"account_id": "web-paper-us", "latest_nav": "101000", "cash": "91000", "buying_power": "81000", "position_count": 2, "trade_count": 2},
+                "paper_run_summary": {"account_id": "web-paper-us", "strategy_id": "us_quality_focus", "trade_count": 2, "position_count": 2, "cash": "91000", "buying_power": "81000"},
+            },
+        ]
+        latest_run_ref = self.app._run_result_ref(self.app.state.last_run_results[-1])
+
+        response = self.app.render_home({"view": ["run"], "subview": ["detail"], "run_ref": [latest_run_ref]})
+        body = response.body.decode("utf-8")
+
+        self.assertEqual(response.status, 200)
+        self.assertIn("Run Detail / 运行详情", body)
+        self.assertIn("US.MSFT", body)
+        self.assertIn("suggestion-new", body)
+        self.assertIn("REVIEW", body)
+        self.assertIn("Simulated Account Effect / 模拟盘影响", body)
+        self.assertIn("101000", body)
+
+    @patch("stock_quantification.web.LocalPaperLedger")
+    def test_home_page_run_detail_view_shows_empty_state_for_unknown_run_ref(self, mock_ledger_cls) -> None:
+        ledger = mock_ledger_cls.return_value
+        ledger.latest_account_overview.return_value = {
+            "account_id": "web-paper-us",
+            "market": "US",
+            "cash": "100000",
+            "buying_power": "80000",
+            "position_count": 0,
+            "trade_count": 0,
+            "filtered_trade_count": 0,
+            "latest_nav": "100000",
+            "cumulative_return": "0",
+            "positions": [],
+            "nav_history": [],
+            "recent_trades": [],
+            "today_summary": {},
+            "sector_exposure_rows": [],
+            "risk_alerts": [],
+            "position_rows": [],
+            "filter_start_date": None,
+            "filter_end_date": None,
+        }
+        ledger.list_accounts.return_value = ["web-paper-us"]
+        ledger.account_overview.return_value = ledger.latest_account_overview.return_value
+        self.app.state.last_run_results = [
+            {
+                "market": "US",
+                "trade_date": "2026-04-19",
+                "strategy_id": "us_quality_focus",
+                "signals": [{"instrument_id": "US.MSFT", "score": "0.9", "reason": "signal-new"}],
+                "trade_suggestions": [{"instrument_id": "US.MSFT", "side": "BUY", "qty": 5, "rationale": "suggestion-new"}],
+                "review": {"verdict": "REVIEW", "comments": ["newer"]},
+                "paper_account": {"account_id": "web-paper-us", "latest_nav": "101000", "cash": "91000", "buying_power": "81000", "position_count": 2, "trade_count": 2},
+                "paper_run_summary": {"account_id": "web-paper-us", "strategy_id": "us_quality_focus", "trade_count": 2, "position_count": 2, "cash": "91000", "buying_power": "81000"},
+            }
+        ]
+
+        response = self.app.render_home({"view": ["run"], "subview": ["detail"], "run_ref": ["missing-run-ref"]})
+        body = response.body.decode("utf-8")
+
+        self.assertEqual(response.status, 200)
+        self.assertIn("Run Detail / 运行详情", body)
+        self.assertIn("先执行一次策略运行后", body)
+        self.assertNotIn("US.MSFT", body)
+
+    def test_run_result_ref_distinguishes_duplicate_market_strategy_runs(self) -> None:
+        older_run = {
+            "market": "US",
+            "trade_date": "2026-04-19",
+            "strategy_id": "us_quality_focus",
+            "signals": [{"instrument_id": "US.MSFT", "score": "0.9", "reason": "signal-old"}],
+            "trade_suggestions": [{"instrument_id": "US.MSFT", "side": "BUY", "qty": 5, "rationale": "suggestion-old"}],
+            "review": {"verdict": "REVIEW", "comments": ["older"]},
+        }
+        newer_run = {
+            "market": "US",
+            "trade_date": "2026-04-19",
+            "strategy_id": "us_quality_focus",
+            "signals": [{"instrument_id": "US.NVDA", "score": "0.95", "reason": "signal-new"}],
+            "trade_suggestions": [{"instrument_id": "US.NVDA", "side": "BUY", "qty": 8, "rationale": "suggestion-new"}],
+            "review": {"verdict": "PASS", "comments": ["newer"]},
+        }
+
+        self.assertNotEqual(self.app._run_result_ref(older_run), self.app._run_result_ref(newer_run))
+
     @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
     @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")
     def test_home_page_supports_paper_view_subview_tabs(self, _mock_paper_panel, _mock_symbol_catalog) -> None:
@@ -1153,6 +1435,108 @@ class WebTests(TestCase):
         self.assertEqual(response.status, 303)
         self.assertEqual(mock_run_market.call_args.kwargs["selected_preset_id"], "us_quality_focus")
         self.assertEqual(self.app.state.last_local_paper_account["account_id"], "web-paper-us")
+
+    @patch("stock_quantification.web.run_market")
+    def test_strategy_run_appends_history_across_submissions(self, mock_run_market) -> None:
+        mock_run_market.side_effect = [
+            {
+                "market": "US",
+                "trade_date": "2026-04-18",
+                "strategy_id": "us_baseline",
+                "review": {"verdict": "PASS", "comments": ["older"]},
+                "paper_trade_records": [],
+            },
+            {
+                "market": "US",
+                "trade_date": "2026-04-19",
+                "strategy_id": "us_quality_focus",
+                "review": {"verdict": "REVIEW", "comments": ["newer"]},
+                "paper_trade_records": [],
+            },
+        ]
+
+        with patch.object(self.app, "_start_background_task", side_effect=lambda target, *args: target(*args)):
+            first_response = self.app.handle_run(
+                {
+                    "market": ["US"],
+                    "runtime_mode": ["PAPER"],
+                    "execution_mode": ["ADVISORY"],
+                    "cash": ["100000"],
+                    "top_n": ["2"],
+                    "detail_limit": ["10"],
+                    "history_limit": ["90"],
+                    "beta_window": ["20"],
+                    "forward_days": ["0"],
+                    "selected_strategy_us": ["us_baseline"],
+                }
+            )
+            second_response = self.app.handle_run(
+                {
+                    "market": ["US"],
+                    "runtime_mode": ["PAPER"],
+                    "execution_mode": ["ADVISORY"],
+                    "cash": ["100000"],
+                    "top_n": ["2"],
+                    "detail_limit": ["10"],
+                    "history_limit": ["90"],
+                    "beta_window": ["20"],
+                    "forward_days": ["0"],
+                    "selected_strategy_us": ["us_quality_focus"],
+                }
+            )
+
+        self.assertEqual(first_response.status, 303)
+        self.assertEqual(second_response.status, 303)
+        self.assertEqual(len(self.app.state.last_run_results), 2)
+        self.assertEqual(self.app.state.last_run_results[0]["strategy_id"], "us_baseline")
+        self.assertEqual(self.app.state.last_run_results[1]["strategy_id"], "us_quality_focus")
+
+    @patch("stock_quantification.web.run_market")
+    def test_strategy_run_assigns_unique_instance_ids_for_identical_submissions(self, mock_run_market) -> None:
+        identical_result = {
+            "market": "US",
+            "trade_date": "2026-04-19",
+            "strategy_id": "us_quality_focus",
+            "signals": [{"instrument_id": "US.MSFT", "score": "0.9", "reason": "same"}],
+            "trade_suggestions": [{"instrument_id": "US.MSFT", "side": "BUY", "qty": 5, "rationale": "same"}],
+            "review": {"verdict": "REVIEW", "comments": ["same"]},
+            "paper_trade_records": [],
+        }
+        mock_run_market.side_effect = [dict(identical_result), dict(identical_result)]
+
+        with patch.object(self.app, "_start_background_task", side_effect=lambda target, *args: target(*args)):
+            self.app.handle_run(
+                {
+                    "market": ["US"],
+                    "runtime_mode": ["PAPER"],
+                    "execution_mode": ["ADVISORY"],
+                    "cash": ["100000"],
+                    "top_n": ["2"],
+                    "detail_limit": ["10"],
+                    "history_limit": ["90"],
+                    "beta_window": ["20"],
+                    "forward_days": ["0"],
+                    "selected_strategy_us": ["us_quality_focus"],
+                }
+            )
+            self.app.handle_run(
+                {
+                    "market": ["US"],
+                    "runtime_mode": ["PAPER"],
+                    "execution_mode": ["ADVISORY"],
+                    "cash": ["100000"],
+                    "top_n": ["2"],
+                    "detail_limit": ["10"],
+                    "history_limit": ["90"],
+                    "beta_window": ["20"],
+                    "forward_days": ["0"],
+                    "selected_strategy_us": ["us_quality_focus"],
+                }
+            )
+
+        first_run, second_run = self.app.state.last_run_results
+        self.assertNotEqual(first_run["run_instance_id"], second_run["run_instance_id"])
+        self.assertNotEqual(self.app._run_result_ref(first_run), self.app._run_result_ref(second_run))
 
     @patch("stock_quantification.web.LocalPaperLedger")
     def test_local_paper_reset_redirects_and_flashes(self, mock_ledger_cls) -> None:
