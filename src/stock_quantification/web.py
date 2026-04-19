@@ -74,7 +74,7 @@ PAPER_SUBVIEW_ALIASES = {
 }
 PRIMARY_VIEW_TABS = {
     "paper": [("main", "Main / 主页面"), ("holdings", "Holdings / 持仓"), ("trades", "Trades / 交易")],
-    "optimize": [("factor", "因子"), ("lab", "实验"), ("defaults", "默认值")],
+    "optimize": [("create", "Create / 创建"), ("history", "History / 历史"), ("detail", "Detail / 详情")],
     "run": [("strategy", "策略运行"), ("feedback", "反馈"), ("defaults", "默认值")],
     "results": [("research", "研究结果"), ("runtime", "运行结果"), ("archive", "归档")],
 }
@@ -210,7 +210,9 @@ class DashboardApp:
         view = self._dashboard_view(query)
         primary_view = self._primary_view_for_view(view)
         subview = self._primary_subview_for_view(primary_view, query)
-        if view in {"workbench", "optimize", "run"}:
+        if view in {"workbench", "optimize"}:
+            return self._render_optimize_page(query, primary_view=primary_view, subview=subview)
+        if view == "run":
             return self._render_workbench_page(query, primary_view=primary_view, subview=subview)
         if view == "results":
             return self._render_results_page(query, primary_view=primary_view, subview=subview)
@@ -2938,6 +2940,328 @@ class DashboardApp:
           </div>
         </section>
         """
+
+    def _optimize_result_kind_label(self, artifact_kind: str) -> str:
+        labels = {
+            "factor_backtest": "Factor Backtest / 因子回测",
+            "strategy_suite": "Strategy Suite / 策略套件",
+            "rolling_backtest": "Rolling Backtest / 滚动回测",
+            "validation": "Validation / 验证",
+        }
+        return labels.get(artifact_kind, f"{artifact_kind.replace('_', ' ').title()} / {artifact_kind or 'Result'}")
+
+    def _optimize_record_from_state(self) -> Optional[Dict[str, Any]]:
+        latest_factor = self.state.last_factor_backtest_result if isinstance(self.state.last_factor_backtest_result, dict) else None
+        if not latest_factor:
+            return None
+        summary = latest_factor.get("summary", {}) if isinstance(latest_factor.get("summary"), dict) else {}
+        artifacts = latest_factor.get("artifacts", {}) if isinstance(latest_factor.get("artifacts"), dict) else {}
+        artifact_path = str(artifacts.get("json", "") or "").strip() or None
+        return {
+            "record_id": "factor_backtest:latest",
+            "artifact_kind": "factor_backtest",
+            "title": str(summary.get("subject_name") or summary.get("subject_id") or "Factor Backtest / 因子回测"),
+            "market": str(summary.get("market", "N/A")),
+            "summary": summary,
+            "artifact_path": self._artifact_query_path(artifact_path) if artifact_path else None,
+            "artifact_href": f"/artifact-file?path={quote(self._artifact_query_path(artifact_path))}" if artifact_path else None,
+            "payload": latest_factor,
+            "sort_key": "9999-12-31",
+        }
+
+    def _optimize_record_from_index(self, row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        artifact_kind = str(row.get("artifact_kind", "") or "").strip()
+        if artifact_kind == "local_paper_run":
+            return None
+        summary = row.get("summary", {}) if isinstance(row.get("summary"), dict) else {}
+        artifacts = row.get("artifacts", {}) if isinstance(row.get("artifacts"), dict) else {}
+        artifact_path = str(artifacts.get("json", "") or "").strip() or None
+        return {
+            "record_id": str(row.get("result_id") or artifact_path or summary.get("subject_name") or "optimize-result"),
+            "artifact_kind": artifact_kind or "factor_backtest",
+            "title": str(summary.get("subject_name") or summary.get("subject_id") or row.get("result_id", "N/A")),
+            "market": str(row.get("market", summary.get("market", "N/A"))),
+            "summary": summary,
+            "artifact_path": self._artifact_query_path(artifact_path) if artifact_path else None,
+            "artifact_href": f"/artifact-file?path={quote(self._artifact_query_path(artifact_path))}" if artifact_path else None,
+            "payload": None,
+            "sort_key": str(row.get("sort_date") or row.get("recorded_at") or row.get("result_id") or ""),
+        }
+
+    def _optimize_history_records(self) -> List[Dict[str, Any]]:
+        records: List[Dict[str, Any]] = []
+        latest_state_record = self._optimize_record_from_state()
+        if latest_state_record:
+            records.append(latest_state_record)
+        for row in self._recent_indexed_results(limit=64):
+            record = self._optimize_record_from_index(row)
+            if record:
+                records.append(record)
+        deduped: List[Dict[str, Any]] = []
+        seen: set[str] = set()
+        for record in records:
+            dedupe_key = str(record.get("artifact_path") or record.get("record_id") or record.get("title") or "")
+            if dedupe_key in seen:
+                continue
+            seen.add(dedupe_key)
+            deduped.append(record)
+        return deduped[:12]
+
+    def _optimize_resolve_selected_record(
+        self,
+        records: List[Dict[str, Any]],
+        artifact_query: Optional[str],
+    ) -> Optional[Dict[str, Any]]:
+        if artifact_query:
+            decoded_query = self._artifact_query_path(unquote(artifact_query))
+            for record in records:
+                if record.get("artifact_path") == decoded_query or record.get("record_id") == decoded_query:
+                    return record
+            return None
+        return records[0] if records else None
+
+    def _optimize_detail_payload(self, record: Dict[str, Any]) -> Dict[str, Any]:
+        payload = record.get("payload") if isinstance(record.get("payload"), dict) else None
+        if payload is None and record.get("artifact_path"):
+            loaded = read_json_artifact(ARTIFACT_ROOT, str(record["artifact_path"]))
+            payload = loaded if isinstance(loaded, dict) else {}
+        if payload is None:
+            payload = {}
+        if isinstance(payload.get("strategies"), list) and payload.get("strategies"):
+            strategy = next((item for item in payload["strategies"] if isinstance(item, dict)), {})
+            summary = {
+                "market": record.get("market", "N/A"),
+                "subject_name": strategy.get("display_name") or record.get("title") or "Strategy Suite / 策略套件",
+                "subject_id": strategy.get("preset_id") or record.get("summary", {}).get("subject_id"),
+                "start_date": payload.get("start_date") or record.get("summary", {}).get("start_date") or "N/A",
+                "end_date": payload.get("end_date") or record.get("summary", {}).get("end_date") or "N/A",
+                "total_return": strategy.get("total_return", "N/A"),
+                "rolling_excess_return": strategy.get("excess_return", "N/A"),
+                "sharpe_ratio": strategy.get("scorecard", {}).get("score", "N/A") if isinstance(strategy.get("scorecard"), dict) else "N/A",
+                "max_drawdown": strategy.get("max_drawdown", "N/A"),
+                "average_turnover": strategy.get("average_turnover", "N/A"),
+                "fee_drag": strategy.get("fee_drag", "N/A"),
+                "average_excess_return": strategy.get("average_excess_return", strategy.get("excess_return", "N/A")),
+                "average_win_rate": strategy.get("average_win_rate", "N/A"),
+                "observations": strategy.get("observations", len(strategy.get("regime_summary", [])) if isinstance(strategy.get("regime_summary"), list) else 0),
+            }
+            return {
+                "summary": summary,
+                "attribution": {
+                    "scorecard": strategy.get("scorecard", {}) if isinstance(strategy.get("scorecard"), dict) else {},
+                    "alpha_mix": strategy.get("alpha_mix", []) if isinstance(strategy.get("alpha_mix"), list) else [],
+                    "regime_summary": strategy.get("regime_summary", []) if isinstance(strategy.get("regime_summary"), list) else [],
+                    "iteration_notes": strategy.get("iteration_notes", []) if isinstance(strategy.get("iteration_notes"), list) else [],
+                },
+                "rolling_backtest": payload.get("rolling_backtest", {}) if isinstance(payload.get("rolling_backtest"), dict) else {},
+                "signal_validation": payload.get("signal_validation", {}) if isinstance(payload.get("signal_validation"), dict) else {},
+                "recommended_presets": payload.get("recommended_presets", []) if isinstance(payload.get("recommended_presets"), list) else [],
+                "watchlist_presets": payload.get("watchlist_presets", []) if isinstance(payload.get("watchlist_presets"), list) else [],
+            }
+        normalized_summary = payload.get("summary", {}) if isinstance(payload.get("summary"), dict) else {}
+        if not normalized_summary and isinstance(payload.get("normalized_summary"), dict):
+            normalized_summary = payload.get("normalized_summary", {})
+        return {
+            "summary": normalized_summary or record.get("summary", {}),
+            "attribution": payload.get("attribution", {}) if isinstance(payload.get("attribution"), dict) else {},
+            "rolling_backtest": payload.get("rolling_backtest", {}) if isinstance(payload.get("rolling_backtest"), dict) else {},
+            "signal_validation": payload.get("signal_validation", {}) if isinstance(payload.get("signal_validation"), dict) else {},
+            "recommended_presets": payload.get("recommended_presets", []) if isinstance(payload.get("recommended_presets"), list) else [],
+            "watchlist_presets": payload.get("watchlist_presets", []) if isinstance(payload.get("watchlist_presets"), list) else [],
+        }
+
+    def _optimize_candidate_presets(self, payload: Dict[str, Any], market: str) -> Dict[str, Any]:
+        summary = payload.get("summary", {}) if isinstance(payload.get("summary"), dict) else {}
+        recommended = [str(item) for item in payload.get("recommended_presets", []) if str(item).strip()]
+        watchlist = [str(item) for item in payload.get("watchlist_presets", []) if str(item).strip()]
+        strategy_state = self._strategy_state_store().load_market_state(market)
+        champion = recommended[0] if recommended else str(summary.get("subject_id") or strategy_state.get("champion_preset_id") or strategy_state.get("current_execution_preset_id") or "N/A")
+        challenger = (
+            recommended[1]
+            if len(recommended) > 1
+            else watchlist[0]
+            if watchlist
+            else str(strategy_state.get("challenger_preset_id") or champion)
+        )
+        current_strategy = str(strategy_state.get("current_execution_preset_id") or champion or "N/A")
+        return {
+            "champion": champion,
+            "challenger": challenger,
+            "current_strategy": current_strategy,
+            "recommended": recommended,
+            "watchlist": watchlist,
+        }
+
+    def _render_optimize_candidate_panel(self, payload: Dict[str, Any]) -> str:
+        summary = payload.get("summary", {}) if isinstance(payload.get("summary"), dict) else {}
+        market = str(summary.get("market", "N/A"))
+        candidates = self._optimize_candidate_presets(payload, market)
+        recommended_text = ", ".join(candidates["recommended"]) or "N/A"
+        watchlist_text = ", ".join(candidates["watchlist"]) or "N/A"
+        return f"""
+        <section class="panel optimize-candidate-panel">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Strategy State</p>
+              <h2>Champion / Challenger</h2>
+            </div>
+          </div>
+          <div class="summary-grid optimize-candidate-grid">
+            {self._summary_tile("Champion Candidate / 冠军候选", candidates["champion"], "从 recommended_presets 或当前状态推导")}
+            {self._summary_tile("Challenger Candidate / 挑战者候选", candidates["challenger"], "从 watchlist_presets 或当前状态推导")}
+            {self._summary_tile("Current Strategy / 当前策略", candidates["current_strategy"], "送回当前策略前的参考对象")}
+          </div>
+          <p class="muted">recommended_presets: {escape(recommended_text)}</p>
+          <p class="muted">watchlist_presets: {escape(watchlist_text)}</p>
+          <div class="research-lab__actions">
+            <a class="button button--ghost" href="#" aria-disabled="true">send to current strategy</a>
+          </div>
+        </section>
+        """
+
+    def _render_optimize_history_cards(self, records: List[Dict[str, Any]]) -> str:
+        if not records:
+            return """
+            <section class="panel panel--empty">
+              <h2>Optimization Timeline / 优化时间线</h2>
+              <p>先跑一次因子回测或策略套件，历史卡片才会出现。</p>
+            </section>
+            """
+        cards = []
+        for record in records:
+            summary = record.get("summary", {}) if isinstance(record.get("summary"), dict) else {}
+            artifact_href = record.get("artifact_href")
+            title = str(record.get("title") or summary.get("subject_name") or summary.get("subject_id") or "Optimization Result")
+            body_lines = [
+                f"<p>Decision / 结论: {escape(str(summary.get('decision', 'N/A')))} | Score / 评分: {escape(str(summary.get('score', 'N/A')))}</p>",
+                f"<p>Return / 收益: {escape(str(summary.get('return', 'N/A')))} | Market / 市场: {escape(str(record.get('market', summary.get('market', 'N/A'))))}</p>",
+            ]
+            if summary.get("excess_return") is not None:
+                body_lines.append(f"<p>Excess / 超额: {escape(str(summary.get('excess_return', 'N/A')))}</p>")
+            if artifact_href:
+                body_lines.append(f'<p><a href="{escape(str(artifact_href))}" target="_blank" rel="noreferrer">Open Artifact / 打开工件</a></p>')
+            cards.append(
+                f"""
+                <article class="timeline-entry">
+                  <div class="timeline-entry__marker"></div>
+                  <div class="result-card optimize-history-card">
+                    <p class="eyebrow">{escape(self._optimize_result_kind_label(str(record.get('artifact_kind', 'result'))))}</p>
+                    <h3>{escape(title)}</h3>
+                    {''.join(body_lines)}
+                  </div>
+                </article>
+                """
+            )
+        return f"""
+        <section class="panel optimize-history-panel">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Optimization Timeline</p>
+              <h2>Optimization Timeline / 优化时间线</h2>
+            </div>
+          </div>
+          <div class="timeline-stack">
+            {''.join(cards)}
+          </div>
+        </section>
+        """
+
+    def _render_optimize_create_page(self, query: Dict[str, List[str]], primary_view: str, subview: str) -> WebResponse:
+        flash_html = self._render_flash_messages("optimize")
+        factor_form_html = self._render_factor_backtest_form(view="optimize")
+        body = f"""
+          {flash_html}
+          <section class="module" id="module-optimize-create">
+            <div class="module__header">
+              <p class="eyebrow">Module 03</p>
+              <h2>实验创建</h2>
+              <p class="hero__copy">这里只保留实验创建表单，避免优化页再次变成工作台大杂烩。</p>
+            </div>
+            {factor_form_html}
+          </section>
+        """
+        return self._html_page(
+            self._render_page_shell(
+                primary_view,
+                title="Strategy Optimize / 策略优化",
+                eyebrow="Strategy Optimize",
+                description="创建新的因子回测或实验，不展示历史与结果摘要。",
+                body=body,
+                subview=subview,
+                query=query,
+            ),
+            primary_view=primary_view,
+            subview=subview,
+        )
+
+    def _render_optimize_history_page(self, query: Dict[str, List[str]], primary_view: str, subview: str) -> WebResponse:
+        flash_html = self._render_flash_messages("optimize")
+        records = self._optimize_history_records()
+        body = f"""
+          {flash_html}
+          {self._render_optimize_history_cards(records)}
+        """
+        return self._html_page(
+            self._render_page_shell(
+                primary_view,
+                title="Strategy Optimize / 策略优化",
+                eyebrow="Strategy Optimize",
+                description="只看最近的策略实验和套件结果，按时间顺序浏览卡片。",
+                body=body,
+                subview=subview,
+                query=query,
+            ),
+            primary_view=primary_view,
+            subview=subview,
+        )
+
+    def _render_optimize_detail_page(self, query: Dict[str, List[str]], primary_view: str, subview: str) -> WebResponse:
+        flash_html = self._render_flash_messages("optimize")
+        records = self._optimize_history_records()
+        selected_record = self._optimize_resolve_selected_record(records, query.get("artifact", [None])[0])
+        if selected_record is None:
+            body = f"""
+              {flash_html}
+              <section class="panel panel--empty">
+                <h2>Experiment Detail / 实验详情</h2>
+                <p>先运行一次实验或选择一个历史工件后，这里才会显示详情。</p>
+              </section>
+            """
+        else:
+            payload = self._optimize_detail_payload(selected_record)
+            title = str(payload.get("summary", {}).get("subject_name") or selected_record.get("title") or "Experiment Detail / 实验详情")
+            artifact_href = selected_record.get("artifact_href")
+            result_panel = self._render_strategy_lab_workspace(
+                payload,
+                title=title,
+                eyebrow="Selected Experiment",
+                artifact_href=artifact_href,
+            )
+            body = f"""
+              {flash_html}
+              {result_panel}
+              {self._render_optimize_candidate_panel(payload)}
+            """
+        return self._html_page(
+            self._render_page_shell(
+                primary_view,
+                title="Strategy Optimize / 策略优化",
+                eyebrow="Strategy Optimize",
+                description="查看单个实验的完整结果和推荐策略候选。",
+                body=body,
+                subview=subview,
+                query=query,
+            ),
+            primary_view=primary_view,
+            subview=subview,
+        )
+
+    def _render_optimize_page(self, query: Dict[str, List[str]], primary_view: str, subview: str) -> WebResponse:
+        if subview == "history":
+            return self._render_optimize_history_page(query, primary_view=primary_view, subview=subview)
+        if subview == "detail":
+            return self._render_optimize_detail_page(query, primary_view=primary_view, subview=subview)
+        return self._render_optimize_create_page(query, primary_view=primary_view, subview=subview)
 
     def _render_morning_briefing(self) -> str:
         system_status = self._build_system_status()

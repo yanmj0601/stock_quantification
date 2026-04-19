@@ -353,28 +353,219 @@ class WebTests(TestCase):
     @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
     @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")
     @patch.object(DashboardApp, "_load_project_config", return_value=DEFAULT_PROJECT_CONFIG)
-    def test_workbench_page_groups_strategy_run_and_factor_backtest(self, _mock_config, _mock_paper_panel, _mock_symbol_catalog) -> None:
-        response = self.app.render_home({"view": ["workbench"]})
+    def test_optimize_create_view_renders_experiment_forms_only(self, _mock_config, _mock_paper_panel, _mock_symbol_catalog) -> None:
+        response = self.app.render_home({"view": ["optimize"], "subview": ["create"]})
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
         self.assertIn("Strategy Optimize / 策略优化", body)
-        self.assertIn("Strategy Run / 策略运行", body)
-        self.assertIn('data-async-job-form="strategy_run"', body)
-        self.assertIn('name="view" value="optimize"', body)
-        self.assertIn('name="selected_strategy_cn"', body)
-        self.assertIn('name="selected_strategy_us"', body)
-        self.assertIn('value=""', body)
-        self.assertIn('cn_quality_momentum', body)
-        self.assertIn('us_quality_focus', body)
         self.assertIn("Factor Backtest / 因子回测", body)
-        self.assertNotIn('data-async-job-form="factor_backtest"', body)
-        self.assertIn('name="factor_selection_payload"', body)
-        self.assertIn("Current Defaults / 当前默认配置", body)
-        self.assertIn("Recent Execution / 最近执行反馈", body)
-        self.assertIn("status-strip__nav-shell", body)
-        self.assertIn("primary-nav", body)
-        self.assertNotIn("Result Group / 结果分组", body)
-        self.assertNotIn("Data Group / 数据分组", body)
+        self.assertIn('id="factor-backtest-form"', body)
+        self.assertIn('data-subview="create"', body)
+        self.assertIn("section-tabs", body)
+        self.assertNotIn("Strategy Run / 策略运行", body)
+        self.assertNotIn('data-async-job-form="strategy_run"', body)
+        self.assertNotIn("Current Defaults / 当前默认配置", body)
+        self.assertNotIn("Recent Execution / 最近执行反馈", body)
+        self.assertNotIn("Current Strategy / 当前策略", body)
+
+    @patch.object(DashboardApp, "_load_project_config", return_value=DEFAULT_PROJECT_CONFIG)
+    def test_optimize_history_view_renders_timeline_cards_only(self, _mock_config) -> None:
+        self.app.state.last_factor_backtest_result = {
+            "summary": {
+                "market": "US",
+                "subject_name": "美股因子回测",
+                "start_date": "2026-01-02",
+                "end_date": "2026-03-31",
+                "total_return": "0.0821",
+                "rolling_excess_return": "0.0215",
+                "sharpe_ratio": "1.2200",
+                "max_drawdown": "-0.0540",
+                "average_turnover": "0.1200",
+                "fee_drag": "0.0030",
+                "average_excess_return": "0.0060",
+                "average_win_rate": "0.5800",
+                "observations": 15,
+                "selected_factor_rows": [{"label": "20日相对强度", "effective_weight": "0.2200", "tilt": "1.2", "base_weight": "0.1500"}],
+            },
+            "attribution": {"scorecard": {"decision": "KEEP", "score": "0.8800", "rationale": "net=0.08"}},
+            "artifacts": {"json": "/tmp/us_factor.json", "markdown": "/tmp/us_factor.md"},
+        }
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            write_json_artifact(
+                artifact_root,
+                "web/result_index.json",
+                {
+                    "records": [
+                        {
+                            "result_id": "strategy_suite:US:2026-04-19",
+                            "artifact_kind": "strategy_suite",
+                            "market": "US",
+                            "sort_date": "2026-04-19",
+                            "summary": {
+                                "subject_name": "美股策略套件",
+                                "decision": "KEEP",
+                                "score": "1.8200",
+                                "return": "0.1210",
+                            },
+                            "artifacts": {"json": "2026-04-19/us_strategy_suite.json"},
+                        }
+                    ]
+                },
+            )
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                response = self.app.render_home({"view": ["optimize"], "subview": ["history"]})
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn("Optimization Timeline / 优化时间线", body)
+        self.assertIn("timeline-stack", body)
+        self.assertIn("美股因子回测", body)
+        self.assertIn("美股策略套件", body)
+        self.assertNotIn('id="factor-backtest-form"', body)
+        self.assertNotIn("Current Defaults / 当前默认配置", body)
+        self.assertNotIn("Recent Execution / 最近执行反馈", body)
+
+    @patch.object(DashboardApp, "_load_project_config", return_value=DEFAULT_PROJECT_CONFIG)
+    def test_optimize_history_view_filters_out_paper_runs_before_limit(self, _mock_config) -> None:
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            records = []
+            for index in range(20):
+                records.append(
+                    {
+                        "result_id": f"local_paper_run:US:web-paper-us:2026-04-{index+1:02d}",
+                        "artifact_kind": "local_paper_run",
+                        "market": "US",
+                        "sort_date": f"2026-04-{index+1:02d}",
+                        "summary": {"subject_name": f"paper-{index}", "decision": "RECORDED"},
+                        "artifacts": {"json": f"local_paper/web-paper-us/runs/{index}.json"},
+                    }
+                )
+            records.append(
+                {
+                    "result_id": "strategy_suite:US:2026-04-19",
+                    "artifact_kind": "strategy_suite",
+                    "market": "US",
+                    "sort_date": "2026-04-19T23:59:00",
+                    "summary": {"subject_name": "美股策略套件", "decision": "KEEP", "score": "1.8200", "return": "0.1210"},
+                    "artifacts": {"json": "2026-04-19/us_strategy_suite.json"},
+                }
+            )
+            write_json_artifact(artifact_root, "web/result_index.json", {"records": records})
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                response = self.app.render_home({"view": ["optimize"], "subview": ["history"]})
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn("美股策略套件", body)
+
+    @patch.object(DashboardApp, "_load_project_config", return_value=DEFAULT_PROJECT_CONFIG)
+    def test_optimize_detail_view_renders_selected_result_and_strategy_candidates(self, _mock_config) -> None:
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            write_json_artifact(
+                artifact_root,
+                "web/result_index.json",
+                {
+                    "records": [
+                        {
+                            "result_id": "strategy_suite:US:2026-04-19",
+                            "artifact_kind": "strategy_suite",
+                            "market": "US",
+                            "sort_date": "2026-04-19",
+                            "summary": {
+                                "subject_name": "美股策略套件",
+                                "subject_id": "us_quality_focus",
+                                "decision": "KEEP",
+                                "score": "1.8200",
+                                "return": "0.1210",
+                            },
+                            "artifacts": {"json": "2026-04-19/us_strategy_suite.json"},
+                        }
+                    ]
+                },
+            )
+            write_json_artifact(
+                artifact_root,
+                "2026-04-19/us_strategy_suite.json",
+                {
+                    "strategies": [
+                        {
+                            "preset_id": "us_quality_focus",
+                            "display_name": "US Quality Focus",
+                            "total_return": "0.1210",
+                            "excess_return": "0.0320",
+                            "max_drawdown": "-0.0410",
+                            "scorecard": {
+                                "decision": "KEEP",
+                                "score": "1.8200",
+                                "rationale": "quality edge",
+                                "strengths": ["收益稳", "风险可控"],
+                                "warnings": ["换手略高"],
+                            },
+                            "regime_summary": [
+                                {"regime": "UP", "observations": 8, "average_period_return": "0.0050", "average_excess_period_return": "0.0020", "win_rate": "0.6250"}
+                            ],
+                            "alpha_mix": [
+                                {"family": "momentum", "net_weight": "0.4200", "gross_weight": "0.4200", "share_of_gross": "0.5300"}
+                            ],
+                        }
+                    ],
+                    "recommended_presets": ["us_quality_focus", "us_baseline"],
+                    "watchlist_presets": ["us_defensive", "us_low_volatility"],
+                },
+            )
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                response = self.app.render_home(
+                    {
+                        "view": ["optimize"],
+                        "subview": ["detail"],
+                        "artifact": ["2026-04-19/us_strategy_suite.json"],
+                    }
+                )
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn("US Quality Focus", body)
+        self.assertIn("Champion Candidate", body)
+        self.assertIn("Challenger Candidate", body)
+        self.assertIn("send to current strategy", body)
+        self.assertIn("recommended_presets", body)
+        self.assertIn("watchlist_presets", body)
+        self.assertNotIn("Factor Backtest / 因子回测", body)
+        self.assertNotIn("Optimization Timeline / 优化时间线", body)
+        self.assertNotIn('id="factor-backtest-form"', body)
+
+    @patch.object(DashboardApp, "_load_project_config", return_value=DEFAULT_PROJECT_CONFIG)
+    def test_optimize_detail_view_shows_empty_state_for_missing_artifact(self, _mock_config) -> None:
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            write_json_artifact(
+                artifact_root,
+                "web/result_index.json",
+                {
+                    "records": [
+                        {
+                            "result_id": "strategy_suite:US:2026-04-19",
+                            "artifact_kind": "strategy_suite",
+                            "market": "US",
+                            "sort_date": "2026-04-19",
+                            "summary": {"subject_name": "美股策略套件", "decision": "KEEP"},
+                            "artifacts": {"json": "2026-04-19/us_strategy_suite.json"},
+                        }
+                    ]
+                },
+            )
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                response = self.app.render_home(
+                    {
+                        "view": ["optimize"],
+                        "subview": ["detail"],
+                        "artifact": ["2026-04-19/does-not-exist.json"],
+                    }
+                )
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn("Experiment Detail / 实验详情", body)
+        self.assertIn("先运行一次实验或选择一个历史工件后", body)
 
     @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
     @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")
@@ -791,14 +982,14 @@ class WebTests(TestCase):
             },
             "artifacts": {"json": "/tmp/us_factor.json", "markdown": "/tmp/us_factor.md"},
         }
-        response = self.app.render_home({"view": ["workbench"]})
+        response = self.app.render_home({"view": ["optimize"], "subview": ["detail"]})
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
         self.assertIn("Factor Setup / 因子配置", body)
         self.assertIn("Regime Attribution / 市场状态归因", body)
         self.assertIn("Alpha Mix / 因子家族暴露", body)
         self.assertIn("Next Iteration / 下一轮迭代建议", body)
-        self.assertIn("当前已选因子", body)
+        self.assertNotIn('id="factor-backtest-form"', body)
 
     def test_chat_echo_and_path_safety(self) -> None:
         response = self.app.handle_chat({"message": ["你好，给我看今天的回测结果"]})
