@@ -117,6 +117,7 @@ from .runtime import (
     SlippageModel,
 )
 from .state import InMemoryStateStore
+from .strategy_state import StrategyStateStore
 from .strategy_catalog import StrategyPreset, build_strategy_from_preset, strategy_presets_for_market
 from .validation import (
     DateSlice,
@@ -237,6 +238,7 @@ __all__ = [
     "StandardStrategyRunner",
     "StrategyAgent",
     "StrategyPreset",
+    "StrategyStateStore",
     "StrategyProposal",
     "TargetPosition",
     "TradeSuggestion",
