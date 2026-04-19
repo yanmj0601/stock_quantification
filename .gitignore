@@ -13,4 +13,3 @@ env/
 
 # Local caches and generated files
 .cache/
-.worktrees/
