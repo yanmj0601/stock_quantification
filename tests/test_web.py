@@ -432,6 +432,111 @@ class WebTests(TestCase):
         self.assertNotIn("美股基线质量动量", body)
         self.assertIn("/?view=results&result_group=runtime&market=US&recent_window=30d&artifact=local_paper/web-paper-us/runs/demo.json", body)
 
+    def test_results_page_filter_searches_beyond_first_40_indexed_rows(self) -> None:
+        records = []
+        for month in range(5, 9):
+            for day in range(1, 13):
+                if len(records) >= 45:
+                    break
+                records.append(
+                    {
+                        "result_id": f"strategy_suite:US:2026-{month:02d}-{day:02d}",
+                        "artifact_kind": "strategy_suite",
+                        "market": "US",
+                        "sort_date": f"2026-{month:02d}-{day:02d}",
+                        "summary": {
+                            "subject_name": f"baseline-{len(records) + 1}",
+                            "result_type": "strategy_suite",
+                        },
+                        "artifacts": {"json": f"2026-{month:02d}-{day:02d}/baseline.json"},
+                    }
+                )
+            if len(records) >= 45:
+                break
+        records.append(
+            {
+                "result_id": "local_paper_run:US:web-paper-us:2026-04-18T10:00:00",
+                "artifact_kind": "local_paper_run",
+                "market": "US",
+                "sort_date": "2026-04-18T10:00:00",
+                "summary": {
+                    "subject_name": "late runtime hit",
+                    "result_type": "local_paper_run",
+                },
+                "artifacts": {"json": "local_paper/web-paper-us/runs/late-hit.json"},
+            }
+        )
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            write_json_artifact(artifact_root, "web/result_index.json", {"records": records})
+            write_json_artifact(
+                artifact_root,
+                "local_paper/web-paper-us/runs/late-hit.json",
+                {"normalized_summary": {"subject_name": "late runtime hit", "decision": "RECORDED"}},
+            )
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                response = self.app.render_home(
+                    {
+                        "view": ["results"],
+                        "result_group": ["runtime"],
+                    }
+                )
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn("late runtime hit", body)
+        self.assertNotIn("baseline-45", body)
+
+    def test_results_page_date_to_keeps_same_day_later_timestamp(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            write_json_artifact(
+                artifact_root,
+                "web/result_index.json",
+                {
+                    "records": [
+                        {
+                            "result_id": "local_paper_run:US:web-paper-us:2026-04-18T10:00:00",
+                            "artifact_kind": "local_paper_run",
+                            "market": "US",
+                            "sort_date": "2026-04-18T10:00:00",
+                            "summary": {
+                                "subject_name": "same day runtime",
+                                "result_type": "local_paper_run",
+                            },
+                            "artifacts": {"json": "local_paper/web-paper-us/runs/same-day.json"},
+                        },
+                        {
+                            "result_id": "local_paper_run:US:web-paper-us:2026-04-19T09:00:00",
+                            "artifact_kind": "local_paper_run",
+                            "market": "US",
+                            "sort_date": "2026-04-19T09:00:00",
+                            "summary": {
+                                "subject_name": "next day runtime",
+                                "result_type": "local_paper_run",
+                            },
+                            "artifacts": {"json": "local_paper/web-paper-us/runs/next-day.json"},
+                        },
+                    ]
+                },
+            )
+            write_json_artifact(
+                artifact_root,
+                "local_paper/web-paper-us/runs/same-day.json",
+                {"normalized_summary": {"subject_name": "same day runtime", "decision": "RECORDED"}},
+            )
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                response = self.app.render_home(
+                    {
+                        "view": ["results"],
+                        "result_group": ["runtime"],
+                        "date_to": ["2026-04-18"],
+                    }
+                )
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn("same day runtime", body)
+        self.assertNotIn("next day runtime", body)
+
     @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
     @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")
     def test_home_page_renders_strategy_lab_result_sections(self, _mock_paper_panel, _mock_symbol_catalog) -> None:

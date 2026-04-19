@@ -2689,12 +2689,13 @@ class DashboardApp:
     def _render_results_page(self, query: Dict[str, List[str]]) -> WebResponse:
         flash_html = self._render_flash_messages()
         filters = self._result_filters_from_query(query)
-        records = self._filter_result_records(self._recent_indexed_results(limit=40), filters)
+        all_records = self._recent_indexed_results(limit=None)
+        records = self._filter_result_records(all_records, filters)
         selected_artifact = self._resolve_selected_result_artifact(records, query.get("artifact", [None])[0])
         selected_path = selected_artifact.relative_path if selected_artifact else None
         body = f"""
           {flash_html}
-          {self._render_results_filter_bar(filters, records)}
+          {self._render_results_filter_bar(filters, all_records)}
           {self._render_result_center(records, filters, selected_path)}
           <section class="panel">
             <div class="panel__header">
@@ -2746,18 +2747,18 @@ class DashboardApp:
                 return value
         return ""
 
-    def _parse_result_datetime(self, raw_value: str) -> Optional[datetime]:
+    def _parse_result_date(self, raw_value: str) -> Optional[date]:
         value = str(raw_value or "").strip()
         if not value:
             return None
         normalized = value.replace("Z", "+00:00")
         try:
-            return datetime.fromisoformat(normalized)
+            return datetime.fromisoformat(normalized).date()
         except ValueError:
             pass
         if len(value) >= 10:
             try:
-                return datetime.combine(date.fromisoformat(value[:10]), datetime.min.time())
+                return date.fromisoformat(value[:10])
             except ValueError:
                 return None
         return None
@@ -2771,7 +2772,7 @@ class DashboardApp:
         if filters["market"] != "ALL":
             filtered = [row for row in filtered if str(row.get("market", "")).upper() == filters["market"]]
 
-        dated_rows = [(row, self._parse_result_datetime(self._result_date_string(row))) for row in filtered]
+        dated_rows = [(row, self._parse_result_date(self._result_date_string(row))) for row in filtered]
         recent_window = filters["recent_window"]
         if recent_window.endswith("d") and recent_window[:-1].isdigit():
             latest_seen = max((parsed for _, parsed in dated_rows if parsed is not None), default=None)
@@ -2779,13 +2780,13 @@ class DashboardApp:
                 window_days = int(recent_window[:-1])
                 threshold = latest_seen - timedelta(days=window_days)
                 filtered = [row for row, parsed in dated_rows if parsed is None or parsed >= threshold]
-                dated_rows = [(row, self._parse_result_datetime(self._result_date_string(row))) for row in filtered]
+                dated_rows = [(row, self._parse_result_date(self._result_date_string(row))) for row in filtered]
 
-        date_from = self._parse_result_datetime(filters["date_from"])
+        date_from = self._parse_result_date(filters["date_from"])
         if date_from is not None:
             filtered = [row for row, parsed in dated_rows if parsed is None or parsed >= date_from]
-            dated_rows = [(row, self._parse_result_datetime(self._result_date_string(row))) for row in filtered]
-        date_to = self._parse_result_datetime(filters["date_to"])
+            dated_rows = [(row, self._parse_result_date(self._result_date_string(row))) for row in filtered]
+        date_to = self._parse_result_date(filters["date_to"])
         if date_to is not None:
             filtered = [row for row, parsed in dated_rows if parsed is None or parsed <= date_to]
         return filtered
