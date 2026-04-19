@@ -1061,6 +1061,20 @@ body.dashboard-app {
   min-width: 0;
 }
 
+.dashboard-app .paper-page {
+  display: grid;
+  gap: 18px;
+}
+
+.dashboard-app .paper-section {
+  display: grid;
+  gap: 14px;
+}
+
+.dashboard-app .paper-current-strategy {
+  padding-top: 2px;
+}
+
 .dashboard-app .page-header,
 .dashboard-app .hero {
   display: grid;

@@ -104,16 +104,62 @@ class WebTests(TestCase):
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
         self.assertIn("Local Paper / 模拟盘", body)
-        self.assertIn('action="/?view=paper"', body)
-        self.assertIn('name="view" value="paper"', body)
         self.assertNotIn("<p class=\"eyebrow\">Project Overview</p>", body)
         self.assertNotIn("<h2>项目总览</h2>", body)
+        self.assertIn("Current Strategy / 当前策略", body)
+        self.assertIn("Execution Timeline / 执行时间线", body)
         self.assertIn("Account Conclusion / 账户结论", body)
         self.assertIn("Account Snapshot / 账户摘要", body)
-        self.assertIn("Account Workspace / 账户工作区", body)
-        self.assertIn("Risk Alerts / 风险告警", body)
-        self.assertIn("Current Positions / 当前持仓盈亏", body)
-        self.assertIn("Recent Trades / 最近成交", body)
+        self.assertNotIn("Account Workspace / 账户工作区", body)
+        self.assertNotIn("Risk Alerts / 风险告警", body)
+        self.assertNotIn("Current Positions / 当前持仓盈亏", body)
+        self.assertNotIn("Recent Trades / 最近成交", body)
+
+    @patch("stock_quantification.web.StrategyStateStore")
+    @patch("stock_quantification.web.LocalPaperLedger")
+    def test_home_page_paper_view_uses_main_holdings_and_trades_tabs(self, mock_ledger_cls, mock_strategy_state_cls) -> None:
+        ledger = mock_ledger_cls.return_value
+        ledger.latest_account_overview.return_value = {
+            "account_id": "web-paper-us",
+            "market": "US",
+            "cash": "100000",
+            "buying_power": "80000",
+            "position_count": 0,
+            "trade_count": 0,
+            "filtered_trade_count": 0,
+            "latest_nav": "100000",
+            "cumulative_return": "0",
+            "positions": [],
+            "nav_history": [],
+            "recent_trades": [],
+            "today_summary": {},
+            "sector_exposure_rows": [],
+            "risk_alerts": [],
+            "position_rows": [],
+            "filter_start_date": None,
+            "filter_end_date": None,
+        }
+        ledger.list_accounts.return_value = ["web-paper-us"]
+        ledger.account_overview.return_value = ledger.latest_account_overview.return_value
+        mock_strategy_state = mock_strategy_state_cls.return_value
+        mock_strategy_state.load_market_state.return_value = {
+            "champion_preset_id": "us_baseline",
+            "challenger_preset_id": "us_quality_focus",
+            "current_execution_preset_id": "us_quality_focus",
+        }
+
+        response = self.app.render_home({"view": ["paper"], "subview": ["main"]})
+        body = response.body.decode("utf-8")
+
+        self.assertEqual(response.status, 200)
+        self.assertIn("Main / 主页面", body)
+        self.assertIn('data-subview="main"', body)
+        self.assertIn("Holdings / 持仓", body)
+        self.assertIn("Trades / 交易", body)
+        self.assertNotIn("Holdings Detail / 持仓详情", body)
+        self.assertNotIn("Recent Trades / 最近成交", body)
+        self.assertIn("Current Strategy / 当前策略", body)
+        self.assertIn("us_quality_focus", body)
 
     @patch("stock_quantification.web.LocalPaperLedger")
     def test_home_page_paper_view_keeps_account_context_sections(self, mock_ledger_cls) -> None:
@@ -152,10 +198,96 @@ class WebTests(TestCase):
         self.assertIn("Latest NAV / 最新净值", body)
         self.assertIn("Cumulative Return / 累计收益", body)
         self.assertIn("Estimated NAV / 估算净值", body)
-        self.assertIn("Today Summary / 当日成交汇总", body)
+        self.assertIn("Current Strategy / 当前策略", body)
+        self.assertIn("Execution Timeline / 执行时间线", body)
+        self.assertNotIn("Holdings Detail / 持仓详情", body)
+        self.assertNotIn("Sector Exposure / 行业暴露", body)
+        self.assertNotIn("Recent Trades / 最近成交", body)
+        self.assertIn("Reset Account / 重置当前账户", body)
+
+    @patch("stock_quantification.web.StrategyStateStore")
+    @patch("stock_quantification.web.LocalPaperLedger")
+    def test_home_page_paper_holdings_view_keeps_holdings_tables_only(self, mock_ledger_cls, mock_strategy_state_cls) -> None:
+        ledger = mock_ledger_cls.return_value
+        ledger.latest_account_overview.return_value = {
+            "account_id": "web-paper-us",
+            "market": "US",
+            "cash": "100000",
+            "buying_power": "80000",
+            "position_count": 1,
+            "trade_count": 2,
+            "filtered_trade_count": 1,
+            "latest_nav": "100000",
+            "cumulative_return": "0",
+            "positions": [],
+            "nav_history": [],
+            "recent_trades": [],
+            "today_summary": {},
+            "sector_exposure_rows": [],
+            "risk_alerts": [],
+            "position_rows": [],
+            "filter_start_date": None,
+            "filter_end_date": None,
+        }
+        ledger.list_accounts.return_value = ["web-paper-us"]
+        ledger.account_overview.return_value = ledger.latest_account_overview.return_value
+        mock_strategy_state_cls.return_value.load_market_state.return_value = {
+            "champion_preset_id": "us_baseline",
+            "challenger_preset_id": "us_quality_focus",
+            "current_execution_preset_id": "us_quality_focus",
+        }
+
+        response = self.app.render_home({"view": ["paper"], "subview": ["holdings"]})
+        body = response.body.decode("utf-8")
+
+        self.assertEqual(response.status, 200)
+        self.assertIn('data-subview="holdings"', body)
         self.assertIn("Holdings Detail / 持仓详情", body)
         self.assertIn("Sector Exposure / 行业暴露", body)
-        self.assertIn("Reset Account / 重置当前账户", body)
+        self.assertNotIn("Account Conclusion / 账户结论", body)
+        self.assertNotIn("Recent Trades / 最近成交", body)
+
+    @patch("stock_quantification.web.StrategyStateStore")
+    @patch("stock_quantification.web.LocalPaperLedger")
+    def test_home_page_paper_trades_view_keeps_trade_history_only(self, mock_ledger_cls, mock_strategy_state_cls) -> None:
+        ledger = mock_ledger_cls.return_value
+        ledger.latest_account_overview.return_value = {
+            "account_id": "web-paper-us",
+            "market": "US",
+            "cash": "100000",
+            "buying_power": "80000",
+            "position_count": 1,
+            "trade_count": 2,
+            "filtered_trade_count": 1,
+            "latest_nav": "100000",
+            "cumulative_return": "0",
+            "positions": [],
+            "nav_history": [],
+            "recent_trades": [],
+            "today_summary": {},
+            "sector_exposure_rows": [],
+            "risk_alerts": [],
+            "position_rows": [],
+            "filter_start_date": None,
+            "filter_end_date": None,
+        }
+        ledger.list_accounts.return_value = ["web-paper-us"]
+        ledger.account_overview.return_value = ledger.latest_account_overview.return_value
+        mock_strategy_state_cls.return_value.load_market_state.return_value = {
+            "champion_preset_id": "us_baseline",
+            "challenger_preset_id": "us_quality_focus",
+            "current_execution_preset_id": "us_quality_focus",
+        }
+
+        response = self.app.render_home({"view": ["paper"], "subview": ["trades"]})
+        body = response.body.decode("utf-8")
+
+        self.assertEqual(response.status, 200)
+        self.assertIn('data-subview="trades"', body)
+        self.assertIn("Recent Trades / 最近成交", body)
+        self.assertNotIn("Holdings Detail / 持仓详情", body)
+        self.assertNotIn("Sector Exposure / 行业暴露", body)
+        self.assertNotIn("Account Conclusion / 账户结论", body)
 
     def test_home_page_falls_back_to_overview_for_invalid_view(self) -> None:
         response = self.app.render_home({"view": ["not-a-real-view"]})
@@ -196,8 +328,27 @@ class WebTests(TestCase):
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
         self.assertIn("section-tabs", body)
-        self.assertIn('data-subview="ledger"', body)
-        self.assertIn("账户", body)
+        self.assertIn('data-subview="holdings"', body)
+        self.assertIn("Holdings / 持仓", body)
+
+    @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
+    @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")
+    def test_home_page_paper_subview_tabs_preserve_filters(self, _mock_paper_panel, _mock_symbol_catalog) -> None:
+        response = self.app.render_home(
+            {
+                "view": ["paper"],
+                "subview": ["main"],
+                "paper_account_id": ["web-paper-us"],
+                "paper_start_date": ["2026-04-01"],
+                "paper_end_date": ["2026-04-30"],
+            }
+        )
+        body = response.body.decode("utf-8")
+
+        self.assertEqual(response.status, 200)
+        self.assertIn("paper_account_id=web-paper-us", body)
+        self.assertIn("paper_start_date=2026-04-01", body)
+        self.assertIn("paper_end_date=2026-04-30", body)
 
     @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
     @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")

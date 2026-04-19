@@ -45,6 +45,7 @@ from .real_data import (
     load_symbol_directory,
 )
 from .strategy_catalog import StrategyPreset, lookup_strategy_preset, strategy_presets_for_market
+from .strategy_state import StrategyStateStore
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 ARTIFACT_ROOT = ROOT_DIR / "artifacts"
@@ -63,8 +64,16 @@ PRIMARY_VIEW_ALIASES = {
     "run": "run",
     "results": "results",
 }
+PAPER_SUBVIEW_ALIASES = {
+    "account": "main",
+    "ledger": "holdings",
+    "runtime": "trades",
+    "main": "main",
+    "holdings": "holdings",
+    "trades": "trades",
+}
 PRIMARY_VIEW_TABS = {
-    "paper": [("account", "账户"), ("ledger", "流水"), ("runtime", "运行")],
+    "paper": [("main", "Main / 主页面"), ("holdings", "Holdings / 持仓"), ("trades", "Trades / 交易")],
     "optimize": [("factor", "因子"), ("lab", "实验"), ("defaults", "默认值")],
     "run": [("strategy", "策略运行"), ("feedback", "反馈"), ("defaults", "默认值")],
     "results": [("research", "研究结果"), ("runtime", "运行结果"), ("archive", "归档")],
@@ -1474,7 +1483,7 @@ class DashboardApp:
             )
         return "".join(cards)
 
-    def _render_local_paper_panel(self, query: Dict[str, List[str]], view: str = "paper") -> str:
+    def _render_local_paper_panel(self, query: Dict[str, List[str]], view: str = "paper", subview: str = "main") -> str:
         ui_defaults = self._load_project_config()["ui_defaults"]
         filter_account_id = query.get("paper_account_id", [str(ui_defaults["paper_account_id"])])[0].strip() or None
         filter_start_date = query.get("paper_start_date", [str(ui_defaults["paper_start_date"])])[0].strip() or None
@@ -1498,22 +1507,8 @@ class DashboardApp:
             for account_id in ledger.list_accounts()
         )
         nav_chart_html = self._render_local_paper_nav_chart(overview.get("nav_history", []))
-        positions_html = "".join(
-            f"<li><strong>{escape(str(position.get('instrument_id', '')))}</strong><span>{escape(str(position.get('qty', '')))} 股 | 现价 {escape(str(position.get('current_price', '')))}</span><span>未实现 {escape(str(position.get('unrealized_pnl', '')))} ({escape(str(position.get('pnl_pct', '')))}%)</span></li>"
-            for position in overview.get("position_rows", [])[:8]
-        )
         today_summary = overview.get("today_summary", {})
         total_unrealized = overview.get("total_unrealized_pnl", "0")
-        account_status = "Invested / 持仓中" if int(str(overview.get("position_count", 0) or 0)) > 0 else "Flat / 空仓"
-        risk_status = "Attention Needed / 关注中" if overview.get("risk_alerts") else "Stable / 稳定"
-        sector_cards = "".join(
-            f"<div class=\"summary-tile\"><span>{escape(str(item.get('sector', 'UNKNOWN')))}</span><strong>{escape(str(item.get('weight_pct', '0')))}%</strong><small>{escape(str(item.get('market_value', '0')))}</small></div>"
-            for item in overview.get("sector_exposure_rows", [])[:6]
-        ) or "<div class=\"summary-tile\"><span>Sector / 行业</span><strong>暂无</strong><small>当前没有行业暴露数据</small></div>"
-        risk_cards = "".join(
-            f"<article class=\"alert-card alert-card--{escape(str(item.get('level', 'info')).lower())}\"><strong>{escape(str(item.get('title', '提醒')))}</strong><p>{escape(str(item.get('detail', '')))}</p></article>"
-            for item in overview.get("risk_alerts", [])
-        ) or "<article class=\"alert-card alert-card--good\"><strong>Risk / 风险</strong><p>当前没有触发显著告警。</p></article>"
         trade_rows = []
         for trade in overview.get("recent_trades", [])[:10]:
             side_class = "tag tag--buy" if trade.get("side") == "BUY" else "tag tag--sell"
@@ -1530,31 +1525,38 @@ class DashboardApp:
                 """
             )
         trade_table = "".join(trade_rows) if trade_rows else "<tr><td colspan='6'>暂无成交记录</td></tr>"
-        latest_paper_run = self._latest_paper_run_result()
-        latest_paper_run_html = ""
-        if latest_paper_run:
-            run_summary = latest_paper_run.get("paper_run_summary", {}) if isinstance(latest_paper_run.get("paper_run_summary"), dict) else {}
-            run_paths = latest_paper_run.get("paper_paths", {}) if isinstance(latest_paper_run.get("paper_paths"), dict) else {}
-            run_href = ""
-            if run_paths.get("run_json"):
-                run_href = f'<a class="button button--ghost" href="/artifact-file?path={quote(self._artifact_query_path(str(run_paths["run_json"])))}" target="_blank" rel="noreferrer">打开最近运行工件</a>'
-            latest_paper_run_html = f"""
-            <div class="panel__split panel__split--compact paper-workspace__context">
-              <div>
-                <h3>Recent Run Context / 最近运行上下文</h3>
-                <p class="muted">这里仅保留最近一次写入模拟盘的账户上下文，辅助理解当前状态，而不是替代结果页。</p>
-                <div class="summary-grid">
-                  {self._summary_tile("Strategy / 策略", run_summary.get("strategy_id", "N/A"), "最近一次写入模拟盘的策略 ID")}
-                  {self._summary_tile("As Of / 记账时间", run_summary.get("as_of", "N/A"), "本次模拟盘记账对应的执行时间")}
-                  {self._summary_tile("Trades / 成交数", run_summary.get("trade_count", "0"), "本次运行新增的成交记录数")}
-                  {self._summary_tile("Positions / 持仓数", run_summary.get("position_count", "0"), "本次运行后的持仓数量")}
-                </div>
-              </div>
-              <div class="panel__actions panel__actions--inline">
-                {run_href}
-              </div>
-            </div>
-            """
+        latest_paper_run_html = self._render_paper_execution_timeline(overview)
+        current_strategy_html = self._render_current_strategy_panel(overview)
+        if subview == "holdings":
+            body_html = self._render_paper_holdings_page(overview)
+        elif subview == "trades":
+            body_html = self._render_paper_trades_page(view, overview, account_options, trade_table)
+        else:
+            body_html = self._render_paper_main_page(
+                overview=overview,
+                total_unrealized=total_unrealized,
+                today_summary=today_summary,
+                current_strategy_html=current_strategy_html,
+                latest_paper_run_html=latest_paper_run_html,
+                nav_chart_html=nav_chart_html,
+            )
+        return f"""
+        <section class="paper-page paper-page--{escape(subview)}">
+          {body_html}
+        </section>
+        """
+
+    def _render_paper_main_page(
+        self,
+        *,
+        overview: Dict[str, Any],
+        total_unrealized: str,
+        today_summary: Dict[str, Any],
+        current_strategy_html: str,
+        latest_paper_run_html: str,
+        nav_chart_html: str,
+    ) -> str:
+        account_status = "Invested / 持仓中" if int(str(overview.get("position_count", 0) or 0)) > 0 else "Flat / 空仓"
         return f"""
         <section class="panel">
           <div class="panel__header">
@@ -1564,7 +1566,7 @@ class DashboardApp:
               <p class="muted">这个页面只聚焦当前账户的结论、状态和执行工作区，不再混入项目总览。</p>
             </div>
             <form method="post" action="/local-paper/reset">
-              <input type="hidden" name="view" value="{escape(view)}" />
+              <input type="hidden" name="view" value="paper" />
               <input type="hidden" name="account_id" value="{escape(str(overview.get('account_id', '')))}" />
               <button class="button button--ghost" type="submit">Reset Account / 重置当前账户</button>
             </form>
@@ -1573,7 +1575,7 @@ class DashboardApp:
             <div class="paper-identity__intro">
               <p class="eyebrow">Account Status</p>
               <h3>{escape(str(overview.get("account_id", "N/A")))}</h3>
-              <p class="muted">市场 {escape(str(overview.get("market", "N/A")))} | 账户状态 {escape(account_status)} | 风险状态 {escape(risk_status)}</p>
+              <p class="muted">市场 {escape(str(overview.get("market", "N/A")))} | 账户状态 {escape(account_status)}</p>
             </div>
             <div class="summary-grid">
               {self._summary_tile("Latest NAV / 最新净值", overview.get("latest_nav", "0"), "账户当前最新估算净值")}
@@ -1582,6 +1584,9 @@ class DashboardApp:
               {self._summary_tile("Trades / 总成交", overview.get("trade_count", "0"), "累计成交记录数")}
             </div>
           </div>
+          {current_strategy_html}
+          {latest_paper_run_html}
+          {nav_chart_html}
           <div class="paper-section">
             <div class="panel__header panel__header--section">
               <div>
@@ -1599,6 +1604,48 @@ class DashboardApp:
               {self._summary_tile("Mark Source / 估值来源", overview.get("mark_source", "N/A"), "实时行情失败时会退回最近成交价")}
             </div>
           </div>
+        </section>
+        """
+
+    def _render_paper_holdings_page(self, overview: Dict[str, Any]) -> str:
+        return f"""
+        <section class="panel">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Holdings</p>
+              <h2>Holdings / 持仓</h2>
+            </div>
+          </div>
+          <div class="paper-section">
+            <div class="panel__header panel__header--section">
+              <div>
+                <p class="eyebrow">Holdings Detail</p>
+                <h3>Holdings Detail / 持仓详情</h3>
+              </div>
+            </div>
+            {self._render_position_detail_table(overview.get("position_rows", []))}
+          </div>
+          <div class="paper-section">
+            <div class="panel__header panel__header--section">
+              <div>
+                <p class="eyebrow">Sector Exposure</p>
+                <h3>Sector Exposure / 行业暴露</h3>
+              </div>
+            </div>
+            {self._render_sector_exposure_table(overview.get("sector_exposure_rows", []))}
+          </div>
+        </section>
+        """
+
+    def _render_paper_trades_page(self, view: str, overview: Dict[str, Any], account_options: str, trade_table: str) -> str:
+        return f"""
+        <section class="panel">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Trades</p>
+              <h2>Trades / 交易</h2>
+            </div>
+          </div>
           <div class="paper-section">
             <div class="panel__header panel__header--section">
               <div>
@@ -1607,6 +1654,7 @@ class DashboardApp:
               </div>
             </div>
             <form class="grid-form grid-form--paper-filter" method="get" action="{self._view_url(view)}">
+              <input type="hidden" name="subview" value="trades" />
               <label>Account / 账户<span class="field-note">选择要查看的模拟盘</span><select name="paper_account_id">{account_options}</select></label>
               <label>Start Date / 开始日期<span class="field-note">流水过滤起点</span><input name="paper_start_date" value="{escape(str(overview.get('filter_start_date') or ''))}" placeholder="2026-04-01" /></label>
               <label>End Date / 结束日期<span class="field-note">流水过滤终点</span><input name="paper_end_date" value="{escape(str(overview.get('filter_end_date') or ''))}" placeholder="2026-04-30" /></label>
@@ -1614,50 +1662,106 @@ class DashboardApp:
                 <button class="button button--ghost" type="submit">筛选流水</button>
               </div>
             </form>
-            <div class="panel__split">
-              <div>
-                <h3>Today Summary / 当日成交汇总</h3>
-                <div class="summary-grid">
-                  {self._summary_tile("Trade Date / 汇总日期", today_summary.get("trade_date", "N/A"), "默认按最近成交日聚合")}
-                  {self._summary_tile("Buy Count / 买入笔数", today_summary.get("buy_count", "0"), "买入成交笔数")}
-                  {self._summary_tile("Sell Count / 卖出笔数", today_summary.get("sell_count", "0"), "卖出成交笔数")}
-                  {self._summary_tile("Gross Buy / 买入金额", today_summary.get("gross_buy_notional", "0"), "买入成交金额汇总")}
-                  {self._summary_tile("Gross Sell / 卖出金额", today_summary.get("gross_sell_notional", "0"), "卖出成交金额汇总")}
-                  {self._summary_tile("Net Cash / 现金净流", today_summary.get("net_cash_flow", "0"), "卖出减买入的现金净流入")}
+            <div class="paper-section">
+              <div class="panel__header panel__header--section">
+                <div>
+                  <p class="eyebrow">Recent Trades</p>
+                  <h3>Recent Trades / 最近成交</h3>
                 </div>
               </div>
-              <div>
-                <h3>Risk Alerts / 风险告警</h3>
-                <div class="alert-grid">{risk_cards}</div>
-              </div>
-            </div>
-            {latest_paper_run_html}
-            {nav_chart_html}
-            <div class="panel__split">
-              <div>
-                <h3>Current Positions / 当前持仓盈亏</h3>
-                <ul class="position-list">{positions_html or '<li class="muted">暂无持仓</li>'}</ul>
-              </div>
-              <div>
-                <h3>Sector Exposure / 行业暴露</h3>
-                <div class="summary-grid">{sector_cards}</div>
-              </div>
-            </div>
-            <div class="panel__split">
-              <div>
-                <h3>Recent Trades / 最近成交</h3>
-                <table class="data-table">
-                  <thead><tr><th>Date / 日期</th><th>Side / 方向</th><th>Instrument / 标的</th><th>Qty / 数量</th><th>Price / 价格</th><th>Cash / 现金变动</th></tr></thead>
-                  <tbody>{trade_table}</tbody>
-                </table>
-              </div>
-              <div>
-                <h3>Holdings Detail / 持仓详情</h3>
-                {self._render_position_detail_table(overview.get("position_rows", []))}
-              </div>
+              <table class="data-table">
+                <thead><tr><th>Date / 日期</th><th>Side / 方向</th><th>Instrument / 标的</th><th>Qty / 数量</th><th>Price / 价格</th><th>Cash / 现金变动</th></tr></thead>
+                <tbody>{trade_table}</tbody>
+              </table>
             </div>
           </div>
         </section>
+        """
+
+    def _render_paper_execution_timeline(self, overview: Dict[str, Any]) -> str:
+        latest_paper_run = self._latest_paper_run_result()
+        if not latest_paper_run:
+            return """
+            <section class="panel panel--empty">
+              <h2>Execution Timeline / 执行时间线</h2>
+              <p>最近还没有写入模拟盘的运行结果。</p>
+            </section>
+            """
+        run_summary = latest_paper_run.get("paper_run_summary", {}) if isinstance(latest_paper_run.get("paper_run_summary"), dict) else {}
+        run_paths = latest_paper_run.get("paper_paths", {}) if isinstance(latest_paper_run.get("paper_paths"), dict) else {}
+        run_href = ""
+        if run_paths.get("run_json"):
+            run_href = f'<a class="button button--ghost" href="/artifact-file?path={quote(self._artifact_query_path(str(run_paths["run_json"])))}" target="_blank" rel="noreferrer">打开最近运行工件</a>'
+        return f"""
+        <section class="paper-section timeline-stack">
+          <div class="panel__header panel__header--section">
+            <div>
+              <p class="eyebrow">Execution Timeline</p>
+              <h3>Execution Timeline / 执行时间线</h3>
+            </div>
+          </div>
+          <div class="panel__split panel__split--compact paper-workspace__context timeline-entry">
+            <div class="timeline-entry__marker"></div>
+            <div>
+              <h3>Recent Run Context / 最近运行上下文</h3>
+              <p class="muted">这里仅保留最近一次写入模拟盘的账户上下文，辅助理解当前状态，而不是替代结果页。</p>
+              <div class="summary-grid">
+                {self._summary_tile("Strategy / 策略", run_summary.get("strategy_id", "N/A"), "最近一次写入模拟盘的策略 ID")}
+                {self._summary_tile("As Of / 记账时间", run_summary.get("as_of", "N/A"), "本次模拟盘记账对应的执行时间")}
+                {self._summary_tile("Trades / 成交数", run_summary.get("trade_count", "0"), "本次运行新增的成交记录数")}
+                {self._summary_tile("Positions / 持仓数", run_summary.get("position_count", "0"), "本次运行后的持仓数量")}
+              </div>
+              <div class="panel__actions panel__actions--inline">
+                {run_href}
+              </div>
+            </div>
+          </div>
+          {self._render_local_paper_nav_chart(overview.get("nav_history", []))}
+        </section>
+        """
+
+    def _render_current_strategy_panel(self, overview: Dict[str, Any]) -> str:
+        market = str(overview.get("market", "US") or "US").upper()
+        state = self._strategy_state_store().load_market_state(market)
+        champion = state.get("champion_preset_id") or "N/A"
+        challenger = state.get("challenger_preset_id") or "N/A"
+        current_execution = state.get("current_execution_preset_id") or "N/A"
+        return f"""
+        <section class="paper-section paper-current-strategy">
+          <div class="panel__header panel__header--section">
+            <div>
+              <p class="eyebrow">Current Strategy</p>
+              <h3>Current Strategy / 当前策略</h3>
+            </div>
+            <a class="button button--ghost" href="#" aria-disabled="true">Switch Strategy / 切换策略</a>
+          </div>
+          <div class="summary-grid">
+            {self._summary_tile("Current Execution / 当前执行策略", current_execution, "当前正在执行的预设")}
+            {self._summary_tile("Champion / 冠军策略", champion, "当前市场的 champion 预设")}
+            {self._summary_tile("Challenger / 挑战者策略", challenger, "当前市场的 challenger 预设")}
+            {self._summary_tile("Market / 市场", market, "当前策略状态所属市场")}
+          </div>
+        </section>
+        """
+
+    def _render_sector_exposure_table(self, rows: Iterable[Dict[str, Any]]) -> str:
+        table_rows = []
+        for row in list(rows)[:10]:
+            table_rows.append(
+                f"""
+                <tr>
+                  <td>{escape(str(row.get('sector', 'UNKNOWN')))}</td>
+                  <td>{escape(str(row.get('weight_pct', '0')))}%</td>
+                  <td>{escape(str(row.get('market_value', '0')))}</td>
+                </tr>
+                """
+            )
+        rows_html = "".join(table_rows) if table_rows else "<tr><td colspan='3'>当前没有行业暴露数据</td></tr>"
+        return f"""
+        <table class="data-table">
+          <thead><tr><th>Sector / 行业</th><th>Weight / 权重</th><th>Market Value / 市值</th></tr></thead>
+          <tbody>{rows_html}</tbody>
+        </table>
         """
 
     def _render_local_paper_nav_chart(self, nav_history: Iterable[Dict[str, Any]]) -> str:
@@ -2578,8 +2682,13 @@ class DashboardApp:
         tabs = PRIMARY_VIEW_TABS.get(primary_view, [])
         default_subview = tabs[0][0] if tabs else "default"
         raw_subview = query.get("subview", [default_subview])[0].strip().lower()
+        if primary_view == "paper":
+            raw_subview = PAPER_SUBVIEW_ALIASES.get(raw_subview, raw_subview)
         tab_ids = {tab_id for tab_id, _ in tabs}
         return raw_subview if raw_subview in tab_ids else default_subview
+
+    def _strategy_state_store(self) -> StrategyStateStore:
+        return StrategyStateStore(ARTIFACT_ROOT)
 
     def _view_url(self, view: str, path: str = "/", query: Optional[Dict[str, str]] = None) -> str:
         params = [("view", view)]
@@ -2594,7 +2703,16 @@ class DashboardApp:
             return raw_view
         return default
 
-    def _render_page_shell(self, active_page: str, title: str, eyebrow: str, description: str, body: str, subview: str = "default") -> str:
+    def _render_page_shell(
+        self,
+        active_page: str,
+        title: str,
+        eyebrow: str,
+        description: str,
+        body: str,
+        subview: str = "default",
+        query: Optional[Dict[str, List[str]]] = None,
+    ) -> str:
         status_active_page = active_page if active_page in {"paper", "optimize", "run", "results"} else "paper"
         return f"""
         <main class="app-shell app-shell--paper-first">
@@ -2604,7 +2722,7 @@ class DashboardApp:
               <div class="side-nav__panel">
                 <p class="eyebrow">Section Tabs</p>
                 <h2>{escape(title.split(' / ')[0])}</h2>
-                {self._render_section_tabs(active_page, subview)}
+                {self._render_section_tabs(active_page, subview, query=query)}
               </div>
             </aside>
             <section class="page-shell">
@@ -2649,13 +2767,24 @@ class DashboardApp:
         </div>
         """
 
-    def _render_section_tabs(self, primary_view: str, subview: str) -> str:
+    def _render_section_tabs(
+        self,
+        primary_view: str,
+        subview: str,
+        query: Optional[Dict[str, List[str]]] = None,
+    ) -> str:
         tabs = PRIMARY_VIEW_TABS.get(primary_view, [])
         if not tabs:
             return ""
+        preserved_query: Dict[str, str] = {}
+        if primary_view == "paper" and query:
+            for key in ("paper_account_id", "paper_start_date", "paper_end_date"):
+                value = query.get(key, [""])[0].strip()
+                if value:
+                    preserved_query[key] = value
         links = "".join(
             f"""
-            <a class="section-tabs__link{' section-tabs__link--active' if tab_id == subview else ''}" href="{self._view_url(primary_view, query={'subview': tab_id})}" data-subview="{escape(tab_id)}">
+            <a class="section-tabs__link{' section-tabs__link--active' if tab_id == subview else ''}" href="{self._view_url(primary_view, query={**preserved_query, 'subview': tab_id})}" data-subview="{escape(tab_id)}">
               <strong>{escape(label)}</strong>
             </a>
             """
@@ -2681,6 +2810,7 @@ class DashboardApp:
                 description="30 秒看完今天的状态、最近研究、最近运行和常用入口。",
                 body=body,
                 subview=subview,
+                query=query,
             ),
             primary_view=primary_view,
             subview=subview,
@@ -2947,6 +3077,7 @@ class DashboardApp:
                 description=page_description,
                 body=body,
                 subview=subview,
+                query=query,
             ),
             primary_view=primary_view,
             subview=subview,
@@ -2981,6 +3112,7 @@ class DashboardApp:
                 description="只负责浏览、筛选、比较和阅读研究/运行输出，不承载工作台或运维操作。",
                 body=body,
                 subview=subview,
+                query=query,
             ),
             primary_view=primary_view,
             subview=subview,
@@ -3238,7 +3370,7 @@ class DashboardApp:
 
     def _render_paper_page(self, query: Dict[str, List[str]], primary_view: str, subview: str) -> WebResponse:
         flash_html = self._render_flash_messages("paper")
-        local_paper_html = self._render_local_paper_panel(query, view="paper")
+        local_paper_html = self._render_local_paper_panel(query, view="paper", subview=subview)
         body = f"""
           {flash_html}
           {local_paper_html}
@@ -3251,6 +3383,7 @@ class DashboardApp:
                 description="以账户为中心查看模拟盘结论、状态、风险与执行明细。",
                 body=body,
                 subview=subview,
+                query=query,
             ),
             primary_view=primary_view,
             subview=subview,
