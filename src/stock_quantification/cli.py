@@ -39,6 +39,7 @@ from .reporting import build_recommended_stocks
 from .result_index import record_result
 from .runtime import RuntimeEngine
 from .state import InMemoryStateStore
+from .strategy_catalog import build_strategy_from_preset, lookup_strategy_preset
 
 ARTIFACT_ROOT = Path(__file__).resolve().parents[2] / "artifacts"
 
@@ -103,6 +104,7 @@ def _strategy_for_market(
     as_of,
     benchmark_instrument_id: str | None,
     top_n: int,
+    selected_preset_id: str | None = None,
 ):
     available_ids = {
         instrument.instrument_id
@@ -113,6 +115,13 @@ def _strategy_for_market(
         for instrument_id, weight in bundle.benchmark_weights(market, as_of.date()).items()
         if instrument_id in available_ids
     }
+    if selected_preset_id:
+        preset = lookup_strategy_preset(market, selected_preset_id)
+        return build_strategy_from_preset(
+            preset,
+            benchmark_instrument_id=benchmark_instrument_id,
+            benchmark_weights=benchmark_weights,
+        )
     if market == Market.CN:
         return AStockSelectionStrategy(
             top_n=top_n,
@@ -231,6 +240,7 @@ def run_market(
     broker_name: str | None = None,
     route_orders: bool = False,
     broker_account_id: str | None = None,
+    selected_preset_id: str | None = None,
 ) -> Dict[str, object]:
     universe_scope = "CUSTOM" if symbols else "FULL"
     snapshot = build_market_snapshot(
@@ -272,6 +282,7 @@ def run_market(
         snapshot.as_of,
         snapshot.benchmark_instrument_id,
         top_n,
+        selected_preset_id=selected_preset_id,
     )
     context = _build_context(effective_runtime_mode, snapshot.as_of)
     result = orchestrator.run(context, strategy, [account_id], execution_mode)

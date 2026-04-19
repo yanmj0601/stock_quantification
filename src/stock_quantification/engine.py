@@ -119,12 +119,15 @@ class BaseSelectionStrategy(StrategyDefinition):
         benchmark_weights: Optional[Dict[str, Decimal]] = None,
         alpha_weights_override: Optional[Dict[str, Decimal]] = None,
         portfolio_policy_override: Optional[Dict[str, Decimal]] = None,
+        strategy_id: Optional[str] = None,
     ) -> None:
         self.top_n = top_n
         self.benchmark_instrument_id = benchmark_instrument_id
         self.benchmark_weights = benchmark_weights or {}
         self.alpha_weights_override = alpha_weights_override or {}
         self.portfolio_policy_override = portfolio_policy_override or {}
+        if strategy_id is not None:
+            self.strategy_id = strategy_id
 
     def _build_signal(
         self,

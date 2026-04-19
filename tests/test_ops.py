@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import tempfile
+from datetime import timedelta
 from unittest import TestCase
 
+from stock_quantification import ops as ops_module
 from stock_quantification.ops import ProjectOpsStore
+from stock_quantification.artifacts import write_json_artifact
 
 
 class ProjectOpsStoreTests(TestCase):
@@ -63,3 +66,35 @@ class ProjectOpsStoreTests(TestCase):
             self.assertEqual(state["active_job"]["stage"], "RUNNING_MARKET")
             self.assertEqual(state["active_job"]["detail"], "running us market")
             self.assertEqual(state["active_job"]["metadata"]["completed_markets"], 1)
+
+    def test_begin_job_recovers_legacy_active_job_from_previous_process(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = ProjectOpsStore(tmpdir)
+            legacy_started_at = (ops_module._PROCESS_STARTED_AT - timedelta(seconds=5)).isoformat(timespec="seconds")
+            write_json_artifact(
+                tmpdir,
+                "web/ops_state.json",
+                {
+                    "heartbeats": {},
+                    "active_job": {
+                        "job_id": "legacy-lock",
+                        "kind": "strategy_run",
+                        "status": "RUNNING",
+                        "started_at": legacy_started_at,
+                        "progress_pct": 45,
+                        "stage": "RUNNING_MARKET",
+                        "detail": "legacy lock from previous process",
+                        "metadata": {"markets": ["US"]},
+                    },
+                    "job_history": [],
+                    "audit_events": [],
+                },
+            )
+
+            reservation = store.begin_job("factor_backtest")
+
+            self.assertTrue(reservation["accepted"])
+            state = store.load_state()
+            self.assertEqual(state["job_history"][-1]["status"], "STALE")
+            self.assertEqual(state["job_history"][-1]["job_id"], "legacy-lock")
+            self.assertEqual(state["active_job"]["kind"], "factor_backtest")

@@ -194,7 +194,14 @@ class WebTests(TestCase):
         self.assertIn("Strategy Run / 策略运行", body)
         self.assertIn('data-async-job-form="strategy_run"', body)
         self.assertIn('name="view" value="workbench"', body)
+        self.assertIn('name="selected_strategy_cn"', body)
+        self.assertIn('name="selected_strategy_us"', body)
+        self.assertIn('value=""', body)
+        self.assertIn('cn_quality_momentum', body)
+        self.assertIn('us_quality_focus', body)
         self.assertIn("Factor Backtest / 因子回测", body)
+        self.assertNotIn('data-async-job-form="factor_backtest"', body)
+        self.assertIn('name="factor_selection_payload"', body)
         self.assertIn("Current Defaults / 当前默认配置", body)
         self.assertIn("Recent Execution / 最近执行反馈", body)
         self.assertNotIn("status-strip__nav", body)
@@ -631,6 +638,23 @@ class WebTests(TestCase):
         self.assertEqual(len(self.app.state.chat_messages), 2)
         self.assertIsNone(self.app._safe_artifact_path("../README.md"))
 
+    def test_render_flash_messages_consumes_messages_after_display(self) -> None:
+        self.app.state.push_flash("第一条错误")
+        self.app.state.push_flash("第二条错误")
+        first_html = self.app._render_flash_messages()
+        second_html = self.app._render_flash_messages()
+        self.assertIn("第一条错误", first_html)
+        self.assertIn("第二条错误", first_html)
+        self.assertEqual(second_html, "")
+
+    def test_scoped_flash_messages_only_render_on_target_page(self) -> None:
+        self.app.state.push_flash("工作台错误", audience="workbench")
+        paper_html = self.app._render_flash_messages("paper")
+        workbench_html = self.app._render_flash_messages("workbench")
+        self.assertEqual(paper_html, "")
+        self.assertIn("工作台错误", workbench_html)
+        self.assertEqual(self.app._render_flash_messages("workbench"), "")
+
     @patch.object(DashboardApp, "_run_factor_backtest")
     def test_factor_backtest_updates_state_and_redirects(self, mock_run_factor_backtest) -> None:
         mock_run_factor_backtest.return_value = {
@@ -757,6 +781,7 @@ class WebTests(TestCase):
                     "broker": ["LOCAL_PAPER"],
                     "route_orders": ["on"],
                     "broker_account_id": ["web-paper-us"],
+                    "selected_strategy_us": ["us_quality_focus"],
                     "cash": ["100000"],
                     "top_n": ["2"],
                     "detail_limit": ["10"],
@@ -765,8 +790,9 @@ class WebTests(TestCase):
                     "forward_days": ["0"],
                     "symbols_us": ["AAPL"],
                 }
-            )
+        )
         self.assertEqual(response.status, 303)
+        self.assertEqual(mock_run_market.call_args.kwargs["selected_preset_id"], "us_quality_focus")
         self.assertEqual(self.app.state.last_local_paper_account["account_id"], "web-paper-us")
 
     @patch("stock_quantification.web.LocalPaperLedger")
@@ -776,7 +802,8 @@ class WebTests(TestCase):
         response = self.app.handle_local_paper_reset({"view": ["paper"], "account_id": ["web-paper-us"]})
         self.assertEqual(response.status, 303)
         self.assertEqual(response.headers["Location"], "/?view=paper")
-        self.assertIn("已重置", self.app.state.flash_messages[-1])
+        self.assertIn("已重置", self.app.state.flash_messages[-1]["message"])
+        self.assertEqual(self.app.state.flash_messages[-1]["audience"], "paper")
 
     @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
     @patch.object(DashboardApp, "_load_project_config", return_value=DEFAULT_PROJECT_CONFIG)
@@ -818,7 +845,8 @@ class WebTests(TestCase):
         response = self.app.handle_release_active_job({"action": ["release_active_job"]})
         self.assertEqual(response.status, 303)
         self.assertEqual(response.headers["Location"], "/project/ops")
-        self.assertIn("已释放任务", self.app.state.flash_messages[-1])
+        self.assertIn("已释放任务", self.app.state.flash_messages[-1]["message"])
+        self.assertEqual(self.app.state.flash_messages[-1]["audience"], "ops")
 
     def test_health_and_ready_endpoints_return_json(self) -> None:
         health = self.app.dispatch("GET", "/healthz", {}, {})
@@ -931,7 +959,29 @@ class WebTests(TestCase):
         response = self.app.handle_run({"market": ["US"], "cash": ["abc"]})
         self.assertEqual(response.status, 303)
         self.assertEqual(response.headers["Location"], "/?view=workbench")
-        self.assertIn("策略运行参数错误", self.app.state.flash_messages[-1])
+        self.assertIn("策略运行参数错误", self.app.state.flash_messages[-1]["message"])
+        self.assertEqual(self.app.state.flash_messages[-1]["audience"], "workbench")
+        self.assertFalse(self.ops_store.begin_job.called)
+
+    def test_handle_run_rejects_invalid_selected_strategy_before_job_start(self) -> None:
+        response = self.app.handle_run(
+            {
+                "market": ["US"],
+                "runtime_mode": ["PAPER"],
+                "execution_mode": ["ADVISORY"],
+                "cash": ["100000"],
+                "detail_limit": ["10"],
+                "history_limit": ["20"],
+                "beta_window": ["20"],
+                "top_n": ["2"],
+                "forward_days": ["0"],
+                "selected_strategy_us": ["not_a_real_preset"],
+            }
+        )
+        self.assertEqual(response.status, 303)
+        self.assertEqual(response.headers["Location"], "/?view=workbench")
+        self.assertIn("策略运行参数错误", self.app.state.flash_messages[-1]["message"])
+        self.assertEqual(self.app.state.flash_messages[-1]["audience"], "workbench")
         self.assertFalse(self.ops_store.begin_job.called)
 
     def test_factor_backtest_invalid_form_value_redirects_with_flash(self) -> None:
@@ -945,7 +995,8 @@ class WebTests(TestCase):
         )
         self.assertEqual(response.status, 303)
         self.assertEqual(response.headers["Location"], "/?view=workbench")
-        self.assertIn("策略实验参数错误", self.app.state.flash_messages[-1])
+        self.assertIn("策略实验参数错误", self.app.state.flash_messages[-1]["message"])
+        self.assertEqual(self.app.state.flash_messages[-1]["audience"], "workbench")
         self.assertFalse(self.ops_store.begin_job.called)
 
     @patch.object(DashboardApp, "_save_project_config")
@@ -985,7 +1036,8 @@ class WebTests(TestCase):
         )
         self.assertEqual(response.status, 303)
         self.assertEqual(response.headers["Location"], "/project/config")
-        self.assertIn("项目配置保存失败", self.app.state.flash_messages[-1])
+        self.assertIn("项目配置保存失败", self.app.state.flash_messages[-1]["message"])
+        self.assertEqual(self.app.state.flash_messages[-1]["audience"], "config")
         self.assertFalse(mock_save.called)
 
     @patch.object(DashboardApp, "_save_project_config")
@@ -1025,7 +1077,8 @@ class WebTests(TestCase):
         )
         self.assertEqual(response.status, 303)
         self.assertEqual(response.headers["Location"], "/project/config")
-        self.assertIn("项目配置保存失败", self.app.state.flash_messages[-1])
+        self.assertIn("项目配置保存失败", self.app.state.flash_messages[-1]["message"])
+        self.assertEqual(self.app.state.flash_messages[-1]["audience"], "config")
         self.assertFalse(mock_save.called)
 
     def test_load_project_config_sanitizes_bad_persisted_values(self) -> None:

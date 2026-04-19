@@ -44,7 +44,7 @@ from .real_data import (
     fetch_us_benchmark_history,
     load_symbol_directory,
 )
-from .strategy_catalog import StrategyPreset
+from .strategy_catalog import StrategyPreset, lookup_strategy_preset, strategy_presets_for_market
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 ARTIFACT_ROOT = ROOT_DIR / "artifacts"
@@ -132,8 +132,13 @@ class DashboardState:
         self.chat_messages.append({"role": "user", "content": user_message})
         self.chat_messages.append({"role": "assistant", "content": assistant_message})
 
-    def push_flash(self, message: str) -> None:
-        self.flash_messages.append(message)
+    def push_flash(self, message: str, audience: Optional[str] = None) -> None:
+        self.flash_messages.append(
+            {
+                "message": str(message),
+                "audience": str(audience or "").strip().lower(),
+            }
+        )
 
 
 class DashboardApp:
@@ -190,7 +195,7 @@ class DashboardApp:
 
     def render_project_config(self) -> WebResponse:
         config = self._load_project_config()
-        flash_html = self._render_flash_messages()
+        flash_html = self._render_flash_messages("config")
         run_defaults = config["run_defaults"]
         factor_defaults = config["factor_defaults"]
         ui_defaults = config["ui_defaults"]
@@ -294,7 +299,7 @@ class DashboardApp:
         )
 
     def render_task_logs(self, query: Optional[Dict[str, List[str]]] = None) -> WebResponse:
-        flash_html = self._render_flash_messages()
+        flash_html = self._render_flash_messages("logs")
         filters = self._task_log_filters_from_query(query or {})
         raw_logs = list(reversed(self._load_task_logs()))
         logs = self._filter_task_logs(raw_logs, filters)
@@ -393,7 +398,7 @@ class DashboardApp:
         )
 
     def render_ops_center(self) -> WebResponse:
-        flash_html = self._render_flash_messages()
+        flash_html = self._render_flash_messages("ops")
         system_status = self._build_system_status()
         component_rows = "".join(
             f"""
@@ -559,13 +564,13 @@ class DashboardApp:
     def handle_release_active_job(self, body: Dict[str, List[str]]) -> WebResponse:
         action = body.get("action", [""])[0].strip()
         if action != "release_active_job":
-            self.state.push_flash("未知运维操作。")
+            self.state.push_flash("未知运维操作。", audience="ops")
             return self._redirect("/project/ops")
         ops_store = self._ops_store()
         state = ops_store.load_state()
         active_job = state.get("active_job")
         if not isinstance(active_job, dict):
-            self.state.push_flash("当前没有可释放的运行中任务。")
+            self.state.push_flash("当前没有可释放的运行中任务。", audience="ops")
             return self._redirect("/project/ops")
         ops_store.release_active_job(
             detail="Released active job from operations center.",
@@ -578,7 +583,7 @@ class DashboardApp:
             detail=f"手动释放运行中任务 {active_job.get('kind', 'UNKNOWN')}",
             metadata={"job_id": active_job.get("job_id", ""), "kind": active_job.get("kind", "UNKNOWN")},
         )
-        self.state.push_flash(f"已释放任务：{active_job.get('kind', 'UNKNOWN')}。")
+        self.state.push_flash(f"已释放任务：{active_job.get('kind', 'UNKNOWN')}。", audience="ops")
         return self._redirect("/project/ops")
 
     def render_healthz(self) -> WebResponse:
@@ -641,8 +646,15 @@ class DashboardApp:
             broker_name = None if broker_raw in {"", "NONE"} else broker_raw
             broker_account_id = body.get("broker_account_id", [str(defaults["broker_account_id"])])[0].strip() or None
             route_orders = body.get("route_orders", ["on" if defaults.get("route_orders") else ""])[0] in {"on", "1", "true", "TRUE"}
-        except (InvalidOperation, ValueError) as exc:
-            self.state.push_flash(f"策略运行参数错误：{exc}")
+            selected_strategy_ids: Dict[str, Optional[str]] = {}
+            for market in markets:
+                field_name = f"selected_strategy_{market.value.lower()}"
+                selected_strategy_id = body.get(field_name, [""])[0].strip() or None
+                if selected_strategy_id is not None:
+                    lookup_strategy_preset(market, selected_strategy_id)
+                selected_strategy_ids[market.value] = selected_strategy_id
+        except (InvalidOperation, ValueError, KeyError) as exc:
+            self.state.push_flash(f"策略运行参数错误：{exc}", audience=view)
             return self._redirect(self._view_url(view))
         symbols_by_market = {
             market.value: self._symbols_for_market(market, body)
@@ -659,7 +671,7 @@ class DashboardApp:
         )
         if not reservation.get("accepted"):
             active_job = reservation.get("active_job", {})
-            self.state.push_flash(f"后台已有任务运行中：{active_job.get('kind', 'UNKNOWN')}，请稍后重试。")
+            self.state.push_flash(f"后台已有任务运行中：{active_job.get('kind', 'UNKNOWN')}，请稍后重试。", audience="ops")
             self._append_task_log(
                 category="runtime",
                 action="strategy_run",
@@ -688,7 +700,7 @@ class DashboardApp:
                 "account_id": broker_account_id or "",
             },
         )
-        self.state.push_flash(f"策略任务已提交，正在后台运行 {len(markets)} 个市场。")
+        self.state.push_flash(f"策略任务已提交，正在后台运行 {len(markets)} 个市场。", audience=view)
         self._start_background_task(
             self._run_strategy_job,
             job_id,
@@ -706,6 +718,7 @@ class DashboardApp:
             broker_name,
             route_orders,
             broker_account_id,
+            selected_strategy_ids,
         )
         return self._redirect(self._view_url(view))
 
@@ -713,13 +726,13 @@ class DashboardApp:
         view = self._requested_view(body, "paper")
         account_id = body.get("account_id", [""])[0].strip()
         if not account_id:
-            self.state.push_flash("模拟盘重置失败：缺少账户 ID。")
+            self.state.push_flash("模拟盘重置失败：缺少账户 ID。", audience=view)
             return self._redirect(self._view_url(view))
         removed = LocalPaperLedger().reset_account(account_id)
         if removed:
             if self.state.last_local_paper_account and self.state.last_local_paper_account.get("account_id") == account_id:
                 self.state.last_local_paper_account = None
-            self.state.push_flash(f"模拟盘账户 {account_id} 已重置。")
+            self.state.push_flash(f"模拟盘账户 {account_id} 已重置。", audience=view)
             self._append_task_log(
                 category="paper",
                 action="reset_account",
@@ -728,7 +741,7 @@ class DashboardApp:
                 metadata={"account_id": account_id},
             )
         else:
-            self.state.push_flash(f"没有找到模拟盘账户 {account_id}。")
+            self.state.push_flash(f"没有找到模拟盘账户 {account_id}。", audience=view)
             self._append_task_log(
                 category="paper",
                 action="reset_account",
@@ -773,7 +786,7 @@ class DashboardApp:
                 for factor_name in FACTOR_CATALOG
             }
         except (InvalidOperation, ValueError) as exc:
-            self.state.push_flash(f"策略实验参数错误：{exc}")
+            self.state.push_flash(f"策略实验参数错误：{exc}", audience=view)
             return self._redirect(self._view_url(view))
         reservation = self._ops_store().begin_job(
             "factor_backtest",
@@ -781,7 +794,7 @@ class DashboardApp:
         )
         if not reservation.get("accepted"):
             active_job = reservation.get("active_job", {})
-            self.state.push_flash(f"因子回测被拦截：当前有任务 {active_job.get('kind', 'UNKNOWN')} 在运行。")
+            self.state.push_flash(f"因子回测被拦截：当前有任务 {active_job.get('kind', 'UNKNOWN')} 在运行。", audience="ops")
             self._append_task_log(
                 category="research",
                 action="factor_backtest",
@@ -805,7 +818,7 @@ class DashboardApp:
             detail=f"已提交 {market.value} 因子回测任务",
             metadata={"market": market.value, "factors": ",".join(selected_factors)},
         )
-        self.state.push_flash(f"{market.value} 因子回测任务已提交，正在后台运行。")
+        self.state.push_flash(f"{market.value} 因子回测任务已提交，正在后台运行。", audience=view)
         self._start_background_task(
             self._run_factor_backtest_job,
             job_id,
@@ -829,7 +842,7 @@ class DashboardApp:
         if message:
             assistant_message = f"本地回显：我收到了你的消息「{message}」。这里是交互占位，后面可以接真实 LLM。"
             self.state.push_chat(message, assistant_message)
-            self.state.push_flash("已追加一条本地聊天记录。")
+            self.state.push_flash("已追加一条本地聊天记录。", audience="overview")
             self._append_task_log(
                 category="collab",
                 action="chat_echo",
@@ -886,10 +899,10 @@ class DashboardApp:
             if paper_start and paper_end and paper_start > paper_end:
                 raise ValueError("模拟盘默认开始日期不能晚于结束日期。")
         except (InvalidOperation, ValueError) as exc:
-            self.state.push_flash(f"项目配置保存失败：{exc}")
+            self.state.push_flash(f"项目配置保存失败：{exc}", audience="config")
             return self._redirect("/project/config")
         self._save_project_config(updated)
-        self.state.push_flash("项目配置已保存。")
+        self.state.push_flash("项目配置已保存。", audience="config")
         self._append_task_log(
             category="project",
             action="update_config",
@@ -1064,6 +1077,7 @@ class DashboardApp:
         broker_name: Optional[str],
         route_orders: bool,
         broker_account_id: Optional[str],
+        selected_strategy_ids: Dict[str, Optional[str]],
     ) -> None:
         try:
             run_results: List[Dict[str, Any]] = []
@@ -1099,6 +1113,7 @@ class DashboardApp:
                         broker_name=broker_name,
                         route_orders=route_orders,
                         broker_account_id=broker_account_id,
+                        selected_preset_id=selected_strategy_ids.get(market.value),
                     )
                 )
                 end_progress = int(10 + (index / total_markets) * 70)
@@ -1126,8 +1141,8 @@ class DashboardApp:
                 self.state.last_local_paper_account = paper_results[-1]["paper_account"]
             if route_orders and paper_results:
                 trade_count = sum(len(result.get("paper_trade_records", [])) for result in paper_results)
-                self.state.push_flash(f"本地模拟盘已记账，新增 {trade_count} 条买卖记录。")
-            self.state.push_flash(f"已运行 {len(run_results)} 个市场的本地策略。")
+                self.state.push_flash(f"本地模拟盘已记账，新增 {trade_count} 条买卖记录。", audience="workbench")
+            self.state.push_flash(f"已运行 {len(run_results)} 个市场的本地策略。", audience="workbench")
             self._append_task_log(
                 category="runtime",
                 action="strategy_run",
@@ -1148,7 +1163,7 @@ class DashboardApp:
             )
         except Exception as exc:
             self._ops_store().finish_job(job_id, "FAILED", str(exc))
-            self.state.push_flash(f"策略运行失败：{exc}")
+            self.state.push_flash(f"策略运行失败：{exc}", audience="workbench")
             self._append_task_log(
                 category="runtime",
                 action="strategy_run",
@@ -1204,7 +1219,7 @@ class DashboardApp:
             self.state.last_factor_backtest_result = result
             factor_names = "、".join(self._factor_label(factor_name) for factor_name in result["summary"]["selected_factors"])
             decision = result.get("attribution", {}).get("scorecard", {}).get("decision", "REVIEW")
-            self.state.push_flash(f"{market.value} 策略实验已完成：{factor_names} | 结论 {decision}")
+            self.state.push_flash(f"{market.value} 策略实验已完成：{factor_names} | 结论 {decision}", audience="workbench")
             self._append_task_log(
                 category="research",
                 action="factor_backtest",
@@ -1220,7 +1235,7 @@ class DashboardApp:
             )
         except Exception as exc:
             self._ops_store().finish_job(job_id, "FAILED", str(exc))
-            self.state.push_flash(f"因子回测失败：{exc}")
+            self.state.push_flash(f"因子回测失败：{exc}", audience="workbench")
             self._append_task_log(
                 category="research",
                 action="factor_backtest",
@@ -1287,10 +1302,13 @@ class DashboardApp:
     def _render_factor_backtest_form(self, view: str = "overview") -> str:
         defaults = self._load_project_config()["factor_defaults"]
         baseline_weights = self._baseline_alpha_weights(Market(str(defaults["factor_market"])))
+        default_selected_factors = []
         factor_cards = []
         for factor_name, meta in FACTOR_CATALOG.items():
             baseline_weight = baseline_weights.get(factor_name, Decimal("0"))
             checked_attr = " checked" if baseline_weight != 0 else ""
+            if baseline_weight != 0:
+                default_selected_factors.append(factor_name)
             factor_cards.append(
                 f"""
                 <label class="factor-chip">
@@ -1314,7 +1332,7 @@ class DashboardApp:
               <h2>Factor Backtest / 因子回测</h2>
             </div>
           </div>
-          <form class="stack" method="post" action="/factor-backtest" id="factor-backtest-form" data-async-job-form="factor_backtest">
+          <form class="stack" method="post" action="/factor-backtest" id="factor-backtest-form">
             <input type="hidden" name="view" value="{escape(view)}" />
             <div class="grid-form">
               <label>Market / 市场<span class="field-note">选择本次策略实验的市场</span><select name="factor_market"><option value="CN"{' selected' if defaults['factor_market'] == 'CN' else ''}>CN</option><option value="US"{' selected' if defaults['factor_market'] == 'US' else ''}>US</option></select></label>
@@ -1337,7 +1355,7 @@ class DashboardApp:
               <span data-factor-selection-status>正在统计...</span>
             </div>
             <div class="factor-grid">{''.join(factor_cards)}</div>
-            <input type="hidden" name="factor_selection_payload" value="" data-factor-selection-payload />
+            <input type="hidden" name="factor_selection_payload" value="{escape(','.join(default_selected_factors))}" data-factor-selection-payload />
             <div class="research-lab__actions">
               <button class="button button--primary" type="submit">运行因子回测</button>
               <span class="field-note">本次会同时输出选股收益分析、组合滚动回测和归因结论。</span>
@@ -1907,10 +1925,29 @@ class DashboardApp:
         </section>
         """
 
-    def _render_flash_messages(self) -> str:
+    def _render_flash_messages(self, audience: Optional[str] = None) -> str:
         if not self.state.flash_messages:
             return ""
-        items = "".join(f"<li>{escape(message)}</li>" for message in self.state.flash_messages)
+        normalized_audience = str(audience or "").strip().lower()
+        messages: List[str] = []
+        remaining: List[Dict[str, str]] = []
+        for raw_entry in self.state.flash_messages:
+            if isinstance(raw_entry, dict):
+                message = str(raw_entry.get("message", ""))
+                entry_audience = str(raw_entry.get("audience", "")).strip().lower()
+            else:
+                message = str(raw_entry)
+                entry_audience = ""
+            if not entry_audience or entry_audience == normalized_audience:
+                if message:
+                    messages.append(message)
+            else:
+                remaining.append({"message": message, "audience": entry_audience})
+        self.state.flash_messages.clear()
+        self.state.flash_messages.extend(remaining)
+        if not messages:
+            return ""
+        items = "".join(f"<li>{escape(message)}</li>" for message in messages)
         return f"""
         <section class="panel panel--flash">
           <ul class="flash-list">{items}</ul>
@@ -2416,6 +2453,20 @@ class DashboardApp:
         </div>
         """
 
+    def _render_strategy_preset_picker(self, market: Market, field_name: str) -> str:
+        options = ['<option value="">Market default / 使用市场默认</option>']
+        for preset in strategy_presets_for_market(market):
+            options.append(
+                f'<option value="{escape(preset.preset_id)}">{escape(preset.display_name)} ({escape(preset.preset_id)})</option>'
+            )
+        return f"""
+        <label>Selected Strategy / 选择策略<span class="field-note">{escape(market.value)} 市场可选预设</span>
+          <select name="{escape(field_name)}">
+            {''.join(options)}
+          </select>
+        </label>
+        """
+
     def _render_job_progress_panel(self, active_job: Optional[Dict[str, Any]], panel_id: str) -> str:
         progress_pct = 0
         if isinstance(active_job, dict):
@@ -2563,7 +2614,7 @@ class DashboardApp:
         """
 
     def _render_overview_page(self, query: Dict[str, List[str]]) -> WebResponse:
-        flash_html = self._render_flash_messages()
+        flash_html = self._render_flash_messages("overview")
         body = f"""
           {flash_html}
           {self._render_morning_briefing()}
@@ -2605,6 +2656,8 @@ class DashboardApp:
             <input type="hidden" name="view" value="{escape(view)}" />
             <div class="grid-form">
               <label>Market / 市场<span class="field-note">默认策略运行市场</span><select id="run-market-select" name="market"><option value="ALL"{' selected' if defaults['market'] == 'ALL' else ''}>ALL</option><option value="CN"{' selected' if defaults['market'] == 'CN' else ''}>CN</option><option value="US"{' selected' if defaults['market'] == 'US' else ''}>US</option></select></label>
+              {self._render_strategy_preset_picker(Market.CN, "selected_strategy_cn")}
+              {self._render_strategy_preset_picker(Market.US, "selected_strategy_us")}
               <label>Runtime / 运行语义<span class="field-note">默认实时/回放语义</span><select name="runtime_mode"><option value="PAPER"{' selected' if defaults['runtime_mode'] == 'PAPER' else ''}>PAPER</option><option value="BACKTEST"{' selected' if defaults['runtime_mode'] == 'BACKTEST' else ''}>BACKTEST</option><option value="LIVE"{' selected' if defaults['runtime_mode'] == 'LIVE' else ''}>LIVE</option></select></label>
               <label>Execution / 执行模式<span class="field-note">默认 advisory 或 auto</span><select name="execution_mode"><option value="ADVISORY"{' selected' if defaults['execution_mode'] == 'ADVISORY' else ''}>ADVISORY</option><option value="AUTO"{' selected' if defaults['execution_mode'] == 'AUTO' else ''}>AUTO</option></select></label>
               <label>Broker / 接入口<span class="field-note">默认 broker 类型</span><select name="broker"><option value="NONE"{' selected' if defaults['broker'] == 'NONE' else ''}>NONE</option><option value="LOCAL_PAPER"{' selected' if defaults['broker'] == 'LOCAL_PAPER' else ''}>LOCAL_PAPER</option></select></label>
@@ -2800,7 +2853,7 @@ class DashboardApp:
         """
 
     def _render_workbench_page(self, query: Dict[str, List[str]]) -> WebResponse:
-        flash_html = self._render_flash_messages()
+        flash_html = self._render_flash_messages("workbench")
         strategy_run_html = self._render_strategy_run_form(view="workbench")
         factor_form_html = self._render_factor_backtest_form(view="workbench")
         current_defaults_html = self._render_current_defaults_panel()
@@ -2832,7 +2885,7 @@ class DashboardApp:
         )
 
     def _render_results_page(self, query: Dict[str, List[str]]) -> WebResponse:
-        flash_html = self._render_flash_messages()
+        flash_html = self._render_flash_messages("results")
         filters = self._result_filters_from_query(query)
         all_records = self._recent_indexed_results(limit=None)
         records = self._filter_result_records(all_records, filters)
@@ -3113,7 +3166,7 @@ class DashboardApp:
         """
 
     def _render_paper_page(self, query: Dict[str, List[str]]) -> WebResponse:
-        flash_html = self._render_flash_messages()
+        flash_html = self._render_flash_messages("paper")
         local_paper_html = self._render_local_paper_panel(query, view="paper")
         body = f"""
           {flash_html}
@@ -3532,6 +3585,9 @@ class DashboardApp:
                 syncFactorSelection(form);
               });
             });
+            form.addEventListener("submit", function () {
+              syncFactorSelection(form);
+            });
             syncFactorSelection(form);
           }
 
@@ -3541,7 +3597,6 @@ class DashboardApp:
             document.querySelectorAll("[data-symbol-picker]").forEach(setupSymbolPicker);
             setupAsyncJobForm(document.getElementById("run-form"));
             setupFactorLab(document.getElementById("factor-backtest-form"));
-            setupAsyncJobForm(document.getElementById("factor-backtest-form"));
             pollJobStatus();
             window.setInterval(pollJobStatus, 5000);
           }

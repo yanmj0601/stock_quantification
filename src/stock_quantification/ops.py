@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 import hashlib
+import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -9,6 +10,8 @@ from .artifacts import read_json_artifact, write_json_artifact
 
 
 OPS_STATE_RELATIVE_PATH = "web/ops_state.json"
+_PROCESS_PID = os.getpid()
+_PROCESS_STARTED_AT = datetime.utcnow()
 
 
 def _now() -> datetime:
@@ -23,6 +26,20 @@ def _parse_datetime(value: object) -> Optional[datetime]:
         return datetime.fromisoformat(raw)
     except ValueError:
         return None
+
+
+def _pid_is_running(value: object) -> bool:
+    try:
+        pid = int(value)
+    except (TypeError, ValueError):
+        return False
+    if pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
 
 
 class ProjectOpsStore:
@@ -64,7 +81,18 @@ class ProjectOpsStore:
         now = _now()
         if isinstance(active_job, dict):
             started_at = _parse_datetime(active_job.get("started_at"))
-            if started_at is not None and now - started_at > timedelta(minutes=stale_after_minutes):
+            if self._should_recover_previous_process_job(active_job, started_at):
+                state["job_history"].append(
+                    {
+                        **active_job,
+                        "finished_at": now.isoformat(timespec="seconds"),
+                        "duration_seconds": int((now - started_at).total_seconds()) if started_at is not None else 0,
+                        "status": "STALE",
+                        "detail": "Recovered orphaned active job lock from previous process.",
+                    }
+                )
+                state["active_job"] = None
+            elif started_at is not None and now - started_at > timedelta(minutes=stale_after_minutes):
                 state["job_history"].append(
                     {
                         **active_job,
@@ -84,6 +112,8 @@ class ProjectOpsStore:
             "kind": kind,
             "status": "RUNNING",
             "started_at": now.isoformat(timespec="seconds"),
+            "owner_pid": _PROCESS_PID,
+            "owner_started_at": _PROCESS_STARTED_AT.isoformat(timespec="seconds"),
             "progress_pct": 0,
             "stage": "QUEUED",
             "detail": "Task accepted and waiting to start.",
@@ -197,6 +227,19 @@ class ProjectOpsStore:
         state["active_job"] = updated
         self._save_state(state)
         return state
+
+    def _should_recover_previous_process_job(
+        self,
+        active_job: Dict[str, Any],
+        started_at: Optional[datetime],
+    ) -> bool:
+        owner_pid = active_job.get("owner_pid")
+        owner_started_at = _parse_datetime(active_job.get("owner_started_at"))
+        if owner_pid is None or owner_started_at is None:
+            return started_at is not None and started_at < _PROCESS_STARTED_AT
+        if int(owner_pid) == _PROCESS_PID and owner_started_at == _PROCESS_STARTED_AT:
+            return False
+        return not _pid_is_running(owner_pid)
 
     def _save_state(self, payload: Dict[str, Any]) -> str:
         payload = dict(payload)

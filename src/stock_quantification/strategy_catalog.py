@@ -201,10 +201,18 @@ def strategy_presets_for_market(market: Market) -> List[StrategyPreset]:
     ]
 
 
+def lookup_strategy_preset(market: Market, preset_id: str) -> StrategyPreset:
+    for preset in strategy_presets_for_market(market):
+        if preset.preset_id == preset_id:
+            return preset
+    raise KeyError(f"Unknown strategy preset for {market.value}: {preset_id}")
+
+
 def build_strategy_from_preset(
     preset: StrategyPreset,
     benchmark_instrument_id: str | None,
     benchmark_weights: Mapping[str, Decimal],
+    strategy_id: str | None = None,
 ):
     common_kwargs = {
         "top_n": preset.top_n,
@@ -212,6 +220,7 @@ def build_strategy_from_preset(
         "benchmark_weights": dict(benchmark_weights),
         "alpha_weights_override": dict(preset.alpha_weights),
         "portfolio_policy_override": dict(preset.policy_overrides),
+        "strategy_id": strategy_id or preset.preset_id,
     }
     if preset.market == Market.CN:
         return AStockSelectionStrategy(**common_kwargs)
