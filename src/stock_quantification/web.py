@@ -28,7 +28,7 @@ from .engine import AStockSelectionStrategy, StandardStrategyRunner, USStockSele
 from .local_paper import LocalPaperLedger
 from .models import ExecutionMode, Market, RuntimeMode
 from .ops import ProjectOpsStore
-from .result_index import build_result_center_groups, list_results
+from .result_index import build_result_center_groups, list_results, record_result
 from .research_diagnostics import (
     build_strategy_scorecard,
     serialize_alpha_mix,
@@ -56,6 +56,7 @@ DEFAULT_PAGE_TITLE = "Stock Quantification Dashboard"
 WEB_STATE_RELATIVE_ROOT = "web"
 PROJECT_CONFIG_RELATIVE_PATH = f"{WEB_STATE_RELATIVE_ROOT}/project_config.json"
 TASK_LOG_RELATIVE_PATH = f"{WEB_STATE_RELATIVE_ROOT}/task_logs.json"
+RUN_HISTORY_RELATIVE_PATH = f"{WEB_STATE_RELATIVE_ROOT}/run_history.json"
 MAX_RECENT_RUN_RESULTS = 48
 PRIMARY_VIEW_ALIASES = {
     "overview": "paper",
@@ -159,6 +160,7 @@ class DashboardState:
         self.last_run_results: List[Dict[str, Any]] = []
         self.last_factor_backtest_result: Optional[Dict[str, Any]] = None
         self.last_local_paper_account: Optional[Dict[str, Any]] = None
+        self.last_index_error: Optional[str] = None
 
     def push_chat(self, user_message: str, assistant_message: str) -> None:
         self.chat_messages.append({"role": "user", "content": user_message})
@@ -764,10 +766,23 @@ class DashboardApp:
 
     def handle_local_paper_reset(self, body: Dict[str, List[str]]) -> WebResponse:
         view = self._requested_view(body, "paper")
+        subview = self._requested_subview(body, self._primary_view_for_view(view))
         account_id = body.get("account_id", [""])[0].strip()
+        paper_account_id = body.get("paper_account_id", [""])[0].strip()
+        paper_start_date = body.get("paper_start_date", [""])[0].strip()
+        paper_end_date = body.get("paper_end_date", [""])[0].strip()
+        redirect_target = self._view_url(
+            view,
+            query={
+                "subview": subview,
+                "paper_account_id": paper_account_id,
+                "paper_start_date": paper_start_date,
+                "paper_end_date": paper_end_date,
+            },
+        )
         if not account_id:
             self.state.push_flash("模拟盘重置失败：缺少账户 ID。", audience=view)
-            return self._redirect(self._view_url(view))
+            return self._redirect(redirect_target)
         removed = LocalPaperLedger().reset_account(account_id)
         if removed:
             if self.state.last_local_paper_account and self.state.last_local_paper_account.get("account_id") == account_id:
@@ -789,7 +804,7 @@ class DashboardApp:
                 detail=f"没有找到模拟盘账户 {account_id}",
                 metadata={"account_id": account_id},
             )
-        return self._redirect(self._view_url(view))
+        return self._redirect(redirect_target)
 
     def handle_strategy_state_current(self, body: Dict[str, List[str]]) -> WebResponse:
         market_raw = body.get("market", [""])[0].strip().upper()
@@ -1230,6 +1245,7 @@ class DashboardApp:
                 detail="正在整理运行结果和写入工件。",
             )
             self.state.last_run_results = (self.state.last_run_results + run_results)[-MAX_RECENT_RUN_RESULTS:]
+            self._append_run_history_records(run_results)
             paper_results = [result for result in run_results if result.get("paper_account")]
             if paper_results:
                 self.state.last_local_paper_account = paper_results[-1]["paper_account"]
@@ -1311,6 +1327,39 @@ class DashboardApp:
                 detail="正在汇总因子回测结果。",
             )
             self.state.last_factor_backtest_result = result
+            summary = result.get("summary", {}) if isinstance(result.get("summary"), dict) else {}
+            attribution = result.get("attribution", {}) if isinstance(result.get("attribution"), dict) else {}
+            scorecard = attribution.get("scorecard", {}) if isinstance(attribution.get("scorecard"), dict) else {}
+            artifacts = result.get("artifacts", {}) if isinstance(result.get("artifacts"), dict) else {}
+            artifact_json = str(artifacts.get("json") or "").strip()
+            record_result(
+                ARTIFACT_ROOT,
+                {
+                    "result_id": str(summary.get("subject_id") or artifact_json or f"factor_backtest:{market.value}:{job_id}"),
+                    "artifact_kind": "factor_backtest",
+                    "market": market.value,
+                    "start_date": summary.get("start_date"),
+                    "end_date": summary.get("end_date"),
+                    "sort_date": summary.get("end_date"),
+                    "summary": {
+                        "subject_id": summary.get("subject_id"),
+                        "subject_name": summary.get("subject_name"),
+                        "decision": scorecard.get("decision"),
+                        "rationale": scorecard.get("rationale"),
+                        "score": scorecard.get("score"),
+                        "return": summary.get("total_return"),
+                        "excess_return": summary.get("rolling_excess_return"),
+                        "max_drawdown": summary.get("max_drawdown"),
+                        "regime_summary": attribution.get("regime_summary", []),
+                        "alpha_mix": attribution.get("alpha_mix", []),
+                        "market": market.value,
+                    },
+                    "artifacts": {
+                        "json": artifact_json,
+                        "markdown": str(artifacts.get("markdown") or "").strip(),
+                    },
+                },
+            )
             factor_names = "、".join(self._factor_label(factor_name) for factor_name in result["summary"]["selected_factors"])
             decision = result.get("attribution", {}).get("scorecard", {}).get("decision", "REVIEW")
             self.state.push_flash(f"{market.value} 策略实验已完成：{factor_names} | 结论 {decision}", audience="workbench")
@@ -1637,7 +1686,11 @@ class DashboardApp:
             </div>
             <form method="post" action="/local-paper/reset">
               <input type="hidden" name="view" value="paper" />
+              <input type="hidden" name="subview" value="main" />
               <input type="hidden" name="account_id" value="{escape(str(overview.get('account_id', '')))}" />
+              <input type="hidden" name="paper_account_id" value="{escape(str(overview.get('account_id', '')))}" />
+              <input type="hidden" name="paper_start_date" value="{escape(str(overview.get('filter_start_date') or ''))}" />
+              <input type="hidden" name="paper_end_date" value="{escape(str(overview.get('filter_end_date') or ''))}" />
               <button class="button button--ghost" type="submit">Reset Account / 重置当前账户</button>
             </form>
           </div>
@@ -2582,9 +2635,22 @@ class DashboardApp:
 
     def _recent_indexed_results(self, limit: int = 8) -> List[Dict[str, Any]]:
         try:
-            return list_results(ARTIFACT_ROOT, limit=limit)
-        except Exception:
+            records = list_results(ARTIFACT_ROOT, limit=limit)
+            self.state.last_index_error = None
+            return records
+        except Exception as exc:
+            self.state.last_index_error = str(exc)
             return []
+
+    def _render_index_warning(self) -> str:
+        if not self.state.last_index_error:
+            return ""
+        return f"""
+        <section class="panel panel--empty">
+          <h2>Index Warning / 索引告警</h2>
+          <p>结果索引读取失败：{escape(str(self.state.last_index_error))}</p>
+        </section>
+        """
 
     def _paper_run_matches_context(
         self,
@@ -3131,6 +3197,7 @@ class DashboardApp:
     def _optimize_result_kind_label(self, artifact_kind: str) -> str:
         labels = {
             "factor_backtest": "Factor Backtest / 因子回测",
+            "factor_backtest_event": "Factor Event / 实验事件",
             "strategy_suite": "Strategy Suite / 策略套件",
             "rolling_backtest": "Rolling Backtest / 滚动回测",
             "validation": "Validation / 验证",
@@ -3175,6 +3242,32 @@ class DashboardApp:
             "sort_key": str(row.get("sort_date") or row.get("recorded_at") or row.get("result_id") or ""),
         }
 
+    def _optimize_record_from_task_log(self, row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        if str(row.get("category") or "") != "research" or str(row.get("action") or "") != "factor_backtest":
+            return None
+        status = str(row.get("status") or "").strip().upper()
+        if status not in {"BLOCKED", "FAILED"}:
+            return None
+        metadata = row.get("metadata", {}) if isinstance(row.get("metadata"), dict) else {}
+        market = str(metadata.get("market") or "N/A")
+        detail = str(row.get("detail") or "").strip() or "策略实验任务事件"
+        return {
+            "record_id": f"factor_backtest:event:{row.get('created_at')}:{status}",
+            "artifact_kind": "factor_backtest_event",
+            "title": detail,
+            "market": market,
+            "summary": {
+                "subject_name": detail,
+                "decision": status,
+                "score": "N/A",
+                "return": "N/A",
+            },
+            "artifact_path": None,
+            "artifact_href": None,
+            "payload": None,
+            "sort_key": str(row.get("created_at") or ""),
+        }
+
     def _optimize_history_records(self) -> List[Dict[str, Any]]:
         records: List[Dict[str, Any]] = []
         latest_state_record = self._optimize_record_from_state()
@@ -3182,6 +3275,10 @@ class DashboardApp:
             records.append(latest_state_record)
         for row in self._recent_indexed_results(limit=64):
             record = self._optimize_record_from_index(row)
+            if record:
+                records.append(record)
+        for row in reversed(self._load_task_logs()):
+            record = self._optimize_record_from_task_log(row)
             if record:
                 records.append(record)
         deduped: List[Dict[str, Any]] = []
@@ -3192,6 +3289,7 @@ class DashboardApp:
                 continue
             seen.add(dedupe_key)
             deduped.append(record)
+        deduped.sort(key=lambda row: str(row.get("sort_key") or ""), reverse=True)
         return deduped[:12]
 
     def _optimize_resolve_selected_record(
@@ -3386,6 +3484,7 @@ class DashboardApp:
         records = self._optimize_history_records()
         body = f"""
           {flash_html}
+          {self._render_index_warning()}
           {self._render_optimize_history_cards(records)}
         """
         return self._html_page(
@@ -3409,6 +3508,7 @@ class DashboardApp:
         if selected_record is None:
             body = f"""
               {flash_html}
+              {self._render_index_warning()}
               <section class="panel panel--empty">
                 <h2>Experiment Detail / 实验详情</h2>
                 <p>先运行一次实验或选择一个历史工件后，这里才会显示详情。</p>
@@ -3426,6 +3526,7 @@ class DashboardApp:
             )
             body = f"""
               {flash_html}
+              {self._render_index_warning()}
               {result_panel}
               {self._render_optimize_candidate_panel(payload)}
             """
@@ -3564,18 +3665,66 @@ class DashboardApp:
             payload = str(result)
         return hashlib.sha1(payload.encode("utf-8")).hexdigest()[:12]
 
+    def _run_event_record_from_task_log(self, row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        if str(row.get("category") or "") != "runtime" or str(row.get("action") or "") != "strategy_run":
+            return None
+        status = str(row.get("status") or "").strip().upper()
+        if status not in {"BLOCKED", "FAILED"}:
+            return None
+        metadata = row.get("metadata", {}) if isinstance(row.get("metadata"), dict) else {}
+        markets = str(metadata.get("markets") or metadata.get("market") or "N/A")
+        detail = str(row.get("detail") or "").strip() or "策略运行任务事件"
+        return {
+            "record_type": "event",
+            "status": status,
+            "detail": detail,
+            "market": markets,
+            "created_at": str(row.get("created_at") or ""),
+        }
+
+    def _run_history_sort_key(self, record: Dict[str, Any]) -> str:
+        return str(
+            record.get("created_at")
+            or record.get("trade_date")
+            or record.get("paper_run_summary", {}).get("as_of")
+            or ""
+        )
+
     def _run_history_records(self) -> List[Dict[str, Any]]:
-        return list(reversed(self.state.last_run_results))
+        records: List[Dict[str, Any]] = []
+        records.extend(self.state.last_run_results)
+        records.extend(self._load_run_history())
+        for row in reversed(self._load_task_logs()):
+            event_record = self._run_event_record_from_task_log(row)
+            if event_record:
+                records.append(event_record)
+        deduped: List[Dict[str, Any]] = []
+        seen: set[str] = set()
+        for record in sorted(records, key=self._run_history_sort_key, reverse=True):
+            if record.get("record_type") == "event":
+                dedupe_key = f"event:{record.get('created_at')}:{record.get('status')}:{record.get('detail')}"
+            else:
+                dedupe_key = self._run_result_ref(record)
+            if dedupe_key in seen:
+                continue
+            seen.add(dedupe_key)
+            deduped.append(record)
+        return deduped
 
     def _resolve_selected_run_result(self, query: Dict[str, List[str]]) -> Optional[Dict[str, Any]]:
         run_ref = str(query.get("run_ref", [""])[0]).strip()
         records = self._run_history_records()
         if run_ref:
             for result in records:
+                if result.get("record_type") == "event":
+                    continue
                 if self._run_result_ref(result) == run_ref:
                     return result
             return None
-        return records[0] if records else None
+        for record in records:
+            if record.get("record_type") != "event":
+                return record
+        return None
 
     def _render_run_history_page(self, query: Dict[str, List[str]], primary_view: str, subview: str) -> WebResponse:
         flash_html = self._render_flash_messages("run")
@@ -3591,6 +3740,18 @@ class DashboardApp:
         else:
             cards = []
             for index, result in enumerate(records, start=1):
+                if result.get("record_type") == "event":
+                    cards.append(
+                        f"""
+                        <article class="result-card">
+                          <p class="eyebrow">Run Event {index}</p>
+                          <h3>{escape(str(result.get('status') or 'N/A'))}</h3>
+                          <p>Market / 市场: {escape(str(result.get('market', 'N/A')))} | Created At / 创建时间: {escape(str(result.get('created_at', 'N/A')))}</p>
+                          <p>Detail / 详情: {escape(str(result.get('detail', 'N/A')))}</p>
+                        </article>
+                        """
+                    )
+                    continue
                 paper_summary = result.get("paper_run_summary", {}) if isinstance(result.get("paper_run_summary"), dict) else {}
                 run_ref = self._run_result_ref(result)
                 trade_count = len(result.get("paper_trade_records", [])) or paper_summary.get("trade_count", 0)
@@ -3830,6 +3991,7 @@ class DashboardApp:
         subview_config = self._result_center_subview_config(subview)
         body = f"""
           {flash_html}
+          {self._render_index_warning()}
           <section class="panel result-center">
             <div class="panel__header">
               <div>
@@ -4822,6 +4984,19 @@ class DashboardApp:
         rows = payload.get("entries", [])
         return rows if isinstance(rows, list) else []
 
+    def _load_run_history(self) -> List[Dict[str, Any]]:
+        payload = read_json_artifact(ARTIFACT_ROOT, RUN_HISTORY_RELATIVE_PATH)
+        if not isinstance(payload, dict):
+            return []
+        rows = payload.get("records", [])
+        return [dict(row) for row in rows if isinstance(row, dict)]
+
+    def _append_run_history_records(self, records: Iterable[Dict[str, Any]]) -> None:
+        existing = self._load_run_history()
+        appended = [dict(row) for row in records if isinstance(row, dict)]
+        rows = (existing + appended)[-MAX_RECENT_RUN_RESULTS:]
+        write_json_artifact(ARTIFACT_ROOT, RUN_HISTORY_RELATIVE_PATH, {"records": rows})
+
     def _append_task_log(
         self,
         category: str,
@@ -5188,8 +5363,13 @@ class DashboardApp:
         best_day = max(daily_reports, key=lambda row: Decimal(str(row["equal_weight_return"])))
         worst_day = min(daily_reports, key=lambda row: Decimal(str(row["equal_weight_return"])))
         rolling_summary = serialized_rolling["summary"]
+        digest = hashlib.sha1(
+            f"{market.value}|{start_date.isoformat()}|{end_date.isoformat()}|{','.join(selected)}".encode("utf-8")
+        ).hexdigest()[:10]
         factor_rows = []
         baseline_weights = self._baseline_alpha_weights(market)
+        selected_factor_labels = [self._factor_label(factor_name) for factor_name in selected]
+        subject_name = f"{market.value} 因子实验 / {'、'.join(selected_factor_labels)}"
         for factor_name in selected:
             factor_rows.append(
                 {
@@ -5203,6 +5383,8 @@ class DashboardApp:
             )
         summary = {
             "artifact_type": "factor_backtest",
+            "subject_id": f"{market.value.lower()}_strategy_lab:{start_date.isoformat()}:{end_date.isoformat()}:{digest}",
+            "subject_name": subject_name,
             "market": market.value,
             "runtime_mode": "STRATEGY_LAB",
             "start_date": start_date.isoformat(),
@@ -5212,7 +5394,7 @@ class DashboardApp:
             "turnover_cap": str(turnover_cap.quantize(Decimal("0.0001"))),
             "rebalance_buffer": str(rebalance_buffer.quantize(Decimal("0.0001"))),
             "selected_factors": selected,
-            "selected_factor_labels": [self._factor_label(factor_name) for factor_name in selected],
+            "selected_factor_labels": selected_factor_labels,
             "selected_factor_rows": factor_rows,
             "average_return": str(average_return.quantize(Decimal("0.0001"))),
             "average_excess_return": str(average_excess_return.quantize(Decimal("0.0001"))),
@@ -5256,9 +5438,6 @@ class DashboardApp:
             },
         }
         summary["decision"] = serialized_scorecard["decision"]
-        digest = hashlib.sha1(
-            f"{market.value}|{start_date.isoformat()}|{end_date.isoformat()}|{','.join(selected)}".encode("utf-8")
-        ).hexdigest()[:10]
         relative_base = f"{end_date.isoformat()}/{market.value.lower()}_factor_backtest_{digest}"
         json_path = write_json_artifact(ARTIFACT_ROOT, f"{relative_base}.json", payload)
         md_lines = [
