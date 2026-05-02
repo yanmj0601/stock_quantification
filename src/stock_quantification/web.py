@@ -1744,7 +1744,10 @@ class DashboardApp:
         """
 
     def _render_paper_execution_timeline(self, overview: Dict[str, Any]) -> str:
-        latest_paper_run = self._latest_paper_run_result()
+        latest_paper_run = self._latest_paper_run_result(
+            account_id=str(overview.get("account_id") or "").strip() or None,
+            market=str(overview.get("market") or "").strip().upper() or None,
+        )
         if not latest_paper_run:
             return """
             <section class="panel panel--empty">
@@ -2578,13 +2581,44 @@ class DashboardApp:
         except Exception:
             return []
 
-    def _latest_paper_run_result(self) -> Optional[Dict[str, Any]]:
+    def _paper_run_matches_context(
+        self,
+        row: Dict[str, Any],
+        *,
+        account_id: Optional[str] = None,
+        market: Optional[str] = None,
+    ) -> bool:
+        normalized_account_id = str(account_id or "").strip()
+        normalized_market = str(market or "").strip().upper()
+        paper_summary = row.get("paper_run_summary", {}) if isinstance(row.get("paper_run_summary"), dict) else {}
+        paper_account = row.get("paper_account", {}) if isinstance(row.get("paper_account"), dict) else {}
+        row_account_id = str(
+            paper_summary.get("account_id")
+            or row.get("account_id")
+            or paper_account.get("account_id")
+            or ""
+        ).strip()
+        row_market = str(
+            row.get("market")
+            or paper_summary.get("market")
+            or paper_account.get("market")
+            or ""
+        ).strip().upper()
+        if normalized_account_id and row_account_id:
+            return row_account_id == normalized_account_id
+        if normalized_market and row_market:
+            return row_market == normalized_market
+        return True
+
+    def _latest_paper_run_result(self, *, account_id: Optional[str] = None, market: Optional[str] = None) -> Optional[Dict[str, Any]]:
         for row in reversed(self.state.last_run_results):
-            if row.get("paper_run_summary"):
+            if row.get("paper_run_summary") and self._paper_run_matches_context(row, account_id=account_id, market=market):
                 return row
         indexed_runs = self._recent_indexed_results(limit=8)
         for row in indexed_runs:
             if str(row.get("artifact_kind")) != "local_paper_run":
+                continue
+            if not self._paper_run_matches_context(row, account_id=account_id, market=market):
                 continue
             paper_run_summary = row.get("paper_run_summary", {}) if isinstance(row.get("paper_run_summary"), dict) else {}
             artifacts = row.get("artifacts", {}) if isinstance(row.get("artifacts"), dict) else {}

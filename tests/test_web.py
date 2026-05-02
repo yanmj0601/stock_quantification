@@ -2420,6 +2420,83 @@ class WebTests(TestCase):
         self.assertIn("us_quality_momentum", html)
         self.assertIn("2026-04-06T16:00:00", html)
 
+    def test_local_paper_panel_prefers_matching_account_run_summary(self) -> None:
+        self.app.state.last_run_results = [
+            {
+                "paper_account": {
+                    "account_id": "web-paper-cn",
+                    "market": "CN",
+                    "cash": "70000",
+                    "buying_power": "65000",
+                    "position_count": 2,
+                    "trade_count": 3,
+                    "filtered_trade_count": 2,
+                    "latest_nav": "102000.0000",
+                    "cumulative_return": "0.0200",
+                    "positions": [],
+                    "nav_history": [],
+                    "recent_trades": [],
+                },
+                "paper_trade_records": [{"instrument_id": "CN.600519"}],
+                "paper_run_summary": {
+                    "account_id": "web-paper-cn",
+                    "strategy_id": "cn_momentum_core",
+                    "trade_count": 1,
+                    "as_of": "2026-04-06T14:00:00",
+                    "position_count": 2,
+                },
+                "paper_paths": {"run_json": "artifacts/local_paper/web-paper-cn/runs/cn-demo.json"},
+            },
+            {
+                "paper_account": {
+                    "account_id": "web-paper-us",
+                    "market": "US",
+                    "cash": "80000",
+                    "buying_power": "80000",
+                    "position_count": 1,
+                    "trade_count": 2,
+                    "filtered_trade_count": 1,
+                    "latest_nav": "100500.0000",
+                    "cumulative_return": "0.0050",
+                    "positions": [],
+                    "nav_history": [],
+                    "recent_trades": [],
+                },
+                "paper_trade_records": [{"instrument_id": "US.AAPL"}],
+                "paper_run_summary": {
+                    "account_id": "web-paper-us",
+                    "strategy_id": "us_quality_momentum",
+                    "trade_count": 1,
+                    "as_of": "2026-04-06T16:00:00",
+                    "position_count": 1,
+                },
+                "paper_paths": {"run_json": "artifacts/local_paper/web-paper-us/runs/us-demo.json"},
+            },
+        ]
+        with patch.object(self.app, "_enrich_local_paper_overview", side_effect=lambda overview: overview):
+            with patch.object(web_module, "LocalPaperLedger") as mock_ledger_cls:
+                ledger = mock_ledger_cls.return_value
+                ledger.account_overview.return_value = {
+                    "account_id": "web-paper-cn",
+                    "market": "CN",
+                    "cash": "70000",
+                    "buying_power": "65000",
+                    "position_count": 2,
+                    "trade_count": 3,
+                    "filtered_trade_count": 2,
+                    "latest_nav": "102000.0000",
+                    "cumulative_return": "0.0200",
+                    "positions": [],
+                    "nav_history": [],
+                    "recent_trades": [],
+                }
+                ledger.list_accounts.return_value = ["web-paper-cn", "web-paper-us"]
+                html = self.app._render_local_paper_panel({"paper_account_id": ["web-paper-cn"]})
+
+        self.assertIn("cn_momentum_core", html)
+        self.assertIn("2026-04-06T14:00:00", html)
+        self.assertNotIn("us_quality_momentum", html)
+
     def test_local_paper_panel_falls_back_to_indexed_run_summary(self) -> None:
         with TemporaryDirectory() as tmpdir:
             artifact_root = Path(tmpdir)
@@ -2474,3 +2551,79 @@ class WebTests(TestCase):
         self.assertIn("Recent Run Context / 最近运行上下文", html)
         self.assertIn("us_quality_momentum", html)
         self.assertIn("2026-04-18T10:00:00", html)
+
+    def test_local_paper_panel_indexed_fallback_prefers_matching_account(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            write_json_artifact(
+                artifact_root,
+                "web/result_index.json",
+                {
+                    "records": [
+                        {
+                            "result_id": "local_paper_run:US:web-paper-us:2026-04-18T10:00:00",
+                            "artifact_kind": "local_paper_run",
+                            "market": "US",
+                            "sort_date": "2026-04-18T10:00:00",
+                            "summary": {
+                                "subject_name": "web-paper-us / us_quality_momentum",
+                                "decision": "RECORDED",
+                                "score": 2,
+                                "rationale": "2 trades routed into local paper ledger",
+                            },
+                            "paper_run_summary": {
+                                "account_id": "web-paper-us",
+                                "strategy_id": "us_quality_momentum",
+                                "trade_count": 2,
+                                "as_of": "2026-04-18T10:00:00",
+                                "position_count": 4,
+                            },
+                            "artifacts": {"json": "local_paper/web-paper-us/runs/us-demo.json"},
+                        },
+                        {
+                            "result_id": "local_paper_run:CN:web-paper-cn:2026-04-18T09:00:00",
+                            "artifact_kind": "local_paper_run",
+                            "market": "CN",
+                            "sort_date": "2026-04-18T09:00:00",
+                            "summary": {
+                                "subject_name": "web-paper-cn / cn_momentum_core",
+                                "decision": "RECORDED",
+                                "score": 1,
+                                "rationale": "1 trade routed into local paper ledger",
+                            },
+                            "paper_run_summary": {
+                                "account_id": "web-paper-cn",
+                                "strategy_id": "cn_momentum_core",
+                                "trade_count": 1,
+                                "as_of": "2026-04-18T09:00:00",
+                                "position_count": 3,
+                            },
+                            "artifacts": {"json": "local_paper/web-paper-cn/runs/cn-demo.json"},
+                        },
+                    ]
+                },
+            )
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                with patch.object(self.app, "_enrich_local_paper_overview", side_effect=lambda overview: overview):
+                    with patch.object(web_module, "LocalPaperLedger") as mock_ledger_cls:
+                        ledger = mock_ledger_cls.return_value
+                        ledger.account_overview.return_value = {
+                            "account_id": "web-paper-cn",
+                            "market": "CN",
+                            "cash": "70000",
+                            "buying_power": "65000",
+                            "position_count": 3,
+                            "trade_count": 4,
+                            "filtered_trade_count": 4,
+                            "latest_nav": "102000.0000",
+                            "cumulative_return": "0.0200",
+                            "positions": [],
+                            "recent_trades": [],
+                            "nav_history": [],
+                        }
+                        ledger.list_accounts.return_value = ["web-paper-cn", "web-paper-us"]
+                        html = self.app._render_local_paper_panel({"paper_account_id": ["web-paper-cn"]})
+
+        self.assertIn("cn_momentum_core", html)
+        self.assertIn("2026-04-18T09:00:00", html)
+        self.assertNotIn("us_quality_momentum", html)
