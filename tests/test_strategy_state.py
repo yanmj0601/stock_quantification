@@ -64,6 +64,42 @@ class StrategyStateStoreTests(TestCase):
             with self.assertRaises(TypeError):
                 store.set_market_state(Market.CN, champion_preset_id="cn_baseline")
 
+    def test_set_current_execution_preset_promotes_current_preserves_other_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = StrategyStateStore(tmpdir)
+            store.set_market_state(
+                Market.US,
+                champion_preset_id="us_baseline",
+                challenger_preset_id="us_quality_focus",
+                current_execution_preset_id="us_quality_focus",
+            )
+
+            updated_state = store.set_current_execution_preset(Market.US, "us_momentum_plus")
+
+            self.assertEqual(
+                updated_state["markets"]["US"],
+                {
+                    "champion_preset_id": "us_baseline",
+                    "challenger_preset_id": "us_quality_focus",
+                    "current_execution_preset_id": "us_momentum_plus",
+                },
+            )
+
+    def test_set_current_execution_preset_fills_missing_champion_from_selection(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = StrategyStateStore(tmpdir)
+
+            updated_state = store.set_current_execution_preset(Market.CN, "cn_quality_momentum")
+
+            self.assertEqual(
+                updated_state["markets"]["CN"],
+                {
+                    "champion_preset_id": "cn_quality_momentum",
+                    "challenger_preset_id": None,
+                    "current_execution_preset_id": "cn_quality_momentum",
+                },
+            )
+
     def test_state_round_trips_across_store_instances(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             first_store = StrategyStateStore(tmpdir)

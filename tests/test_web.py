@@ -429,6 +429,9 @@ class WebTests(TestCase):
         self.assertNotIn("Recent Trades / 最近成交", body)
         self.assertIn("Current Strategy / 当前策略", body)
         self.assertIn("us_quality_focus", body)
+        self.assertIn('form method="post" action="/strategy-state/current"', body)
+        self.assertIn('>设为当前执行策略<', body)
+        self.assertNotIn('aria-disabled="true"', body)
 
     @patch("stock_quantification.web.LocalPaperLedger")
     def test_home_page_paper_view_keeps_account_context_sections(self, mock_ledger_cls) -> None:
@@ -473,6 +476,101 @@ class WebTests(TestCase):
         self.assertNotIn("Sector Exposure / 行业暴露", body)
         self.assertNotIn("Recent Trades / 最近成交", body)
         self.assertIn("Reset Account / 重置当前账户", body)
+
+    @patch("stock_quantification.web.StrategyStateStore")
+    def test_handle_strategy_state_current_updates_state_and_redirects_to_paper_context(self, mock_strategy_state_cls) -> None:
+        strategy_state = mock_strategy_state_cls.return_value
+        strategy_state.load_market_state.return_value = {
+            "champion_preset_id": "us_baseline",
+            "challenger_preset_id": "us_quality_focus",
+            "current_execution_preset_id": "us_quality_focus",
+        }
+        response = self.app.handle_strategy_state_current(
+            {
+                "view": ["paper"],
+                "market": ["US"],
+                "preset_id": ["us_momentum_core"],
+                "paper_account_id": ["web-paper-us"],
+                "paper_start_date": ["2026-04-01"],
+                "paper_end_date": ["2026-04-30"],
+                "subview": ["main"],
+            }
+        )
+
+        self.assertEqual(response.status, 303)
+        self.assertEqual(
+            response.headers["Location"],
+            "/?view=paper&paper_account_id=web-paper-us&paper_start_date=2026-04-01&paper_end_date=2026-04-30&subview=main",
+        )
+        strategy_state.set_current_execution_preset.assert_called_once_with("US", "us_momentum_core")
+        self.assertIn("已设为当前执行策略", self.app.state.flash_messages[-1]["message"])
+        self.assertEqual(self.app.state.flash_messages[-1]["audience"], "paper")
+
+    @patch("stock_quantification.web.StrategyStateStore")
+    def test_handle_strategy_state_current_redirects_with_flash_when_persistence_fails(self, mock_strategy_state_cls) -> None:
+        strategy_state = mock_strategy_state_cls.return_value
+        strategy_state.set_current_execution_preset.side_effect = OSError("disk full")
+
+        response = self.app.handle_strategy_state_current(
+            {
+                "view": ["paper"],
+                "market": ["US"],
+                "preset_id": ["us_momentum_core"],
+                "paper_account_id": ["web-paper-us"],
+                "paper_start_date": ["2026-04-01"],
+                "paper_end_date": ["2026-04-30"],
+                "subview": ["main"],
+            }
+        )
+
+        self.assertEqual(response.status, 303)
+        self.assertEqual(
+            response.headers["Location"],
+            "/?view=paper&paper_account_id=web-paper-us&paper_start_date=2026-04-01&paper_end_date=2026-04-30&subview=main",
+        )
+        self.assertIn("设为当前执行策略失败", self.app.state.flash_messages[-1]["message"])
+        self.assertEqual(self.app.state.flash_messages[-1]["audience"], "paper")
+
+    @patch("stock_quantification.web.StrategyStateStore")
+    @patch("stock_quantification.web.LocalPaperLedger")
+    def test_home_page_paper_view_falls_back_to_champion_when_current_execution_missing(self, mock_ledger_cls, mock_strategy_state_cls) -> None:
+        ledger = mock_ledger_cls.return_value
+        ledger.latest_account_overview.return_value = {
+            "account_id": "web-paper-us",
+            "market": "US",
+            "cash": "100000",
+            "buying_power": "80000",
+            "position_count": 0,
+            "trade_count": 0,
+            "filtered_trade_count": 0,
+            "latest_nav": "100000",
+            "cumulative_return": "0",
+            "positions": [],
+            "nav_history": [],
+            "recent_trades": [],
+            "today_summary": {},
+            "sector_exposure_rows": [],
+            "risk_alerts": [],
+            "position_rows": [],
+            "filter_start_date": None,
+            "filter_end_date": None,
+        }
+        ledger.list_accounts.return_value = ["web-paper-us"]
+        ledger.account_overview.return_value = ledger.latest_account_overview.return_value
+        mock_strategy_state_cls.return_value.load_market_state.return_value = {
+            "champion_preset_id": "us_baseline",
+            "challenger_preset_id": "us_quality_focus",
+            "current_execution_preset_id": None,
+        }
+
+        response = self.app.render_home({"view": ["paper"], "subview": ["main"]})
+        body = response.body.decode("utf-8")
+
+        self.assertEqual(response.status, 200)
+        self.assertIn("Current Strategy / 当前策略", body)
+        self.assertIn("Current Execution / 当前执行策略", body)
+        self.assertIn("us_baseline", body)
+        self.assertNotIn(">N/A<", body)
 
     @patch("stock_quantification.web.StrategyStateStore")
     @patch("stock_quantification.web.LocalPaperLedger")

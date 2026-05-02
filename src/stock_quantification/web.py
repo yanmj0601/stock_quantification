@@ -205,6 +205,8 @@ class DashboardApp:
             return self.handle_run(body)
         if path == "/local-paper/reset" and method == "POST":
             return self.handle_local_paper_reset(body)
+        if path == "/strategy-state/current" and method == "POST":
+            return self.handle_strategy_state_current(body)
         if path == "/factor-backtest" and method == "POST":
             return self.handle_factor_backtest(body)
         if path == "/chat" and method == "POST":
@@ -786,6 +788,57 @@ class DashboardApp:
                 metadata={"account_id": account_id},
             )
         return self._redirect(self._view_url(view))
+
+    def handle_strategy_state_current(self, body: Dict[str, List[str]]) -> WebResponse:
+        market_raw = body.get("market", [""])[0].strip().upper()
+        preset_id = body.get("preset_id", [""])[0].strip()
+        paper_account_id = body.get("paper_account_id", [""])[0].strip()
+        paper_start_date = body.get("paper_start_date", [""])[0].strip()
+        paper_end_date = body.get("paper_end_date", [""])[0].strip()
+        subview = body.get("subview", ["main"])[0].strip().lower() or "main"
+        try:
+            market = Market(market_raw)
+            lookup_strategy_preset(market, preset_id)
+        except Exception as exc:
+            self.state.push_flash(f"设为当前执行策略失败：{exc}", audience="paper")
+            return self._redirect(
+                self._view_url(
+                    "paper",
+                    query={
+                        "paper_account_id": paper_account_id,
+                        "paper_start_date": paper_start_date,
+                        "paper_end_date": paper_end_date,
+                        "subview": subview,
+                    },
+                )
+            )
+        try:
+            self._strategy_state_store().set_current_execution_preset(market, preset_id)
+        except Exception as exc:
+            self.state.push_flash(f"设为当前执行策略失败：{exc}", audience="paper")
+            return self._redirect(
+                self._view_url(
+                    "paper",
+                    query={
+                        "paper_account_id": paper_account_id,
+                        "paper_start_date": paper_start_date,
+                        "paper_end_date": paper_end_date,
+                        "subview": subview,
+                    },
+                )
+            )
+        self.state.push_flash(f"已设为当前执行策略：{market.value} / {preset_id}。", audience="paper")
+        return self._redirect(
+            self._view_url(
+                "paper",
+                query={
+                    "paper_account_id": paper_account_id,
+                    "paper_start_date": paper_start_date,
+                    "paper_end_date": paper_end_date,
+                    "subview": subview,
+                },
+            )
+        )
 
     def handle_factor_backtest(self, body: Dict[str, List[str]]) -> WebResponse:
         config = self._load_project_config()
@@ -1737,7 +1790,29 @@ class DashboardApp:
         state = self._strategy_state_store().load_market_state(market)
         champion = state.get("champion_preset_id") or "N/A"
         challenger = state.get("challenger_preset_id") or "N/A"
-        current_execution = state.get("current_execution_preset_id") or "N/A"
+        champion_preset_id = str(state.get("champion_preset_id") or "").strip()
+        challenger_preset_id = str(state.get("challenger_preset_id") or "").strip()
+        current_execution = state.get("current_execution_preset_id") or champion_preset_id or "N/A"
+        action_forms = []
+        if champion_preset_id and champion_preset_id != current_execution:
+            action_forms.append(
+                self._render_current_strategy_action_form(
+                    market=market,
+                    preset_id=champion_preset_id,
+                    preset_label="Champion / 冠军策略",
+                    overview=overview,
+                )
+            )
+        if challenger_preset_id and challenger_preset_id != current_execution and challenger_preset_id != champion_preset_id:
+            action_forms.append(
+                self._render_current_strategy_action_form(
+                    market=market,
+                    preset_id=challenger_preset_id,
+                    preset_label="Challenger / 挑战者策略",
+                    overview=overview,
+                )
+            )
+        actions_html = "".join(action_forms)
         return f"""
         <section class="paper-section paper-current-strategy">
           <div class="panel__header panel__header--section">
@@ -1745,7 +1820,6 @@ class DashboardApp:
               <p class="eyebrow">Current Strategy</p>
               <h3>Current Strategy / 当前策略</h3>
             </div>
-            <a class="button button--ghost" href="#" aria-disabled="true">Switch Strategy / 切换策略</a>
           </div>
           <div class="summary-grid">
             {self._summary_tile("Current Execution / 当前执行策略", current_execution, "当前正在执行的预设")}
@@ -1753,7 +1827,29 @@ class DashboardApp:
             {self._summary_tile("Challenger / 挑战者策略", challenger, "当前市场的 challenger 预设")}
             {self._summary_tile("Market / 市场", market, "当前策略状态所属市场")}
           </div>
+          {f'<div class="panel__actions panel__actions--inline">{actions_html}</div>' if actions_html else ''}
         </section>
+        """
+
+    def _render_current_strategy_action_form(self, *, market: str, preset_id: str, preset_label: str, overview: Dict[str, Any]) -> str:
+        paper_account_id = str(overview.get("account_id") or "").strip()
+        paper_start_date = str(overview.get("filter_start_date") or "").strip()
+        paper_end_date = str(overview.get("filter_end_date") or "").strip()
+        return f"""
+        <form method="post" action="/strategy-state/current" class="inline-form">
+          <input type="hidden" name="view" value="paper" />
+          <input type="hidden" name="subview" value="main" />
+          <input type="hidden" name="market" value="{escape(market)}" />
+          <input type="hidden" name="preset_id" value="{escape(preset_id)}" />
+          <input type="hidden" name="paper_account_id" value="{escape(paper_account_id)}" />
+          <input type="hidden" name="paper_start_date" value="{escape(paper_start_date)}" />
+          <input type="hidden" name="paper_end_date" value="{escape(paper_end_date)}" />
+          <div class="inline-form__copy">
+            <strong>{escape(preset_label)}</strong>
+            <span class="muted">{escape(preset_id)}</span>
+          </div>
+          <button class="button button--ghost" type="submit">设为当前执行策略</button>
+        </form>
         """
 
     def _render_sector_exposure_table(self, rows: Iterable[Dict[str, Any]]) -> str:

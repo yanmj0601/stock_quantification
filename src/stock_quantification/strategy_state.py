@@ -91,3 +91,14 @@ class StrategyStateStore:
         }
         write_json_artifact(self._base_dir, self._relative_path, state)
         return state
+
+    def set_current_execution_preset(self, market: Market | str, preset_id: str) -> Dict[str, Any]:
+        market_enum = _normalize_market(market)
+        state = self.load_state()
+        market_state = _normalize_market_state(state["markets"].get(market_enum.value))
+        if not market_state.get("champion_preset_id"):
+            market_state["champion_preset_id"] = preset_id
+        market_state["current_execution_preset_id"] = preset_id
+        state["markets"][market_enum.value] = market_state
+        write_json_artifact(self._base_dir, self._relative_path, state)
+        return state
