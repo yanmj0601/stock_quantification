@@ -71,9 +71,278 @@ class WebTests(TestCase):
         response = self.app.render_home({"view": ["results"]})
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
-        self.assertIn("Research Results / 研究结果", body)
-        self.assertIn("/?view=results&artifact=2026-03-31/us_strategy_suite.json", body)
+        self.assertIn('data-subview="champions"', body)
+        self.assertIn("Champion / 冠军", body)
+        self.assertIn("/?view=results&subview=champions&artifact=2026-03-31/us_strategy_suite.json", body)
         self.assertNotIn("双市场量化项目工作台", body)
+
+    def test_home_page_supports_results_champions_subview(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            write_json_artifact(
+                artifact_root,
+                "web/result_index.json",
+                {
+                    "records": [
+                        {
+                            "result_id": "strategy_suite:US:2026-03-31",
+                            "artifact_kind": "strategy_suite",
+                            "market": "US",
+                            "sort_date": "2026-03-31",
+                            "summary": {
+                                "subject_id": "us_baseline",
+                                "subject_name": "美股冠军策略",
+                                "decision": "KEEP",
+                                "result_type": "strategy_suite",
+                            },
+                            "artifacts": {"json": "2026-03-31/us_baseline.json"},
+                        },
+                        {
+                            "result_id": "strategy_suite:US:2026-04-01",
+                            "artifact_kind": "strategy_suite",
+                            "market": "US",
+                            "sort_date": "2026-04-01",
+                            "summary": {
+                                "subject_id": "us_quality_focus",
+                                "subject_name": "美股挑战者策略",
+                                "decision": "REVIEW",
+                                "result_type": "strategy_suite",
+                            },
+                            "artifacts": {"json": "2026-04-01/us_quality_focus.json"},
+                        },
+                        {
+                            "result_id": "strategy_suite:US:2026-04-02",
+                            "artifact_kind": "strategy_suite",
+                            "market": "US",
+                            "sort_date": "2026-04-02",
+                            "summary": {
+                                "subject_id": "us_dropout",
+                                "subject_name": "美股淘汰策略",
+                                "decision": "DROP",
+                                "result_type": "strategy_suite",
+                            },
+                            "artifacts": {"json": "2026-04-02/us_dropout.json"},
+                        },
+                    ]
+                },
+            )
+            write_json_artifact(
+                artifact_root,
+                "web/strategy_state.json",
+                {
+                    "markets": {
+                        "US": {
+                            "champion_preset_id": "us_baseline",
+                            "challenger_preset_id": "us_quality_focus",
+                            "current_execution_preset_id": "us_quality_focus",
+                        }
+                    }
+                },
+            )
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                response = self.app.render_home({"view": ["results"], "subview": ["champions"]})
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn('data-subview="champions"', body)
+        self.assertIn("Champion / 冠军", body)
+        self.assertIn("美股冠军策略", body)
+        self.assertNotIn("美股挑战者策略", body)
+        self.assertNotIn("美股淘汰策略", body)
+
+    def test_home_page_supports_results_challengers_subview(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            write_json_artifact(
+                artifact_root,
+                "web/result_index.json",
+                {
+                    "records": [
+                        {
+                            "result_id": "strategy_suite:US:2026-03-31",
+                            "artifact_kind": "strategy_suite",
+                            "market": "US",
+                            "sort_date": "2026-03-31",
+                            "summary": {
+                                "subject_id": "us_baseline",
+                                "subject_name": "美股冠军策略",
+                                "decision": "KEEP",
+                                "result_type": "strategy_suite",
+                            },
+                            "artifacts": {"json": "2026-03-31/us_baseline.json"},
+                        },
+                        {
+                            "result_id": "strategy_suite:US:2026-04-01",
+                            "artifact_kind": "strategy_suite",
+                            "market": "US",
+                            "sort_date": "2026-04-01",
+                            "summary": {
+                                "subject_id": "us_quality_focus",
+                                "subject_name": "美股挑战者策略",
+                                "decision": "REVIEW",
+                                "result_type": "strategy_suite",
+                            },
+                            "artifacts": {"json": "2026-04-01/us_quality_focus.json"},
+                        },
+                        {
+                            "result_id": "strategy_suite:US:2026-04-02",
+                            "artifact_kind": "strategy_suite",
+                            "market": "US",
+                            "sort_date": "2026-04-02",
+                            "summary": {
+                                "subject_id": "us_dropout",
+                                "subject_name": "美股淘汰策略",
+                                "decision": "DROP",
+                                "result_type": "strategy_suite",
+                            },
+                            "artifacts": {"json": "2026-04-02/us_dropout.json"},
+                        },
+                    ]
+                },
+            )
+            write_json_artifact(
+                artifact_root,
+                "web/strategy_state.json",
+                {
+                    "markets": {
+                        "US": {
+                            "champion_preset_id": "us_baseline",
+                            "challenger_preset_id": "us_quality_focus",
+                            "current_execution_preset_id": "us_baseline",
+                        }
+                    }
+                },
+            )
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                response = self.app.render_home({"view": ["results"], "subview": ["challengers"]})
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn('data-subview="challengers"', body)
+        self.assertIn("Challenger / 挑战者", body)
+        self.assertIn("美股挑战者策略", body)
+        self.assertNotIn("美股冠军策略", body)
+        self.assertNotIn("美股淘汰策略", body)
+
+    def test_home_page_supports_results_drops_subview(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            write_json_artifact(
+                artifact_root,
+                "web/result_index.json",
+                {
+                    "records": [
+                        {
+                            "result_id": "strategy_suite:US:2026-03-31",
+                            "artifact_kind": "strategy_suite",
+                            "market": "US",
+                            "sort_date": "2026-03-31",
+                            "summary": {
+                                "subject_id": "us_baseline",
+                                "subject_name": "美股冠军策略",
+                                "decision": "KEEP",
+                                "result_type": "strategy_suite",
+                            },
+                            "artifacts": {"json": "2026-03-31/us_baseline.json"},
+                        },
+                        {
+                            "result_id": "strategy_suite:US:2026-04-01",
+                            "artifact_kind": "strategy_suite",
+                            "market": "US",
+                            "sort_date": "2026-04-01",
+                            "summary": {
+                                "subject_id": "us_quality_focus",
+                                "subject_name": "美股挑战者策略",
+                                "decision": "REVIEW",
+                                "result_type": "strategy_suite",
+                            },
+                            "artifacts": {"json": "2026-04-01/us_quality_focus.json"},
+                        },
+                        {
+                            "result_id": "strategy_suite:US:2026-04-02",
+                            "artifact_kind": "strategy_suite",
+                            "market": "US",
+                            "sort_date": "2026-04-02",
+                            "summary": {
+                                "subject_id": "us_dropout",
+                                "subject_name": "美股淘汰策略",
+                                "decision": "DROP",
+                                "result_type": "strategy_suite",
+                            },
+                            "artifacts": {"json": "2026-04-02/us_dropout.json"},
+                        },
+                    ]
+                },
+            )
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                response = self.app.render_home({"view": ["results"], "subview": ["drops"]})
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn('data-subview="drops"', body)
+        self.assertIn("Drop / 淘汰", body)
+        self.assertIn("美股淘汰策略", body)
+        self.assertNotIn("美股冠军策略", body)
+        self.assertNotIn("美股挑战者策略", body)
+
+    def test_home_page_supports_results_archive_subview(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            write_json_artifact(
+                artifact_root,
+                "web/result_index.json",
+                {
+                    "records": [
+                        {
+                            "result_id": "strategy_suite:US:2026-03-31",
+                            "artifact_kind": "strategy_suite",
+                            "market": "US",
+                            "sort_date": "2026-03-31",
+                            "summary": {
+                                "subject_id": "us_baseline",
+                                "subject_name": "美股冠军策略",
+                                "decision": "KEEP",
+                                "result_type": "strategy_suite",
+                            },
+                            "artifacts": {"json": "2026-03-31/us_baseline.json"},
+                        },
+                        {
+                            "result_id": "strategy_suite:US:2026-04-01",
+                            "artifact_kind": "strategy_suite",
+                            "market": "US",
+                            "sort_date": "2026-04-01",
+                            "summary": {
+                                "subject_id": "us_quality_focus",
+                                "subject_name": "美股挑战者策略",
+                                "decision": "REVIEW",
+                                "result_type": "strategy_suite",
+                            },
+                            "artifacts": {"json": "2026-04-01/us_quality_focus.json"},
+                        },
+                        {
+                            "result_id": "strategy_suite:US:2026-04-02",
+                            "artifact_kind": "strategy_suite",
+                            "market": "US",
+                            "sort_date": "2026-04-02",
+                            "summary": {
+                                "subject_id": "us_dropout",
+                                "subject_name": "美股淘汰策略",
+                                "decision": "DROP",
+                                "result_type": "strategy_suite",
+                            },
+                            "artifacts": {"json": "2026-04-02/us_dropout.json"},
+                        },
+                    ]
+                },
+            )
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                response = self.app.render_home({"view": ["results"], "subview": ["archive"]})
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn('data-subview="archive"', body)
+        self.assertIn("Archive / 归档", body)
+        self.assertIn("美股冠军策略", body)
+        self.assertIn("美股挑战者策略", body)
+        self.assertIn("美股淘汰策略", body)
+        self.assertNotIn("Research Results / 研究结果中心", body)
+        self.assertNotIn("Runtime Results / 运行结果", body)
 
     @patch("stock_quantification.web.LocalPaperLedger")
     def test_home_page_supports_paper_view(self, mock_ledger_cls) -> None:
@@ -906,7 +1175,8 @@ class WebTests(TestCase):
                 response = self.app.render_home({"view": ["results"]})
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
-        self.assertIn("Research Results / 研究结果中心", body)
+        self.assertIn('data-subview="champions"', body)
+        self.assertIn("Champion / 冠军", body)
         self.assertIn("美股基线质量动量", body)
         self.assertIn("KEEP", body)
         self.assertIn("0.1200", body)
@@ -954,10 +1224,14 @@ class WebTests(TestCase):
                 response = self.app.render_home({"view": ["results"]})
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
-        self.assertIn("Research Results / 研究结果中心", body)
-        self.assertIn("Runtime Results / 运行结果", body)
+        self.assertIn("Champion / 冠军", body)
+        self.assertIn("Challenger / 挑战者", body)
+        self.assertIn("Drop / 淘汰", body)
+        self.assertIn("Archive / 归档", body)
+        self.assertNotIn("Research Results / 研究结果中心", body)
+        self.assertNotIn("Runtime Results / 运行结果", body)
 
-    def test_results_page_renders_filter_bar_grouped_lists_and_detail_panel(self) -> None:
+    def test_results_page_renders_archive_subview_and_legacy_artifact_detail(self) -> None:
         with TemporaryDirectory() as tmpdir:
             artifact_root = Path(tmpdir)
             write_json_artifact(
@@ -976,26 +1250,69 @@ class WebTests(TestCase):
                                 "decision": "KEEP",
                                 "score": "1.2345",
                                 "return": "0.1200",
-                                "excess_return": "0.0310",
                                 "result_type": "strategy_suite",
                                 "rationale": "质量和动量信号同时稳定。",
                             },
-                            "artifacts": {"json": "2026-03-31/us_strategy_suite.json", "markdown": "2026-03-31/us_strategy_suite.md"},
+                            "artifacts": {"json": "2026-03-31/us_strategy_suite.json"},
                         },
+                    ]
+                },
+            )
+            write_json_artifact(
+                artifact_root,
+                "2026-03-31/us_strategy_suite.json",
+                {
+                    "summary": {
+                        "market": "US",
+                        "runtime_mode": "PAPER",
+                        "total_return": "0.1200",
+                        "final_nav": "100000",
+                        "buy_fill_count": "3",
+                        "sell_fill_count": "1",
+                        "trade_count": "4",
+                    },
+                },
+            )
+            write_json_artifact(
+                artifact_root,
+                "web/strategy_state.json",
+                {"markets": {"US": {"champion_preset_id": "us_baseline", "challenger_preset_id": None, "current_execution_preset_id": None}}},
+            )
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                response = self.app.render_home({"view": ["results"], "subview": ["archive"], "artifact": ["2026-03-31/us_strategy_suite.json"]})
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn('data-subview="archive"', body)
+        self.assertIn("Archive / 归档", body)
+        self.assertIn("美股基线质量动量", body)
+        self.assertIn("Result Detail / 结果详情", body)
+        self.assertIn("Mode / 模式", body)
+        self.assertNotIn("Normalized Summary / 统一摘要", body)
+        self.assertNotIn("Research Results / 研究结果中心", body)
+        self.assertNotIn("Runtime Results / 运行结果", body)
+
+    def test_results_page_archive_subview_shows_empty_detail_for_unknown_artifact(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            write_json_artifact(
+                artifact_root,
+                "web/result_index.json",
+                {
+                    "records": [
                         {
-                            "result_id": "local_paper_run:US:web-paper-us:2026-04-18T10:00:00",
-                            "artifact_kind": "local_paper_run",
+                            "result_id": "strategy_suite:US:2026-03-31",
+                            "artifact_kind": "strategy_suite",
                             "market": "US",
-                            "sort_date": "2026-04-18T10:00:00",
+                            "sort_date": "2026-03-31",
                             "summary": {
-                                "subject_name": "web-paper-us / us_quality_momentum",
-                                "decision": "RECORDED",
-                                "score": "2",
-                                "return": "80000",
-                                "result_type": "local_paper_run",
-                                "rationale": "记录模拟盘执行结果。",
+                                "subject_name": "美股基线质量动量",
+                                "subject_id": "us_baseline",
+                                "decision": "KEEP",
+                                "score": "1.2345",
+                                "return": "0.1200",
+                                "result_type": "strategy_suite",
                             },
-                            "artifacts": {"json": "local_paper/web-paper-us/runs/demo.json", "markdown": "local_paper/web-paper-us/runs/demo.md"},
+                            "artifacts": {"json": "2026-03-31/us_strategy_suite.json"},
                         },
                     ]
                 },
@@ -1006,69 +1323,25 @@ class WebTests(TestCase):
                 {
                     "normalized_summary": {
                         "subject_name": "美股基线质量动量",
-                        "subject_id": "us_baseline",
                         "decision": "KEEP",
-                        "score": "1.2345",
-                        "return": "0.1200",
-                        "excess_return": "0.0310",
-                        "max_drawdown": "-0.0800",
-                        "rationale": "质量和动量信号同时稳定。",
-                    },
-                    "metrics": {
-                        "sharpe_ratio": "1.82",
-                        "turnover": "0.14",
-                    },
-                    "artifacts": {
-                        "json": "2026-03-31/us_strategy_suite.json",
-                        "markdown": "2026-03-31/us_strategy_suite.md",
-                    },
-                },
-            )
-            write_json_artifact(
-                artifact_root,
-                "local_paper/web-paper-us/runs/demo.json",
-                {
-                    "normalized_summary": {
-                        "subject_name": "web-paper-us / us_quality_momentum",
-                        "decision": "RECORDED",
-                        "score": "2",
-                        "return": "80000",
-                        "rationale": "记录模拟盘执行结果。",
-                    },
-                    "metrics": {
-                        "trade_count": "3",
-                        "filled_trade_count": "2",
-                    },
-                    "artifacts": {
-                        "json": "local_paper/web-paper-us/runs/demo.json",
-                        "markdown": "local_paper/web-paper-us/runs/demo.md",
-                    },
+                    }
                 },
             )
             with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
-                response = self.app.render_home({"view": ["results"]})
+                response = self.app.render_home(
+                    {
+                        "view": ["results"],
+                        "subview": ["archive"],
+                        "artifact": ["2026-03-31/missing.json"],
+                    }
+        )
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
-        self.assertIn("Result Group / 结果分组", body)
-        self.assertIn("Result Type / 结果类型", body)
-        self.assertIn("Market / 市场", body)
-        self.assertIn("Recent Window / 最近窗口", body)
-        self.assertIn("Research Results / 研究结果中心", body)
-        self.assertIn("Runtime Results / 运行结果", body)
         self.assertIn("Result Detail / 结果详情", body)
-        self.assertIn("Normalized Summary / 统一摘要", body)
-        self.assertIn("Rationale / 依据", body)
-        self.assertIn("Metrics / 指标", body)
-        self.assertIn("Artifact Links / 工件链接", body)
-        self.assertIn("美股基线质量动量", body)
-        self.assertIn("web-paper-us / us_quality_momentum", body)
-        self.assertNotIn("Strategy Run / 策略运行", body)
-        self.assertNotIn("Factor Backtest / 因子回测", body)
-        self.assertNotIn("重置模拟盘账户", body)
-        self.assertNotIn("释放任务", body)
-        self.assertNotIn("项目配置页", body)
+        self.assertIn("当前没有选中的 Artifact 工件", body)
+        self.assertNotIn("美股基线质量动量", body.split("Result Detail / 结果详情", 1)[-1])
 
-    def test_results_page_filters_runtime_rows_and_preserves_get_query_in_links(self) -> None:
+    def test_results_page_archive_subview_preserves_artifact_links(self) -> None:
         with TemporaryDirectory() as tmpdir:
             artifact_root = Path(tmpdir)
             write_json_artifact(
@@ -1116,21 +1389,17 @@ class WebTests(TestCase):
                 response = self.app.render_home(
                     {
                         "view": ["results"],
-                        "result_group": ["runtime"],
-                        "market": ["US"],
-                        "recent_window": ["30d"],
+                        "subview": ["archive"],
                     }
                 )
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
-        self.assertIn('option value="runtime" selected', body)
-        self.assertIn('option value="US" selected', body)
-        self.assertIn('option value="30d" selected', body)
+        self.assertIn('data-subview="archive"', body)
+        self.assertIn("/?view=results&subview=archive&artifact=local_paper/web-paper-us/runs/demo.json", body)
         self.assertIn("web-paper-us / us_quality_momentum", body)
-        self.assertNotIn("美股基线质量动量", body)
-        self.assertIn("/?view=results&result_group=runtime&market=US&recent_window=30d&artifact=local_paper/web-paper-us/runs/demo.json", body)
+        self.assertIn("美股基线质量动量", body)
 
-    def test_results_page_filter_searches_beyond_first_40_indexed_rows(self) -> None:
+    def test_results_page_archive_subview_shows_late_record(self) -> None:
         records = []
         for month in range(5, 9):
             for day in range(1, 13):
@@ -1176,15 +1445,15 @@ class WebTests(TestCase):
                 response = self.app.render_home(
                     {
                         "view": ["results"],
-                        "result_group": ["runtime"],
+                        "subview": ["archive"],
                     }
                 )
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
         self.assertIn("late runtime hit", body)
-        self.assertNotIn("baseline-45", body)
+        self.assertIn("baseline-45", body)
 
-    def test_results_page_date_to_keeps_same_day_later_timestamp(self) -> None:
+    def test_results_page_archive_subview_keeps_descending_sort_order(self) -> None:
         with TemporaryDirectory() as tmpdir:
             artifact_root = Path(tmpdir)
             write_json_artifact(
@@ -1226,14 +1495,125 @@ class WebTests(TestCase):
                 response = self.app.render_home(
                     {
                         "view": ["results"],
-                        "result_group": ["runtime"],
-                        "date_to": ["2026-04-18"],
+                        "subview": ["archive"],
                     }
                 )
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
         self.assertIn("same day runtime", body)
-        self.assertNotIn("next day runtime", body)
+        self.assertIn("next day runtime", body)
+        self.assertLess(body.index("next day runtime"), body.index("same day runtime"))
+
+    def test_results_page_champions_subview_sorts_multi_market_rows_by_latest_result(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            write_json_artifact(
+                artifact_root,
+                "web/result_index.json",
+                {
+                    "records": [
+                        {
+                            "result_id": "strategy_suite:CN:2026-04-18",
+                            "artifact_kind": "strategy_suite",
+                            "market": "CN",
+                            "sort_date": "2026-04-18",
+                            "summary": {
+                                "subject_id": "cn_baseline",
+                                "subject_name": "A股冠军策略",
+                                "decision": "KEEP",
+                                "result_type": "strategy_suite",
+                            },
+                            "artifacts": {"json": "2026-04-18/cn_baseline.json"},
+                        },
+                        {
+                            "result_id": "strategy_suite:US:2026-04-20",
+                            "artifact_kind": "strategy_suite",
+                            "market": "US",
+                            "sort_date": "2026-04-20",
+                            "summary": {
+                                "subject_id": "us_baseline",
+                                "subject_name": "美股冠军策略",
+                                "decision": "KEEP",
+                                "result_type": "strategy_suite",
+                            },
+                            "artifacts": {"json": "2026-04-20/us_baseline.json"},
+                        },
+                    ]
+                },
+            )
+            write_json_artifact(
+                artifact_root,
+                "web/strategy_state.json",
+                {
+                    "markets": {
+                        "CN": {
+                            "champion_preset_id": "cn_baseline",
+                            "challenger_preset_id": None,
+                            "current_execution_preset_id": None,
+                        },
+                        "US": {
+                            "champion_preset_id": "us_baseline",
+                            "challenger_preset_id": None,
+                            "current_execution_preset_id": None,
+                        },
+                    }
+                },
+            )
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                response = self.app.render_home({"view": ["results"], "subview": ["champions"]})
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn("A股冠军策略", body)
+        self.assertIn("美股冠军策略", body)
+        self.assertLess(body.index("美股冠军策略"), body.index("A股冠军策略"))
+
+    def test_results_page_legacy_runtime_subview_alias_falls_back_to_archive(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            write_json_artifact(
+                artifact_root,
+                "web/result_index.json",
+                {
+                    "records": [
+                        {
+                            "result_id": "local_paper_run:US:web-paper-us:2026-04-18T10:00:00",
+                            "artifact_kind": "local_paper_run",
+                            "market": "US",
+                            "sort_date": "2026-04-18T10:00:00",
+                            "summary": {
+                                "subject_name": "web-paper-us / us_quality_momentum",
+                                "decision": "RECORDED",
+                                "result_type": "local_paper_run",
+                            },
+                            "artifacts": {"json": "local_paper/web-paper-us/runs/demo.json"},
+                        },
+                    ]
+                },
+            )
+            write_json_artifact(
+                artifact_root,
+                "local_paper/web-paper-us/runs/demo.json",
+                {
+                    "normalized_summary": {
+                        "subject_name": "web-paper-us / us_quality_momentum",
+                        "decision": "RECORDED",
+                    }
+                },
+            )
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                response = self.app.render_home(
+                    {
+                        "view": ["results"],
+                        "subview": ["runtime"],
+                        "artifact": ["local_paper/web-paper-us/runs/demo.json"],
+                    }
+                )
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn('<body class="dashboard-app" data-primary-view="results" data-subview="archive">', body)
+        self.assertIn("Archive / 归档", body)
+        self.assertIn("web-paper-us / us_quality_momentum", body)
+        self.assertIn("Normalized Summary / 统一摘要", body)
 
     @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
     @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")

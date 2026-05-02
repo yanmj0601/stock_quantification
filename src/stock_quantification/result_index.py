@@ -63,6 +63,53 @@ def list_results(
     return filtered
 
 
+def build_result_center_groups(
+    records: List[Dict[str, Any]],
+    *,
+    strategy_state: Optional[Dict[str, Any]] = None,
+) -> Dict[str, List[Dict[str, Any]]]:
+    ordered_records = [dict(row) for row in records if isinstance(row, dict)]
+    ordered_records.sort(key=_sort_key, reverse=True)
+    fallback_state = strategy_state if isinstance(strategy_state, dict) else {}
+    market_states = fallback_state.get("markets") if isinstance(fallback_state.get("markets"), dict) else {}
+    markets: List[str] = []
+    for row in ordered_records:
+        market = _row_market(row)
+        if market and market not in markets:
+            markets.append(market)
+
+    champion_rows: List[Dict[str, Any]] = []
+    challenger_rows: List[Dict[str, Any]] = []
+    for market in markets:
+        market_rows = [row for row in ordered_records if _row_market(row) == market]
+        market_state = _market_state_for_market(market, fallback_state, market_states)
+        champion_preset_id = str(market_state.get("champion_preset_id") or "").strip()
+        challenger_preset_id = str(market_state.get("challenger_preset_id") or "").strip()
+
+        champion_row = _first_matching_row(market_rows, champion_preset_id) if champion_preset_id else None
+        if champion_row is None:
+            champion_row = _first_matching_row_by_decision(market_rows, "KEEP")
+        if champion_row is not None and champion_row not in champion_rows:
+            champion_rows.append(champion_row)
+
+        challenger_row = _first_matching_row(market_rows, challenger_preset_id) if challenger_preset_id else None
+        if challenger_row is None:
+            challenger_row = _first_matching_row_by_decision(market_rows, "REVIEW")
+        if challenger_row is not None and challenger_row not in challenger_rows:
+            challenger_rows.append(challenger_row)
+
+    drop_rows = [row for row in ordered_records if _result_decision(row) == "DROP"]
+    champion_rows.sort(key=_sort_key, reverse=True)
+    challenger_rows.sort(key=_sort_key, reverse=True)
+
+    return {
+        "champions": champion_rows,
+        "challengers": challenger_rows,
+        "drops": drop_rows,
+        "archive": ordered_records,
+    }
+
+
 def normalize_validation_summary(payload: Dict[str, Any]) -> Dict[str, Any]:
     parameter_stability = payload.get("parameter_stability", {})
     recommended_scenario = str(parameter_stability.get("recommended_scenario") or "")
@@ -143,6 +190,71 @@ def normalize_local_paper_run_summary(payload: Dict[str, Any]) -> Dict[str, Any]
         "regime_summary": [],
         "alpha_mix": [],
     }
+
+
+def _row_summary(row: Dict[str, Any]) -> Dict[str, Any]:
+    summary = row.get("summary", {})
+    if isinstance(summary, dict) and summary:
+        return summary
+    normalized_summary = row.get("normalized_summary", {})
+    return normalized_summary if isinstance(normalized_summary, dict) else {}
+
+
+def _row_subject_id(row: Dict[str, Any]) -> str:
+    summary = _row_summary(row)
+    for candidate in (
+        summary.get("subject_id"),
+        summary.get("preset_id"),
+        summary.get("strategy_id"),
+        row.get("subject_id"),
+        row.get("preset_id"),
+        row.get("strategy_id"),
+    ):
+        value = str(candidate or "").strip()
+        if value:
+            return value
+    return ""
+
+
+def _result_decision(row: Dict[str, Any]) -> str:
+    summary = _row_summary(row)
+    return str(summary.get("decision") or row.get("decision") or "").strip().upper()
+
+
+def _row_market(row: Dict[str, Any]) -> str:
+    summary = _row_summary(row)
+    market = str(summary.get("market") or row.get("market") or "").strip().upper()
+    return market
+
+
+def _market_state_for_market(
+    market: str,
+    fallback_state: Dict[str, Any],
+    market_states: Dict[str, Any],
+) -> Dict[str, Any]:
+    market_state = market_states.get(market)
+    if isinstance(market_state, dict):
+        return market_state
+    return fallback_state
+
+
+def _first_matching_row(records: List[Dict[str, Any]], subject_id: str) -> Optional[Dict[str, Any]]:
+    if not subject_id:
+        return None
+    for row in records:
+        if _row_subject_id(row) == subject_id:
+            return row
+    return None
+
+
+def _first_matching_row_by_decision(records: List[Dict[str, Any]], decision: str) -> Optional[Dict[str, Any]]:
+    normalized_decision = str(decision or "").strip().upper()
+    if not normalized_decision:
+        return None
+    for row in records:
+        if _result_decision(row) == normalized_decision:
+            return row
+    return None
 
 
 def _load_index(base_dir: str | Path, relative_path: str) -> Dict[str, List[Dict[str, Any]]]:

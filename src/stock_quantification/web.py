@@ -28,7 +28,7 @@ from .engine import AStockSelectionStrategy, StandardStrategyRunner, USStockSele
 from .local_paper import LocalPaperLedger
 from .models import ExecutionMode, Market, RuntimeMode
 from .ops import ProjectOpsStore
-from .result_index import list_results
+from .result_index import build_result_center_groups, list_results
 from .research_diagnostics import (
     build_strategy_scorecard,
     serialize_alpha_mix,
@@ -73,11 +73,19 @@ PAPER_SUBVIEW_ALIASES = {
     "holdings": "holdings",
     "trades": "trades",
 }
+RESULTS_SUBVIEW_ALIASES = {
+    "research": "archive",
+    "runtime": "archive",
+    "archive": "archive",
+    "champions": "champions",
+    "challengers": "challengers",
+    "drops": "drops",
+}
 PRIMARY_VIEW_TABS = {
     "paper": [("main", "Main / 主页面"), ("holdings", "Holdings / 持仓"), ("trades", "Trades / 交易")],
     "optimize": [("create", "Create / 创建"), ("history", "History / 历史"), ("detail", "Detail / 详情")],
     "run": [("create", "Create / 创建"), ("history", "History / 历史"), ("detail", "Detail / 详情")],
-    "results": [("research", "研究结果"), ("runtime", "运行结果"), ("archive", "归档")],
+    "results": [("champions", "Champion / 冠军"), ("challengers", "Challenger / 挑战者"), ("drops", "Drop / 淘汰"), ("archive", "Archive / 归档")],
 }
 DEFAULT_PROJECT_CONFIG: Dict[str, Dict[str, Any]] = {
     "run_defaults": {
@@ -2688,6 +2696,8 @@ class DashboardApp:
         raw_subview = query.get("subview", [default_subview])[0].strip().lower()
         if primary_view == "paper":
             raw_subview = PAPER_SUBVIEW_ALIASES.get(raw_subview, raw_subview)
+        if primary_view == "results":
+            raw_subview = RESULTS_SUBVIEW_ALIASES.get(raw_subview, raw_subview)
         tab_ids = {tab_id for tab_id, _ in tabs}
         return raw_subview if raw_subview in tab_ids else default_subview
 
@@ -3664,15 +3674,28 @@ class DashboardApp:
 
     def _render_results_page(self, query: Dict[str, List[str]], primary_view: str, subview: str) -> WebResponse:
         flash_html = self._render_flash_messages("results")
-        filters = self._result_filters_from_query(query)
         all_records = self._recent_indexed_results(limit=None)
-        records = self._filter_result_records(all_records, filters)
+        strategy_state = self._strategy_state_store().load_state()
+        result_groups = build_result_center_groups(all_records, strategy_state=strategy_state)
+        records = result_groups.get(subview, result_groups["archive"])
         selected_artifact = self._resolve_selected_result_artifact(records, query.get("artifact", [None])[0])
         selected_path = selected_artifact.relative_path if selected_artifact else None
+        subview_config = self._result_center_subview_config(subview)
         body = f"""
           {flash_html}
-          {self._render_results_filter_bar(filters, all_records)}
-          {self._render_result_center(records, filters, selected_path)}
+          <section class="panel result-center">
+            <div class="panel__header">
+              <div>
+                <p class="eyebrow">{escape(subview_config["eyebrow"])}</p>
+                <h2>{escape(subview_config["section_title"])}</h2>
+              </div>
+            </div>
+            <div class="result-center__summary summary-grid">
+              {self._summary_tile("Visible / 可见结果", len(records), subview_config["summary_hint"])}
+              {self._summary_tile("Archive / 总归档", len(result_groups["archive"]), "结果中心总索引数量")}
+            </div>
+            {self._render_result_center_records(records, subview, selected_path)}
+          </section>
           <section class="panel">
             <div class="panel__header">
               <div>
@@ -3686,9 +3709,9 @@ class DashboardApp:
         return self._html_page(
             self._render_page_shell(
                 primary_view,
-                title="Research Results / 研究结果中心",
-                eyebrow="Research Results",
-                description="只负责浏览、筛选、比较和阅读研究/运行输出，不承载工作台或运维操作。",
+                title=subview_config["page_title"],
+                eyebrow=subview_config["eyebrow"],
+                description=subview_config["description"],
                 body=body,
                 subview=subview,
                 query=query,
@@ -3696,6 +3719,93 @@ class DashboardApp:
             primary_view=primary_view,
             subview=subview,
         )
+
+    def _result_center_subview_config(self, subview: str) -> Dict[str, str]:
+        configs = {
+            "champions": {
+                "page_title": "Champion / 冠军",
+                "eyebrow": "Champion Results",
+                "section_title": "Champion Results / 冠军结果中心",
+                "description": "只展示当前官方 champion，或者最新 KEEP 结果晋升出的冠军结果。",
+                "summary_hint": "当前子页只展示 champion 分组。",
+            },
+            "challengers": {
+                "page_title": "Challenger / 挑战者",
+                "eyebrow": "Challenger Results",
+                "section_title": "Challenger Results / 挑战者结果中心",
+                "description": "只展示最新 REVIEW 候选，或者策略状态里显式指定的 challenger。",
+                "summary_hint": "当前子页只展示 challenger 分组。",
+            },
+            "drops": {
+                "page_title": "Drop / 淘汰",
+                "eyebrow": "Drop Results",
+                "section_title": "Drop Results / 淘汰结果中心",
+                "description": "只展示 decision 为 DROP 的结果。",
+                "summary_hint": "当前子页只展示 DROP 分组。",
+            },
+            "archive": {
+                "page_title": "Archive / 归档",
+                "eyebrow": "Archive Results",
+                "section_title": "Archive Results / 全量结果归档",
+                "description": "只展示全部结果归档，不再按 research/runtime 混合分栏。",
+                "summary_hint": "当前子页展示全部归档记录。",
+            },
+        }
+        return configs.get(subview, configs["archive"])
+
+    def _render_result_center_records(self, records: List[Dict[str, Any]], subview: str, selected_path: Optional[str]) -> str:
+        if not records:
+            return """
+            <section class="panel panel--empty">
+              <h2>当前分组没有匹配结果</h2>
+              <p>这个子页暂时没有可展示的结果，请检查策略状态或结果索引。</p>
+            </section>
+            """
+        rows_html = []
+        for row in records:
+            summary = row.get("summary", {}) if isinstance(row.get("summary"), dict) else {}
+            artifacts = row.get("artifacts", {}) if isinstance(row.get("artifacts"), dict) else {}
+            json_path = self._artifact_query_path(str(artifacts.get("json", "") or ""))
+            href = self._view_url("results", query={"subview": subview, "artifact": json_path}) if json_path else self._view_url("results", query={"subview": subview})
+            selected_class = " result-row--active" if json_path and json_path == selected_path else ""
+            rows_html.append(
+                f"""
+                <a class="result-row{selected_class}" href="{href}">
+                  <span class="result-row__subject">{escape(str(summary.get('subject_name') or summary.get('subject_id') or row.get('result_id', 'N/A')))}</span>
+                  <span>{escape(str(summary.get('result_type') or row.get('artifact_kind', 'N/A')))}</span>
+                  <span>{escape(str(row.get('market', summary.get('market', 'N/A'))))}</span>
+                  <span>{escape(str(summary.get('decision', 'N/A')))}</span>
+                  <span>{escape(str(summary.get('score', 'N/A')))}</span>
+                  <span>{escape(str(summary.get('return', 'N/A')))}</span>
+                  <span>{escape(str(row.get('sort_date') or summary.get('end_date') or summary.get('trade_date') or 'N/A'))}</span>
+                </a>
+                """
+            )
+        return f"""
+        <section class="panel result-center__list">
+          <div class="result-group">
+            <div class="result-group__header">
+              <div>
+                <p class="eyebrow">{escape(subview.title())}</p>
+                <h3>{escape(self._result_center_subview_config(subview)["section_title"])}</h3>
+              </div>
+              <p class="muted">{escape(self._result_center_subview_config(subview)["summary_hint"])}</p>
+            </div>
+            <div class="result-table" role="table" aria-label="{escape(self._result_center_subview_config(subview)['section_title'])}">
+              <div class="result-table__head" role="row">
+                <span>Subject / 对象</span>
+                <span>Type / 类型</span>
+                <span>Market / 市场</span>
+                <span>Decision / 结论</span>
+                <span>Score / 评分</span>
+                <span>Return / 收益</span>
+                <span>Date / 日期</span>
+              </div>
+              <div class="result-table__body">{''.join(rows_html)}</div>
+            </div>
+          </div>
+        </section>
+        """
 
     def _result_filters_from_query(self, query: Dict[str, List[str]]) -> Dict[str, str]:
         return {
@@ -3803,6 +3913,8 @@ class DashboardApp:
             entry = self._artifact_entry_from_relative_path(path)
             if entry is not None:
                 return entry
+            if requested_path and path == requested_path:
+                return None
         return None
 
     def _result_query_params(self, filters: Dict[str, str], artifact: Optional[str] = None) -> Dict[str, str]:
