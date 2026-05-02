@@ -669,6 +669,8 @@ class DashboardApp:
         config = self._load_project_config()
         defaults = config["run_defaults"]
         view = self._requested_view(body, "workbench")
+        subview = self._requested_subview(body, self._primary_view_for_view(view))
+        redirect_target = self._view_url(view, query={"subview": subview})
         try:
             markets = self._markets_from_form(body.get("market", [str(defaults["market"])])[0])
             execution_mode = ExecutionMode(body.get("execution_mode", [str(defaults["execution_mode"])])[0])
@@ -693,7 +695,7 @@ class DashboardApp:
                 selected_strategy_ids[market.value] = selected_strategy_id
         except (InvalidOperation, ValueError, KeyError) as exc:
             self.state.push_flash(f"策略运行参数错误：{exc}", audience=view)
-            return self._redirect(self._view_url(view))
+            return self._redirect(redirect_target)
         symbols_by_market = {
             market.value: self._symbols_for_market(market, body)
             for market in markets
@@ -709,7 +711,7 @@ class DashboardApp:
         )
         if not reservation.get("accepted"):
             active_job = reservation.get("active_job", {})
-            self.state.push_flash(f"后台已有任务运行中：{active_job.get('kind', 'UNKNOWN')}，请稍后重试。", audience="ops")
+            self.state.push_flash(f"后台已有任务运行中：{active_job.get('kind', 'UNKNOWN')}，请稍后重试。", audience=view)
             self._append_task_log(
                 category="runtime",
                 action="strategy_run",
@@ -717,7 +719,7 @@ class DashboardApp:
                 detail="策略运行被运行守护拦截",
                 metadata={"active_job": active_job.get("kind", "UNKNOWN")},
             )
-            return self._redirect("/project/ops")
+            return self._redirect(redirect_target)
         job_id = str(reservation["job"]["job_id"])
         self._ops_store().update_active_job(
             job_id,
@@ -758,7 +760,7 @@ class DashboardApp:
             broker_account_id,
             selected_strategy_ids,
         )
-        return self._redirect(self._view_url(view))
+        return self._redirect(redirect_target)
 
     def handle_local_paper_reset(self, body: Dict[str, List[str]]) -> WebResponse:
         view = self._requested_view(body, "paper")
@@ -844,6 +846,8 @@ class DashboardApp:
         config = self._load_project_config()
         defaults = config["factor_defaults"]
         view = self._requested_view(body, "workbench")
+        subview = self._requested_subview(body, self._primary_view_for_view(view))
+        redirect_target = self._view_url(view, query={"subview": subview})
         try:
             market = Market(body.get("factor_market", [str(defaults["factor_market"])])[0])
             selected_factors = [item for item in body.get("factor", []) if item]
@@ -876,14 +880,14 @@ class DashboardApp:
             }
         except (InvalidOperation, ValueError) as exc:
             self.state.push_flash(f"策略实验参数错误：{exc}", audience=view)
-            return self._redirect(self._view_url(view))
+            return self._redirect(redirect_target)
         reservation = self._ops_store().begin_job(
             "factor_backtest",
             metadata={"market": market.value, "factors": selected_factors},
         )
         if not reservation.get("accepted"):
             active_job = reservation.get("active_job", {})
-            self.state.push_flash(f"因子回测被拦截：当前有任务 {active_job.get('kind', 'UNKNOWN')} 在运行。", audience="ops")
+            self.state.push_flash(f"因子回测被拦截：当前有任务 {active_job.get('kind', 'UNKNOWN')} 在运行。", audience=view)
             self._append_task_log(
                 category="research",
                 action="factor_backtest",
@@ -891,7 +895,7 @@ class DashboardApp:
                 detail="因子回测被运行守护拦截",
                 metadata={"active_job": active_job.get("kind", "UNKNOWN")},
             )
-            return self._redirect("/project/ops")
+            return self._redirect(redirect_target)
         job_id = str(reservation["job"]["job_id"])
         self._ops_store().update_active_job(
             job_id,
@@ -924,7 +928,7 @@ class DashboardApp:
             rebalance_buffer,
             factor_tilts,
         )
-        return self._redirect(self._view_url(view))
+        return self._redirect(redirect_target)
 
     def handle_chat(self, body: Dict[str, List[str]]) -> WebResponse:
         message = body.get("message", [""])[0].strip()
@@ -1424,6 +1428,7 @@ class DashboardApp:
           </div>
           <form class="stack" method="post" action="/factor-backtest" id="factor-backtest-form">
             <input type="hidden" name="view" value="{escape(view)}" />
+            <input type="hidden" name="subview" value="create" />
             <div class="grid-form">
               <label>Market / 市场<span class="field-note">选择本次策略实验的市场</span><select name="factor_market"><option value="CN"{' selected' if defaults['factor_market'] == 'CN' else ''}>CN</option><option value="US"{' selected' if defaults['factor_market'] == 'US' else ''}>US</option></select></label>
               <label>Start Date / 开始日期<span class="field-note">滚动回测起点</span><input name="factor_start_date" value="{escape(str(defaults['factor_start_date']))}" /></label>
@@ -2847,6 +2852,17 @@ class DashboardApp:
             return raw_view
         return default
 
+    def _requested_subview(self, body: Dict[str, List[str]], primary_view: str) -> str:
+        tabs = PRIMARY_VIEW_TABS.get(primary_view, [])
+        default_subview = tabs[0][0] if tabs else "default"
+        raw_subview = body.get("subview", [default_subview])[0].strip().lower()
+        if primary_view == "paper":
+            raw_subview = PAPER_SUBVIEW_ALIASES.get(raw_subview, raw_subview)
+        if primary_view == "results":
+            raw_subview = RESULTS_SUBVIEW_ALIASES.get(raw_subview, raw_subview)
+        tab_ids = {tab_id for tab_id, _ in tabs}
+        return raw_subview if raw_subview in tab_ids else default_subview
+
     def _render_page_shell(
         self,
         active_page: str,
@@ -3013,6 +3029,7 @@ class DashboardApp:
           </div>
           <form class="stack" method="post" action="/run" id="run-form" data-async-job-form="strategy_run">
             <input type="hidden" name="view" value="{escape(view)}" />
+            <input type="hidden" name="subview" value="create" />
             <div class="grid-form">
               <label>Market / 市场<span class="field-note">默认策略运行市场</span><select id="run-market-select" name="market"><option value="ALL"{' selected' if defaults['market'] == 'ALL' else ''}>ALL</option><option value="CN"{' selected' if defaults['market'] == 'CN' else ''}>CN</option><option value="US"{' selected' if defaults['market'] == 'US' else ''}>US</option></select></label>
               {self._render_strategy_preset_picker(Market.CN, "selected_strategy_cn")}
@@ -3561,7 +3578,7 @@ class DashboardApp:
         return records[0] if records else None
 
     def _render_run_history_page(self, query: Dict[str, List[str]], primary_view: str, subview: str) -> WebResponse:
-        flash_html = self._render_flash_messages("workbench")
+        flash_html = self._render_flash_messages("run")
         records = self._run_history_records()
         if not records:
             body = f"""
@@ -3615,7 +3632,7 @@ class DashboardApp:
         )
 
     def _render_run_detail_page(self, query: Dict[str, List[str]], primary_view: str, subview: str) -> WebResponse:
-        flash_html = self._render_flash_messages("workbench")
+        flash_html = self._render_flash_messages("run")
         selected_run = self._resolve_selected_run_result(query)
         if selected_run is None:
             body = f"""
@@ -3737,7 +3754,7 @@ class DashboardApp:
             return self._render_run_history_page(query, primary_view=primary_view, subview=subview)
         if subview == "detail":
             return self._render_run_detail_page(query, primary_view=primary_view, subview=subview)
-        flash_html = self._render_flash_messages("workbench")
+        flash_html = self._render_flash_messages("run")
         body = f"""
           {flash_html}
           <section class="module" id="module-run-create">

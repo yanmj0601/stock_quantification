@@ -786,6 +786,13 @@ class WebTests(TestCase):
         self.assertIn('value="cn_baseline" selected', body)
         self.assertIn('value="us_baseline" selected', body)
 
+    def test_home_page_run_create_view_renders_run_scoped_flash(self) -> None:
+        self.app.state.push_flash("运行页消息", audience="run")
+        response = self.app.render_home({"view": ["run"], "subview": ["create"]})
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn("运行页消息", body)
+
     @patch("stock_quantification.web.LocalPaperLedger")
     def test_home_page_run_history_view_lists_runs_most_recent_first(self, mock_ledger_cls) -> None:
         ledger = mock_ledger_cls.return_value
@@ -1808,9 +1815,9 @@ class WebTests(TestCase):
                     "factor_tilt_rel_ret_20": ["1.2"],
                     "factor_tilt_rel_ret_60": ["0.8"],
                 }
-            )
+        )
         self.assertEqual(response.status, 303)
-        self.assertEqual(response.headers["Location"], "/?view=workbench")
+        self.assertEqual(response.headers["Location"], "/?view=workbench&subview=create")
         self.assertEqual(self.app.state.last_factor_backtest_result["summary"]["market"], "CN")
 
     @patch.object(DashboardApp, "_run_factor_backtest")
@@ -2118,6 +2125,8 @@ class WebTests(TestCase):
         with patch.object(self.app, "_ops_store", return_value=ops_store):
             response = self.app.handle_run(
                 {
+                    "view": ["run"],
+                    "subview": ["create"],
                     "market": ["US"],
                     "runtime_mode": ["LIVE"],
                     "execution_mode": ["AUTO"],
@@ -2134,7 +2143,9 @@ class WebTests(TestCase):
                 }
             )
         self.assertEqual(response.status, 303)
-        self.assertEqual(response.headers["Location"], "/project/ops")
+        self.assertEqual(response.headers["Location"], "/?view=run&subview=create")
+        self.assertIn("后台已有任务运行中", self.app.state.flash_messages[-1]["message"])
+        self.assertEqual(self.app.state.flash_messages[-1]["audience"], "run")
 
     @patch.object(DashboardApp, "_save_project_config")
     @patch.object(DashboardApp, "_load_project_config", return_value=DEFAULT_PROJECT_CONFIG)
@@ -2179,7 +2190,7 @@ class WebTests(TestCase):
     def test_handle_run_invalid_form_value_redirects_with_flash(self) -> None:
         response = self.app.handle_run({"market": ["US"], "cash": ["abc"]})
         self.assertEqual(response.status, 303)
-        self.assertEqual(response.headers["Location"], "/?view=workbench")
+        self.assertEqual(response.headers["Location"], "/?view=workbench&subview=create")
         self.assertIn("策略运行参数错误", self.app.state.flash_messages[-1]["message"])
         self.assertEqual(self.app.state.flash_messages[-1]["audience"], "workbench")
         self.assertFalse(self.ops_store.begin_job.called)
@@ -2200,7 +2211,7 @@ class WebTests(TestCase):
             }
         )
         self.assertEqual(response.status, 303)
-        self.assertEqual(response.headers["Location"], "/?view=workbench")
+        self.assertEqual(response.headers["Location"], "/?view=workbench&subview=create")
         self.assertIn("策略运行参数错误", self.app.state.flash_messages[-1]["message"])
         self.assertEqual(self.app.state.flash_messages[-1]["audience"], "workbench")
         self.assertFalse(self.ops_store.begin_job.called)
@@ -2215,10 +2226,36 @@ class WebTests(TestCase):
             }
         )
         self.assertEqual(response.status, 303)
-        self.assertEqual(response.headers["Location"], "/?view=workbench")
+        self.assertEqual(response.headers["Location"], "/?view=workbench&subview=create")
         self.assertIn("策略实验参数错误", self.app.state.flash_messages[-1]["message"])
         self.assertEqual(self.app.state.flash_messages[-1]["audience"], "workbench")
         self.assertFalse(self.ops_store.begin_job.called)
+
+    def test_factor_backtest_guard_stays_on_optimize_create_page(self) -> None:
+        ops_store = Mock()
+        ops_store.begin_job.return_value = {"accepted": False, "active_job": {"kind": "strategy_run"}}
+        with patch.object(self.app, "_ops_store", return_value=ops_store):
+            response = self.app.handle_factor_backtest(
+                {
+                    "view": ["optimize"],
+                    "subview": ["create"],
+                    "factor_market": ["CN"],
+                    "factor": ["rel_ret_20"],
+                    "factor_start_date": ["2026-01-02"],
+                    "factor_end_date": ["2026-03-31"],
+                    "factor_holding_sessions": ["5"],
+                    "factor_detail_limit": ["8"],
+                    "factor_history_limit": ["60"],
+                    "factor_top_n": ["4"],
+                    "factor_initial_cash": ["100000"],
+                    "factor_turnover_cap": ["0.18"],
+                    "factor_rebalance_buffer": ["0.05"],
+                }
+            )
+        self.assertEqual(response.status, 303)
+        self.assertEqual(response.headers["Location"], "/?view=optimize&subview=create")
+        self.assertIn("因子回测被拦截", self.app.state.flash_messages[-1]["message"])
+        self.assertEqual(self.app.state.flash_messages[-1]["audience"], "optimize")
 
     @patch.object(DashboardApp, "_save_project_config")
     def test_project_config_invalid_input_does_not_save(self, mock_save) -> None:
