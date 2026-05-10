@@ -4,6 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 import unittest
 
+import stock_quantification
 from stock_quantification.agents import ResearchAgent, ReviewAgent, StrategyAgent
 from stock_quantification.engine import EqualWeightPortfolioConstructor
 from stock_quantification.interfaces import StrategyDefinition
@@ -71,6 +72,9 @@ class PlannerStub:
 
 
 class AgentTests(unittest.TestCase):
+    def test_package_exports_no_longer_expose_orchestrator(self) -> None:
+        self.assertFalse(hasattr(stock_quantification, "Orchestrator"))
+
     def test_strategy_agent_reuses_shared_research_analysis(self) -> None:
         strategy = DummyStrategy()
         runner_result = {

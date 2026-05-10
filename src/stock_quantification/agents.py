@@ -8,7 +8,6 @@ types in this module are kept only for compatibility with older call sites and
 focused unit tests; they are no longer the primary architecture boundary.
 """
 
-from collections import defaultdict
 from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Dict, Iterable, List, Optional
@@ -16,14 +15,10 @@ from typing import Dict, Iterable, List, Optional
 from .interfaces import ExecutionPlanner, PortfolioConstructor, StateStore, StrategyDefinition, StrategyRunner
 from .models import (
     AccountState,
-    ExecutionMode,
     FactorSnapshot,
-    OrchestrationResult,
     ResearchReport,
     ReviewReport,
     ReviewVerdict,
-    RuntimeContext,
-    RuntimeMode,
     SignalSnapshot,
     StrategyProposal,
 )
@@ -193,76 +188,6 @@ class ReviewAgent:
         if rebalance_ratio >= Decimal("1.20"):
             return ReviewVerdict.WARN
         return ReviewVerdict.PASS
-
-
-class Orchestrator:
-    """Compatibility wrapper for older integration paths.
-
-    New runtime entry points should prefer ``run_strategy_cycle(...)`` in
-    ``execution_flow.py``. This class remains available so older imports and
-    focused tests do not break while the package API stays stable.
-    """
-
-    def __init__(
-        self,
-        research_agent: ResearchAgent,
-        strategy_agent: StrategyAgent,
-        review_agent: ReviewAgent,
-        execution_planner: ExecutionPlanner,
-        risk_engine,
-        state_store: StateStore,
-        runtime_engine=None,
-    ) -> None:
-        self._research_agent = research_agent
-        self._strategy_agent = strategy_agent
-        self._review_agent = review_agent
-        self._execution_planner = execution_planner
-        self._risk_engine = risk_engine
-        self._state_store = state_store
-        self._runtime_engine = runtime_engine
-
-    def run(
-        self,
-        context: RuntimeContext,
-        strategy: StrategyDefinition,
-        account_ids: List[str],
-        execution_mode: ExecutionMode,
-    ) -> OrchestrationResult:
-        account_states = [self._state_store.get_account_state(account_id) for account_id in account_ids]
-        analysis = self._research_agent.analyze(strategy, context.as_of, account_states=account_states)
-        proposal = self._strategy_agent.run(strategy, analysis.research_report, context.as_of, account_states, analysis=analysis)
-        review = self._review_agent.run(proposal, account_states)
-        order_intents = self._execution_planner.build_order_intents(
-            proposal.trade_suggestions,
-            requires_manual_approval=execution_mode == ExecutionMode.ADVISORY,
-        )
-        order_intents = self._state_store.upsert_order_intents(order_intents)
-        risk_output = self._risk_engine.validate(
-            {account_state.account_id: account_state for account_state in account_states},
-            order_intents,
-            context,
-        )
-        execution_results = []
-        if self._runtime_engine is not None:
-            order_intents_by_account = defaultdict(list)
-            for order_intent in risk_output["order_intents"]:
-                order_intents_by_account[order_intent.account_id].append(order_intent)
-            for account_state in account_states:
-                approved = order_intents_by_account.get(account_state.account_id, [])
-                if not approved:
-                    continue
-                execution_result = self._runtime_engine.execute(context, account_state, approved)
-                execution_results.append(execution_result)
-                if context.mode != RuntimeMode.LIVE:
-                    self._state_store.save_account_state(execution_result.output_account_state)
-        return OrchestrationResult(
-            context=context,
-            proposal=proposal,
-            review=review,
-            order_intents=risk_output["order_intents"],
-            risk_results=risk_output["risk_results"],
-            execution_results=execution_results,
-        )
 
 
 def _format_decimal(value: Decimal) -> str:

@@ -1,6 +1,5 @@
 from .artifacts import read_bytes_artifact, read_json_artifact, write_bytes_artifact, write_json_artifact, write_text_artifact
 from .agents import (
-    Orchestrator,
     ResearchAgent,
     ReviewAgent,
     StrategyAgent,
@@ -193,7 +192,6 @@ __all__ = [
     "OrderIntent",
     "OrderSide",
     "OrderType",
-    "Orchestrator",
     "PaperContext",
     "PerformanceMetrics",
     "Position",
