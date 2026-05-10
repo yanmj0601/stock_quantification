@@ -920,9 +920,10 @@ class WebTests(TestCase):
         self.assertIn("section-tabs", body)
         self.assertNotIn("Morning Brief / 今日总览", body)
 
+    # Legacy query aliases are kept only as compatibility shims for older URLs.
     @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
     @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")
-    def test_home_page_legacy_overview_view_falls_back_to_paper(self, _mock_paper_panel, _mock_symbol_catalog) -> None:
+    def test_home_page_legacy_overview_alias_falls_back_to_paper(self, _mock_paper_panel, _mock_symbol_catalog) -> None:
         response = self.app.render_home({"view": ["overview"]})
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
@@ -932,7 +933,7 @@ class WebTests(TestCase):
 
     @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
     @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")
-    def test_home_page_legacy_workbench_view_falls_back_to_paper(self, _mock_paper_panel, _mock_symbol_catalog) -> None:
+    def test_home_page_legacy_workbench_alias_falls_back_to_paper(self, _mock_paper_panel, _mock_symbol_catalog) -> None:
         response = self.app.render_home({"view": ["workbench"]})
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
