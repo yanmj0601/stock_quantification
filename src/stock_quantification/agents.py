@@ -1,11 +1,19 @@
 from __future__ import annotations
 
+"""Legacy-compatible agent wrappers around the unified execution pipeline.
+
+The current production path converges on ``pipeline.py`` for strategy
+computation and ``execution_flow.py`` for orchestration. The lightweight agent
+types in this module are kept only for compatibility with older call sites and
+focused unit tests; they are no longer the primary architecture boundary.
+"""
+
 from collections import defaultdict
 from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Dict, Iterable, List, Optional
 
-from .interfaces import AgentRuntime, ExecutionPlanner, PortfolioConstructor, StateStore, StrategyDefinition, StrategyRunner
+from .interfaces import ExecutionPlanner, PortfolioConstructor, StateStore, StrategyDefinition, StrategyRunner
 from .models import (
     AccountState,
     ExecutionMode,
@@ -187,23 +195,14 @@ class ReviewAgent:
         return ReviewVerdict.PASS
 
 
-class SequentialAgentRuntime(AgentRuntime):
-    def __init__(self, research_agent: ResearchAgent, strategy_agent: StrategyAgent, review_agent: ReviewAgent) -> None:
-        self._research_agent = research_agent
-        self._strategy_agent = strategy_agent
-        self._review_agent = review_agent
-
-    def run_research(self, market, as_of):
-        raise NotImplementedError("run_research requires strategy context; orchestrator calls agents directly")
-
-    def run_strategy(self, strategy, market, as_of, account_states):
-        raise NotImplementedError("orchestrator calls agents directly")
-
-    def run_review(self, proposal):
-        return self._review_agent.run(proposal)
-
-
 class Orchestrator:
+    """Compatibility wrapper for older integration paths.
+
+    New runtime entry points should prefer ``run_strategy_cycle(...)`` in
+    ``execution_flow.py``. This class remains available so older imports and
+    focused tests do not break while the package API stays stable.
+    """
+
     def __init__(
         self,
         research_agent: ResearchAgent,

@@ -3,7 +3,6 @@ from .agents import (
     Orchestrator,
     ResearchAgent,
     ReviewAgent,
-    SequentialAgentRuntime,
     StrategyAgent,
 )
 from .backtest import (
@@ -209,7 +208,6 @@ __all__ = [
     "RuntimeMode",
     "RuntimeEngine",
     "RuntimeProfile",
-    "SequentialAgentRuntime",
     "SignalSnapshot",
     "SlippageModel",
     "build_market_snapshot",

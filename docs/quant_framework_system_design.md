@@ -84,8 +84,9 @@
   - `ops.py`
   - 已有配置页、日志页、运维中心、状态 API
   - 已能在首页展示研究结果中心和最近一次 paper run 摘要
-- 多 Agent 协作雏形
+- 兼容层 Agent 包装
   - `agents.py`
+  - 当前仅保留轻量兼容包装，主执行链已经收敛到 `pipeline.py` + `execution_flow.py`
 
 ### 3.2 当前短板
 
