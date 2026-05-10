@@ -8,21 +8,15 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from .analytics import compute_return_beta
-from .agents import Orchestrator, ResearchAgent, ReviewAgent, StrategyAgent
 from .artifacts import write_json_artifact, write_text_artifact
 from .broker import BrokerError, build_broker_adapter
+from .execution_flow import run_strategy_cycle
 from .engine import (
     AStockSelectionStrategy,
-    EqualWeightPortfolioConstructor,
-    StandardExecutionPlanner,
-    StandardRiskEngine,
-    StandardStrategyRunner,
     USStockSelectionStrategy,
 )
 from .backtest import build_forward_return_report, serialize_backtest_report
-from .markets import ChinaMarketRules, USMarketRules
 from .models import (
-    AccountConstraints,
     AccountState,
     BacktestContext,
     ExecutionMode,
@@ -37,8 +31,6 @@ from .research_data import ResearchDataBundle
 from .reporting import build_beta_extremes, build_candidate_buckets, build_markdown_report, build_ranked_candidates
 from .reporting import build_recommended_stocks
 from .result_index import record_result
-from .runtime import RuntimeEngine
-from .state import InMemoryStateStore
 from .strategy_catalog import build_strategy_from_preset, lookup_strategy_preset
 
 ARTIFACT_ROOT = Path(__file__).resolve().parents[2] / "artifacts"
@@ -58,44 +50,6 @@ def _instrument_names(snapshot: MarketSnapshot, market: Market) -> Dict[str, str
         instrument.instrument_id: _instrument_name(instrument)
         for instrument in snapshot.data_provider.list_instruments(market)
     }
-
-
-def _build_orchestrator(
-    snapshot: MarketSnapshot,
-    market: Market,
-    account_id: str,
-    cash: Decimal,
-    top_n: int,
-    initial_account_state: Optional[AccountState] = None,
-) -> Orchestrator:
-    strategy_runner = StandardStrategyRunner(snapshot.data_provider, snapshot.universe_provider, snapshot.calendar_provider)
-    execution_planner = StandardExecutionPlanner(snapshot.data_provider)
-    state_store = InMemoryStateStore()
-    state_store.save_account_state(
-        initial_account_state
-        or AccountState(
-            account_id=account_id,
-            market=market,
-            broker_id="paper-%s" % market.value.lower(),
-            cash=cash,
-            buying_power=cash,
-            constraints=AccountConstraints(max_position_weight=Decimal("0.60"), max_single_order_value=cash),
-        )
-    )
-    return Orchestrator(
-        research_agent=ResearchAgent(strategy_runner),
-        strategy_agent=StrategyAgent(
-            strategy_runner,
-            EqualWeightPortfolioConstructor(top_n=top_n),
-            execution_planner,
-            state_store,
-        ),
-        review_agent=ReviewAgent(),
-        execution_planner=execution_planner,
-        risk_engine=StandardRiskEngine(snapshot.data_provider, {Market.CN: ChinaMarketRules(), Market.US: USMarketRules()}),
-        state_store=state_store,
-        runtime_engine=RuntimeEngine(snapshot.data_provider, snapshot.calendar_provider),
-    )
 
 
 def _strategy_for_market(
@@ -276,14 +230,6 @@ def run_market(
             broker_account_state = broker_adapter.sync_account_state(account_id=account_id)
             if route_orders:
                 effective_runtime_mode = RuntimeMode.LIVE
-    orchestrator = _build_orchestrator(
-        snapshot,
-        market,
-        account_id,
-        cash,
-        top_n,
-        initial_account_state=broker_account_state,
-    )
     strategy = _strategy_for_market(
         market,
         snapshot.research_data_bundle,
@@ -293,7 +239,23 @@ def run_market(
         selected_preset_id=selected_preset_id,
     )
     context = _build_context(effective_runtime_mode, snapshot.as_of)
-    result = orchestrator.run(context, strategy, [account_id], execution_mode)
+    effective_account_state = broker_account_state or AccountState(
+        account_id=account_id,
+        market=market,
+        broker_id="paper-%s" % market.value.lower(),
+        cash=cash,
+        buying_power=cash,
+    )
+    result = run_strategy_cycle(
+        strategy=strategy,
+        context=context,
+        account_states=[effective_account_state],
+        execution_mode=execution_mode,
+        data_provider=snapshot.data_provider,
+        universe_provider=snapshot.universe_provider,
+        calendar_provider=snapshot.calendar_provider,
+        top_n=top_n,
+    )
     benchmark_id = snapshot.research_data_bundle.default_benchmark_id(market)
     benchmark_weights = snapshot.research_data_bundle.benchmark_weights(market, snapshot.as_of.date())
     matched_benchmark_weights = {

@@ -1,16 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from math import floor, sqrt
-from typing import Dict, Iterable, List, Mapping, Sequence
+from typing import Dict, List, Sequence
 
-
-def _to_decimal(value: object) -> Decimal:
-    if isinstance(value, Decimal):
-        return value
-    return Decimal(str(value))
+from .serialization_utils import serialize_flat_record, to_decimal
 
 
 def _mean(values: Sequence[Decimal]) -> Decimal:
@@ -121,8 +117,8 @@ def build_train_validate_test_split(
 ) -> TrainValidateTestSplit:
     if len(trading_dates) < 3:
         raise ValueError("Need at least 3 trading dates")
-    train_ratio_decimal = _to_decimal(train_ratio)
-    validate_ratio_decimal = _to_decimal(validate_ratio)
+    train_ratio_decimal = to_decimal(train_ratio)
+    validate_ratio_decimal = to_decimal(validate_ratio)
     if train_ratio_decimal <= 0 or validate_ratio_decimal <= 0:
         raise ValueError("Ratios must be positive")
     if train_ratio_decimal + validate_ratio_decimal >= 1:
@@ -300,13 +296,7 @@ def serialize_parameter_stability_report(report: ParameterStabilityReport) -> Di
 
 
 def _serialize_dataclass(item) -> Dict[str, object]:
-    payload = asdict(item)
-    for key, value in payload.items():
-        if isinstance(value, Decimal):
-            payload[key] = str(value.quantize(Decimal("0.0001")))
-        elif isinstance(value, date):
-            payload[key] = value.isoformat()
-    return payload
+    return serialize_flat_record(item)
 
 
 def _serialize_date_slice(item: DateSlice) -> Dict[str, object]:

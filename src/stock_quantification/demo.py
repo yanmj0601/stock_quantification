@@ -3,19 +3,14 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 
-from .agents import Orchestrator, ResearchAgent, ReviewAgent, StrategyAgent
+from .execution_flow import run_strategy_cycle
 from .engine import (
     AStockSelectionStrategy,
-    EqualWeightPortfolioConstructor,
     InMemoryCalendarProvider,
     InMemoryMarketDataProvider,
     InMemoryUniverseProvider,
-    StandardExecutionPlanner,
-    StandardRiskEngine,
-    StandardStrategyRunner,
     USStockSelectionStrategy,
 )
-from .markets import ChinaMarketRules, USMarketRules
 from .models import (
     AccountConstraints,
     AccountState,
@@ -64,10 +59,6 @@ def build_demo_components():
         }
     )
     universe_provider = InMemoryUniverseProvider(data_provider)
-    strategy_runner = StandardStrategyRunner(data_provider, universe_provider, calendar_provider)
-    portfolio_constructor = EqualWeightPortfolioConstructor(top_n=2)
-    execution_planner = StandardExecutionPlanner(data_provider)
-    risk_engine = StandardRiskEngine(data_provider, {Market.CN: ChinaMarketRules(), Market.US: USMarketRules()})
     state_store = InMemoryStateStore()
     state_store.save_account_state(
         AccountState(
@@ -90,22 +81,24 @@ def build_demo_components():
             constraints=AccountConstraints(max_position_weight=Decimal("0.60"), max_single_order_value=Decimal("500000")),
         )
     )
-    orchestrator = Orchestrator(
-        research_agent=ResearchAgent(strategy_runner),
-        strategy_agent=StrategyAgent(strategy_runner, portfolio_constructor, execution_planner, state_store),
-        review_agent=ReviewAgent(),
-        execution_planner=execution_planner,
-        risk_engine=risk_engine,
-        state_store=state_store,
-    )
-    return orchestrator, as_of
+    return data_provider, universe_provider, calendar_provider, state_store, as_of
 
 
 if __name__ == "__main__":
-    orchestrator, as_of = build_demo_components()
+    data_provider, universe_provider, calendar_provider, state_store, as_of = build_demo_components()
     for strategy, accounts in [
         (AStockSelectionStrategy(), ["cn-main"]),
         (USStockSelectionStrategy(), ["us-main"]),
     ]:
-        result = orchestrator.run(LiveContext(as_of=as_of), strategy, accounts, ExecutionMode.ADVISORY)
+        result = run_strategy_cycle(
+            strategy=strategy,
+            context=LiveContext(as_of=as_of),
+            account_states=[state_store.get_account_state(account_id) for account_id in accounts],
+            execution_mode=ExecutionMode.ADVISORY,
+            data_provider=data_provider,
+            universe_provider=universe_provider,
+            calendar_provider=calendar_provider,
+            state_store=state_store,
+            top_n=2,
+        )
         print(strategy.strategy_id, [signal.instrument_id for signal in result.proposal.signals], len(result.order_intents))

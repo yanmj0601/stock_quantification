@@ -3,15 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Dict, Iterable, List, Mapping
 
-
-def _to_decimal(value: object) -> Decimal:
-    if isinstance(value, Decimal):
-        return value
-    return Decimal(str(value))
-
-
-def _format_decimal(value: Decimal) -> str:
-    return str(value.quantize(Decimal("0.0001")))
+from .serialization_utils import format_decimal, to_decimal
 
 
 def _serialize_beta(beta_metrics: Mapping[str, str] | None) -> Dict[str, str] | None:
@@ -75,8 +67,8 @@ def build_ranked_candidates(
                 "instrument_id": row["instrument_id"],
                 "name": instrument_names.get(str(row["instrument_id"]), str(row["instrument_id"])),
                 "sector": row.get("sector", "UNKNOWN"),
-                "score": _format_decimal(_to_decimal(row.get("score", 0))),
-                "target_weight": _format_decimal(_to_decimal(row.get("target_weight", 0))),
+                "score": format_decimal(to_decimal(row.get("score", 0))),
+                "target_weight": format_decimal(to_decimal(row.get("target_weight", 0))),
                 "selected": bool(row.get("selected", False)),
                 "beta": _serialize_beta(beta_by_instrument.get(str(row["instrument_id"]))),
             }
@@ -104,7 +96,7 @@ def build_candidate_buckets(
                     "instrument_id": row["instrument_id"],
                     "name": instrument_names.get(str(row["instrument_id"]), str(row["instrument_id"])),
                     "sector": row.get("sector", "UNKNOWN"),
-                    "score": _format_decimal(_to_decimal(row.get("score", 0))),
+                    "score": format_decimal(to_decimal(row.get("score", 0))),
                     "beta": _serialize_beta(beta_metrics),
                 }
             )
@@ -120,7 +112,7 @@ def build_candidate_buckets(
                 "instrument_id": row["instrument_id"],
                 "name": instrument_names.get(str(row["instrument_id"]), str(row["instrument_id"])),
                 "sector": sector,
-                "score": _format_decimal(_to_decimal(row.get("score", 0))),
+                "score": format_decimal(to_decimal(row.get("score", 0))),
                 "beta": _serialize_beta(beta_by_instrument.get(str(row["instrument_id"]))),
             }
         if len(sector_leaders) >= top_n:

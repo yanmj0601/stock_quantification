@@ -4,10 +4,12 @@
 
 - 双市场统一领域模型
 - A 股 / 美股策略与市场规则适配
-- `Research Agent -> Strategy Agent -> Review Agent -> Orchestrator` 最小多 Agent 协作链
+- `pipeline.py` 驱动的统一策略计算内核
+- 围绕 `Research Agent / Strategy Agent / Review Agent` 的薄执行编排层
 - 确定性的组合构建、风控校验、执行规划
 - 多账户隔离与重复刷新去重
 - `train / validate / test` 切分、`walk-forward` 验证、参数稳定性研究
+- 回测区间预加载数据集、共享账本原语和 SQLite 任务队列
 
 ## 快速运行
 
@@ -24,19 +26,22 @@ PYTHONPATH=src python3 scripts/run_strategy_suite.py --market ALL --start-date 2
 
 `cli` 会读取真实公开市场数据，并按各市场最近一个有效交易日运行策略。
 每次运行会在 `artifacts/` 下写出 JSON 和 Markdown 研究报告。
-`web` 会启动一个本地浏览器控制台，用来查看 artifact、触发一次本地策略运行，并保留一个聊天占位面板。
-现在 `web` 还提供：
+`web` 会启动一个本地浏览器控制台，主工作流围绕：
 
-- 项目配置页：`/project/config`
-- 任务日志页：`/project/logs`
-- 运维中心：`/project/ops`
+- `模拟盘`
+- `策略实验`
+- `策略任务`
+- `结果中心`
+
+当前还保留这些服务端接口：
+
 - 健康检查：`/healthz`
 - 就绪检查：`/readyz`
 - 状态 API：`/api/project/status`
 
-运维中心会展示服务健康、运行守护、审计事件和后台任务历史；`run` / `factor-backtest` 现在也会经过单任务锁，避免后台重复触发重叠作业。
-结果归档模块现在会优先读取 `artifacts/web/result_index.json`，把验证研究、策略套件、滚动回测和本地 paper run 分成“研究结果 / 运行结果”两组卡片；选中结果后会优先展示 `normalized_summary` 的统一摘要字段。
-模拟盘面板现在除了账户、成交和净值，还会优先显示最近一次本地 paper run 的持久化摘要，也就是 `strategy_id / as_of / trade_count / position_count`，并可直接打开对应运行工件。
+`web` 当前使用 SQLite 状态库和任务队列。`策略任务` / `策略实验` 会先入队，再由后台 worker 串行执行；历史页会展示 `QUEUED / RUNNING / SUCCESS / FAILED` 事件、进度和可恢复的实验 checkpoint。
+结果归档模块会优先读取结果索引，把策略实验、策略套件、滚动回测和本地 paper run 聚合到 `结果中心`；选中结果后优先展示统一摘要字段和详情入口。
+模拟盘页面会展示当前执行策略、账户状态、执行时间流、持仓和成交历史；自动模拟盘会按市场分别跟随当前执行策略。
 `run_validation_study.py` 会对指定市场和时间区间运行 `train / validate / test`、`walk-forward` 和参数稳定性分析，并把结果写到 `artifacts/<end-date>/`，同时登记到结果索引。
 `run_strategy_suite.py` 会批量运行当前工程里已经接入的主流 long-only 策略，输出收益和最大回撤对比，并把统一摘要登记到结果索引。
 
@@ -46,11 +51,12 @@ PYTHONPATH=src python3 scripts/run_strategy_suite.py --market ALL --start-date 2
 - 回测 / 模拟 / 实盘上下文的统一语义
 - 默认全市场发现，也支持手动传入局部股票池做验证
 - alpha 排名、beta 估计、分层候选池输出
-- 本地 artifact 与 universe cache，便于后续替换为真实数据仓库和券商接口
+- 本地 artifact、SQLite 状态库与行情缓存，便于后续替换为正式数据仓库和券商接口
 - 本地 `Local Paper` 账本和美股 `Alpaca Paper` 基础路由
-- 文件系统驱动的结果索引层和 Web 研究结果中心
+- 文件系统驱动的结果索引层和 Web 结果中心
 - 月度调仓回放脚本与净值曲线图输出
 - 验证工具链：样本内外切分、滚动窗口检验、参数稳定性比较
+- 共享 `BrokerLedger` 账本原语，统一回测与模拟盘的净值/成交约定
 
 ## Alpaca Paper 接入
 
@@ -141,6 +147,17 @@ JSON 会包含：
 - `group_<name>_only`：只保留某一组因子
 
 为了避免重复跑同一个交易日和同一个场景，验证脚本现在会做进程内缓存；真实长区间研究仍然建议先控制 `start-date / end-date` 范围，再逐步放大。
+
+## 架构收敛说明
+
+当前回测与研究主链已经收敛到以下边界：
+
+- `pipeline.py` 是唯一策略计算内核，负责 universe、特征、评分和组合输出
+- `agents.py` / `engine.py` 负责薄编排，不再维护另一套独立计算逻辑
+- `backtest_dataset.py` 会按区间一次性预加载回测所需市场数据，再按交易日物化快照
+- `broker_ledger.py` 统一回测与本地模拟盘的净值快照、成交记录和未知持仓清理约定
+- `strategy_blueprints.json` + `strategy_blueprint_config.py` 承载内置策略 blueprint 的声明式配置
+- `serialization_utils.py` 统一 Decimal 转换和扁平化序列化输出
 
 ## Web 与图表
 

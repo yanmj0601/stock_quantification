@@ -14,6 +14,7 @@ from stock_quantification.pipeline import (
     build_cn_index_enhancement_blueprint,
     build_us_quality_momentum_blueprint,
 )
+from stock_quantification.strategy_blueprint_config import load_strategy_blueprint_spec
 
 
 def _build_bars(instrument_id: str, start_price: Decimal, start_dt: datetime, days: int, step: Decimal, turnover: Decimal):
@@ -140,6 +141,15 @@ class PipelineTests(TestCase):
 
         self.assertNotIn("CN.600666", [member.instrument.instrument_id for member in cn_universe.selected])
         self.assertNotIn("US.BABA", [member.instrument.instrument_id for member in us_universe.selected])
+
+    def test_blueprint_specs_load_from_declarative_config(self) -> None:
+        cn_spec = load_strategy_blueprint_spec("cn_index_enhancement")
+        us_spec = load_strategy_blueprint_spec("us_quality_momentum")
+
+        self.assertEqual(cn_spec["market"], "CN")
+        self.assertEqual(cn_spec["alpha_weights"]["rel_ret_60"], "0.24")
+        self.assertEqual(us_spec["market"], "US")
+        self.assertEqual(us_spec["portfolio_policy"]["top_n"], 4)
 
     def test_research_pipeline_generates_multi_factor_alpha(self) -> None:
         blueprint = build_us_quality_momentum_blueprint(

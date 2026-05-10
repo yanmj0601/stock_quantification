@@ -282,6 +282,10 @@ class SQLiteStateStore:
                 (key, _json_dumps(value), _utc_now()),
             )
 
+    def delete_kv(self, key: str) -> None:
+        with self._connect() as conn:
+            conn.execute("DELETE FROM kv_state WHERE key = ?", (key,))
+
     def cache_market_bars(
         self,
         *,

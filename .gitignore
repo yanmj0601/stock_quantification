@@ -16,5 +16,8 @@ env/
 
 # Runtime state and generated local ledgers
 artifacts/web/*.json
+artifacts/web/*.sqlite3
+artifacts/web/*.sqlite3-shm
+artifacts/web/*.sqlite3-wal
 artifacts/local_paper/
 artifacts/[0-9]*/

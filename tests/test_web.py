@@ -46,6 +46,11 @@ class WebTests(TestCase):
         self.ops_store.list_events.return_value = []
         self.ops_store.list_run_history.return_value = []
         self.ops_store.load_state.return_value = {"active_job": None, "job_history": [], "audit_events": [], "heartbeats": {}}
+        self.ops_store.sqlite = Mock()
+        self.ops_store.sqlite.get_job.return_value = None
+        self.ops_store.sqlite.get_kv.return_value = None
+        self.ops_store.sqlite.delete_kv.return_value = None
+        self.ops_store.sqlite.set_kv.return_value = None
         self.app._ops_store = Mock(return_value=self.ops_store)
 
     def test_instrument_display_label_prefers_code_and_name(self) -> None:
@@ -1906,6 +1911,67 @@ class WebTests(TestCase):
         self.assertIn("Excess / 超额: -0.22", body)
 
     @patch.object(DashboardApp, "_load_project_config", return_value=DEFAULT_PROJECT_CONFIG)
+    def test_optimize_history_view_shows_continue_button_for_failed_checkpointed_experiment(self, _mock_config) -> None:
+        self.ops_store.list_events.return_value = [
+            {
+                "event_id": 101,
+                "created_at": "2026-05-10T13:20:00",
+                "category": "research",
+                "action": "factor_backtest",
+                "status": "FAILED",
+                "detail": "因子回测失败：网络中断",
+                "metadata": {"market": "US", "job_id": "factor-job-1"},
+            }
+        ]
+        self.ops_store.sqlite.get_job.return_value = {
+            "job_id": "factor-job-1",
+            "kind": "factor_backtest",
+            "status": "FAILED",
+            "payload": {"checkpoint_key": "ckpt-us-1"},
+            "metadata": {"market": "US"},
+        }
+        self.ops_store.sqlite.get_kv.return_value = {"processed_dates": 17}
+
+        response = self.app.render_home({"view": ["optimize"], "subview": ["history"]})
+
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn("Continue / 继续", body)
+        self.assertIn("/factor-backtest/continue", body)
+        self.assertIn("从第 17 个样本后继续", body)
+
+    @patch.object(DashboardApp, "_load_project_config", return_value=DEFAULT_PROJECT_CONFIG)
+    def test_optimize_history_view_shows_eta_for_running_factor_backtest_job(self, _mock_config) -> None:
+        self.ops_store.load_state.return_value = {
+            "active_job": {
+                "job_id": "factor-job-eta",
+                "kind": "factor_backtest",
+                "status": "RUNNING",
+                "stage": "RUNNING_BACKTEST",
+                "detail": "正在处理 2026-05-10 的因子样本 (20/100)。",
+                "metadata": {
+                    "current_trade_date": "2026-05-10",
+                    "processed_dates": 20,
+                    "total_dates": 100,
+                    "elapsed_seconds": 60.0,
+                },
+                "created_at": "2026-05-10T13:30:00",
+                "progress_pct": 26,
+            },
+            "queued_jobs": [],
+            "job_history": [],
+            "audit_events": [],
+            "heartbeats": {},
+        }
+
+        response = self.app.render_home({"view": ["optimize"], "subview": ["history"]})
+
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn("预计剩余", body)
+        self.assertIn("26%", body)
+
+    @patch.object(DashboardApp, "_load_project_config", return_value=DEFAULT_PROJECT_CONFIG)
     def test_optimize_history_view_shows_index_warning_when_index_is_invalid(self, _mock_config) -> None:
         with TemporaryDirectory() as tmpdir:
             artifact_root = Path(tmpdir)
@@ -3100,6 +3166,46 @@ class WebTests(TestCase):
         self.assertEqual(response.status, 303)
         self.assertEqual(response.headers["Location"], "/?view=optimize&subview=create")
         self.assertIn("已加入队列", self.app.state.flash_messages[-1]["message"])
+        self.assertEqual(self.app.state.flash_messages[-1]["audience"], "optimize")
+
+    def test_factor_backtest_continue_requeues_checkpointed_job(self) -> None:
+        self.ops_store.sqlite.get_job.return_value = {
+            "job_id": "factor-job-1",
+            "kind": "factor_backtest",
+            "status": "FAILED",
+            "payload": {
+                "market": "US",
+                "selected_factors": ["rel_ret_20", "trend"],
+                "start_date": "2025-05-10",
+                "end_date": "2026-05-10",
+                "holding_sessions": 5,
+                "detail_limit": 50,
+                "history_limit": 200,
+                "top_n": 10,
+                "initial_cash": "100000",
+                "factor_tilts": {"rel_ret_20": "1.0", "trend": "1.0"},
+                "checkpoint_key": "ckpt-us-1",
+            },
+            "metadata": {"market": "US", "factors": ["rel_ret_20", "trend"]},
+        }
+        self.ops_store.sqlite.get_kv.return_value = {"processed_dates": 17}
+
+        response = self.app.dispatch(
+            "POST",
+            "/factor-backtest/continue",
+            {},
+            {"view": ["optimize"], "subview": ["history"], "job_id": ["factor-job-1"]},
+        )
+
+        self.assertEqual(response.status, 303)
+        self.assertEqual(response.headers["Location"], "/?view=optimize&subview=history")
+        self.ops_store.begin_job.assert_called_once()
+        begin_args, begin_kwargs = self.ops_store.begin_job.call_args
+        self.assertEqual(begin_args[0], "factor_backtest")
+        self.assertEqual(begin_kwargs["payload"]["checkpoint_key"], "ckpt-us-1")
+        self.assertEqual(begin_kwargs["payload"]["market"], "US")
+        self.assertEqual(begin_kwargs["metadata"]["resume_processed_dates"], 17)
+        self.assertIn("从第 17 个样本后继续", self.app.state.flash_messages[-1]["message"])
         self.assertEqual(self.app.state.flash_messages[-1]["audience"], "optimize")
 
     def test_load_project_config_sanitizes_bad_persisted_values(self) -> None:

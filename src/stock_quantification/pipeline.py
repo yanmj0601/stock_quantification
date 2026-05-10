@@ -8,6 +8,7 @@ from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 from .interfaces import MarketDataProvider
 from .models import AssetType, Bar, Instrument, InstrumentStatus, Market, Position, TargetPosition
+from .strategy_blueprint_config import load_strategy_blueprint_spec
 
 
 def _to_decimal(value: object) -> Decimal:
@@ -81,6 +82,67 @@ def _sector_for(instrument: Instrument) -> str:
         or instrument.attributes.get("industry")
         or instrument.attributes.get("sector_name")
         or "UNKNOWN"
+    )
+
+
+def _decimal_mapping(values: Mapping[str, object]) -> Dict[str, Decimal]:
+    return {key: _to_decimal(value) for key, value in values.items()}
+
+
+def _asset_type_tuple(values: Sequence[str]) -> Tuple[AssetType, ...]:
+    return tuple(AssetType(value) for value in values)
+
+
+def _instrument_status_tuple(values: Sequence[str]) -> Tuple[InstrumentStatus, ...]:
+    return tuple(InstrumentStatus(value) for value in values)
+
+
+def _build_strategy_blueprint_from_spec(
+    strategy_id: str,
+    *,
+    benchmark_instrument_id: Optional[str] = None,
+    allowed_instrument_ids: Optional[Tuple[str, ...]] = None,
+    benchmark_weights: Optional[Mapping[str, Decimal]] = None,
+) -> "StrategyBlueprint":
+    spec = load_strategy_blueprint_spec(strategy_id)
+    universe_filter_spec = spec["universe_filter"]
+    feature_config_spec = spec["feature_config"]
+    portfolio_policy_spec = spec["portfolio_policy"]
+    return StrategyBlueprint(
+        strategy_id=strategy_id,
+        market=Market(spec["market"]),
+        universe_filter=UniverseFilter(
+            min_listed_days=int(universe_filter_spec["min_listed_days"]),
+            lookback_bars=int(universe_filter_spec["lookback_bars"]),
+            min_average_turnover=_to_decimal(universe_filter_spec["min_average_turnover"]),
+            min_latest_price=_to_decimal(universe_filter_spec["min_latest_price"]),
+            allowed_asset_types=_asset_type_tuple(universe_filter_spec.get("allowed_asset_types", ["COMMON_STOCK"])),
+            excluded_statuses=_instrument_status_tuple(universe_filter_spec.get("excluded_statuses", ["HALTED"])),
+            require_not_st=bool(universe_filter_spec.get("require_not_st", True)),
+            allowed_instrument_ids=allowed_instrument_ids,
+        ),
+        feature_config=FeatureConfig(
+            return_windows=tuple(int(value) for value in feature_config_spec["return_windows"]),
+            volatility_window=int(feature_config_spec["volatility_window"]),
+            trend_window=int(feature_config_spec["trend_window"]),
+            liquidity_window=int(feature_config_spec["liquidity_window"]),
+            benchmark_window=int(feature_config_spec["benchmark_window"]),
+            technical_window=int(feature_config_spec["technical_window"]),
+            neutralize_by_sector=bool(feature_config_spec.get("neutralize_by_sector", False)),
+        ),
+        alpha_weights=_decimal_mapping(spec["alpha_weights"]),
+        portfolio_policy=PortfolioPolicy(
+            top_n=int(portfolio_policy_spec["top_n"]),
+            max_position_weight=_to_decimal(portfolio_policy_spec["max_position_weight"]),
+            max_sector_weight=_to_decimal(portfolio_policy_spec["max_sector_weight"]),
+            cash_buffer=_to_decimal(portfolio_policy_spec["cash_buffer"]),
+            benchmark_blend=_to_decimal(portfolio_policy_spec["benchmark_blend"]),
+            turnover_cap=_to_decimal(portfolio_policy_spec["turnover_cap"]),
+            rebalance_buffer=_to_decimal(portfolio_policy_spec["rebalance_buffer"]),
+            min_alpha=_to_decimal(portfolio_policy_spec["min_alpha"]),
+        ),
+        benchmark_instrument_id=benchmark_instrument_id,
+        benchmark_weights=benchmark_weights or {},
     )
 
 
@@ -762,53 +824,11 @@ def build_cn_index_enhancement_blueprint(
     allowed_instrument_ids: Optional[Tuple[str, ...]] = None,
     benchmark_weights: Optional[Mapping[str, Decimal]] = None,
 ) -> StrategyBlueprint:
-    return StrategyBlueprint(
-        strategy_id="cn_index_enhancement",
-        market=Market.CN,
-        universe_filter=UniverseFilter(
-            min_listed_days=252,
-            lookback_bars=60,
-            min_average_turnover=Decimal("50000000"),
-            min_latest_price=Decimal("3"),
-            allowed_instrument_ids=allowed_instrument_ids,
-        ),
-        feature_config=FeatureConfig(
-            return_windows=(5, 20, 60),
-            volatility_window=20,
-            trend_window=20,
-            liquidity_window=20,
-            benchmark_window=20,
-            technical_window=200,
-        ),
-        alpha_weights={
-            "rel_ret_20": Decimal("0.18"),
-            "rel_ret_60": Decimal("0.24"),
-            "trend": Decimal("0.08"),
-            "liquidity": Decimal("0.05"),
-            "profitability": Decimal("0.25"),
-            "volatility": Decimal("-0.10"),
-            "drawdown": Decimal("-0.15"),
-            "ma_trend_alignment": Decimal("0"),
-            "breakout_strength": Decimal("0"),
-            "base_breakout_score": Decimal("0"),
-            "volume_expansion": Decimal("0"),
-            "price_volume_confirmation": Decimal("0"),
-            "momentum_acceleration": Decimal("0"),
-            "volatility_contraction": Decimal("0"),
-            "pullback_resilience": Decimal("0"),
-        },
-        portfolio_policy=PortfolioPolicy(
-            top_n=4,
-            max_position_weight=Decimal("0.30"),
-            max_sector_weight=Decimal("0.55"),
-            cash_buffer=Decimal("0.05"),
-            benchmark_blend=Decimal("0.15"),
-            turnover_cap=Decimal("0.18"),
-            rebalance_buffer=Decimal("0.05"),
-            min_alpha=Decimal("0"),
-        ),
+    return _build_strategy_blueprint_from_spec(
+        "cn_index_enhancement",
         benchmark_instrument_id=benchmark_instrument_id,
-        benchmark_weights=benchmark_weights or {},
+        allowed_instrument_ids=allowed_instrument_ids,
+        benchmark_weights=benchmark_weights,
     )
 
 
@@ -817,52 +837,9 @@ def build_us_quality_momentum_blueprint(
     allowed_instrument_ids: Optional[Tuple[str, ...]] = None,
     benchmark_weights: Optional[Mapping[str, Decimal]] = None,
 ) -> StrategyBlueprint:
-    return StrategyBlueprint(
-        strategy_id="us_quality_momentum",
-        market=Market.US,
-        universe_filter=UniverseFilter(
-            min_listed_days=252,
-            lookback_bars=60,
-            min_average_turnover=Decimal("100000000"),
-            min_latest_price=Decimal("5"),
-            allowed_instrument_ids=allowed_instrument_ids,
-        ),
-        feature_config=FeatureConfig(
-            return_windows=(5, 20, 60),
-            volatility_window=20,
-            trend_window=20,
-            liquidity_window=20,
-            benchmark_window=20,
-            technical_window=200,
-        ),
-        alpha_weights={
-            "rel_ret_20": Decimal("0.15"),
-            "rel_ret_60": Decimal("0.20"),
-            "liquidity": Decimal("0.05"),
-            "profitability": Decimal("0.25"),
-            "quality": Decimal("0.15"),
-            "trend": Decimal("0.10"),
-            "volatility": Decimal("-0.10"),
-            "drawdown": Decimal("-0.15"),
-            "ma_trend_alignment": Decimal("0"),
-            "breakout_strength": Decimal("0"),
-            "base_breakout_score": Decimal("0"),
-            "volume_expansion": Decimal("0"),
-            "price_volume_confirmation": Decimal("0"),
-            "momentum_acceleration": Decimal("0"),
-            "volatility_contraction": Decimal("0"),
-            "pullback_resilience": Decimal("0"),
-        },
-        portfolio_policy=PortfolioPolicy(
-            top_n=4,
-            max_position_weight=Decimal("0.28"),
-            max_sector_weight=Decimal("0.45"),
-            cash_buffer=Decimal("0.05"),
-            benchmark_blend=Decimal("0.10"),
-            turnover_cap=Decimal("0.14"),
-            rebalance_buffer=Decimal("0.06"),
-            min_alpha=Decimal("0"),
-        ),
+    return _build_strategy_blueprint_from_spec(
+        "us_quality_momentum",
         benchmark_instrument_id=benchmark_instrument_id,
-        benchmark_weights=benchmark_weights or {},
+        allowed_instrument_ids=allowed_instrument_ids,
+        benchmark_weights=benchmark_weights,
     )

@@ -1,20 +1,16 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
-from datetime import date, timedelta
+from dataclasses import dataclass, field
+from datetime import date
 from decimal import Decimal
 from statistics import median
 from typing import Dict, Iterable, List, Mapping, Optional, Sequence
 
-from .agents import Orchestrator, ResearchAgent, ReviewAgent, StrategyAgent
-from .engine import (
-    EqualWeightPortfolioConstructor,
-    StandardExecutionPlanner,
-    StandardRiskEngine,
-    StandardStrategyRunner,
-)
-from .markets import ChinaMarketRules, USMarketRules
-from .models import AccountConstraints, AccountState, BacktestContext, ExecutionMode, Market
+from .agents import ResearchAgent
+from .backtest_dataset import MarketDataset, build_market_dataset
+from .broker_ledger import BrokerLedger
+from .execution_flow import run_strategy_cycle
+from .models import AccountConstraints, AccountState, BacktestContext, ExecutionMode, Market, OrchestrationResult
 from .real_data import (
     MarketSnapshot,
     RealDataError,
@@ -24,7 +20,7 @@ from .real_data import (
     fetch_us_benchmark_history,
     fetch_us_daily_history,
 )
-from .runtime import RuntimeEngine
+from .serialization_utils import serialize_flat_record, to_decimal
 from .state import InMemoryStateStore
 from .strategy_catalog import StrategyPreset, build_strategy_from_preset
 from .analytics import InformationCoefficientMetrics, compute_information_coefficient, compute_performance_metrics
@@ -160,28 +156,15 @@ class RollingBacktestReport:
     exit_events: List[RollingExitEvent] = field(default_factory=list)
 
 
-def _to_decimal(value: object) -> Decimal:
-    if isinstance(value, Decimal):
-        return value
-    return Decimal(str(value))
-
-
 def _serialize_row(row: ForwardReturnRow) -> Dict[str, object]:
-    payload = asdict(row)
-    for key, value in payload.items():
-        if isinstance(value, Decimal):
-            payload[key] = str(value.quantize(Decimal("0.0001")))
+    payload = serialize_flat_record(row)
     if row.buy_price is None:
         payload["buy_price"] = None
     return payload
 
 
 def _serialize_summary(summary: BacktestSummary) -> Dict[str, object]:
-    payload = asdict(summary)
-    for key, value in payload.items():
-        if isinstance(value, Decimal):
-            payload[key] = str(value.quantize(Decimal("0.0001")))
-    return payload
+    return serialize_flat_record(summary)
 
 
 def serialize_backtest_report(report: BacktestReport) -> Dict[str, object]:
@@ -196,16 +179,10 @@ def serialize_rolling_backtest_report(report: RollingBacktestReport) -> Dict[str
     daily: List[Dict[str, object]] = []
     exit_events: List[Dict[str, object]] = []
     for item in report.daily:
-        payload = asdict(item)
-        for key, value in payload.items():
-            if isinstance(value, Decimal):
-                payload[key] = str(value.quantize(Decimal("0.0001")))
+        payload = serialize_flat_record(item)
         daily.append(payload)
     for item in report.exit_events:
-        payload = asdict(item)
-        for key, value in payload.items():
-            if isinstance(value, Decimal):
-                payload[key] = str(value.quantize(Decimal("0.0001")))
+        payload = serialize_flat_record(item)
         exit_events.append(payload)
     return {"summary": summary, "daily": daily, "exit_events": exit_events}
 
@@ -250,10 +227,10 @@ def build_forward_return_report(
                 forward_return=forward_return,
                 benchmark_return=benchmark_return,
                 excess_return=forward_return - benchmark_return,
-                target_weight=_to_decimal(stock.get("target_weight", "0")),
+                target_weight=to_decimal(stock.get("target_weight", "0")),
                 qty=int(stock.get("qty", 0)),
                 buy_price=buy_price,
-                score=_to_decimal(stock.get("score", "0")),
+                score=to_decimal(stock.get("score", "0")),
                 reason=str(stock.get("reason", "")),
             )
         )
@@ -264,7 +241,7 @@ def build_forward_return_report(
     rows.sort(key=lambda item: item.forward_return, reverse=True)
 
     factor_values = {
-        str(row["instrument_id"]): _to_decimal(row.get("score", "0"))
+        str(row["instrument_id"]): to_decimal(row.get("score", "0"))
         for row in ranked_candidates
     }
     future_returns = {
@@ -285,6 +262,7 @@ def build_rolling_strategy_backtest_report(
     history_limit: int,
     initial_cash: Decimal = Decimal("100000"),
     build_snapshot_fn=build_market_snapshot,
+    market_dataset: Optional[MarketDataset] = None,
 ) -> RollingBacktestReport:
     snapshots = _actual_sessions(
         market=market,
@@ -293,6 +271,7 @@ def build_rolling_strategy_backtest_report(
         detail_limit=detail_limit,
         history_limit=history_limit,
         build_snapshot_fn=build_snapshot_fn,
+        market_dataset=market_dataset,
     )
     if len(snapshots) < 2:
         raise RuntimeError(f"Not enough sessions found for {market.value}")
@@ -360,8 +339,8 @@ def build_rolling_strategy_backtest_report(
         )
         day_buy_fill_count = int(fill_stats["buy_fill_count"])
         day_sell_fill_count = int(fill_stats["sell_fill_count"])
-        day_gross_traded_notional = _to_decimal(fill_stats["gross_traded_notional"])
-        day_total_fees = _to_decimal(fill_stats["total_fees"])
+        day_gross_traded_notional = to_decimal(fill_stats["gross_traded_notional"])
+        day_total_fees = to_decimal(fill_stats["total_fees"])
         buy_fill_count += day_buy_fill_count
         sell_fill_count += day_sell_fill_count
         total_traded_notional += day_gross_traded_notional
@@ -406,17 +385,12 @@ def build_rolling_strategy_backtest_report(
             continue
 
         current_weight_map = _position_weights(account_state, snapshot.data_provider, snapshot.as_of)
-        orchestrator = _build_orchestrator(snapshot, state_store, preset.top_n)
-        strategy = build_strategy_from_preset(
-            preset,
-            snapshot.benchmark_instrument_id,
-            _benchmark_weights(snapshot, market),
-        )
-        result = orchestrator.run(
-            BacktestContext(as_of=snapshot.as_of),
-            strategy,
-            [account_id],
-            ExecutionMode.AUTO,
+        result = _run_backtest_orchestration(
+            snapshot=snapshot,
+            state_store=state_store,
+            preset=preset,
+            account_id=account_id,
+            execution_mode=ExecutionMode.AUTO,
         )
         proposal = getattr(result, "proposal", None)
         rankings = list(getattr(proposal, "research_rankings", []) or [])
@@ -437,10 +411,10 @@ def build_rolling_strategy_backtest_report(
                 else:
                     next_day_stats["sell_fill_count"] = int(next_day_stats["sell_fill_count"]) + 1
                 reference_price = fill.realized_price or fill.estimated_price
-                next_day_stats["gross_traded_notional"] = _to_decimal(next_day_stats["gross_traded_notional"]) + (
+                next_day_stats["gross_traded_notional"] = to_decimal(next_day_stats["gross_traded_notional"]) + (
                     reference_price * Decimal(fill.filled_qty)
                 )
-                next_day_stats["total_fees"] = _to_decimal(next_day_stats["total_fees"]) + fill.total_fees
+                next_day_stats["total_fees"] = to_decimal(next_day_stats["total_fees"]) + fill.total_fees
             exit_events.extend(
                 _collect_exit_events(
                     execution_result=execution_result,
@@ -523,7 +497,7 @@ def _collect_exit_events(
     top_n: int,
 ) -> List[RollingExitEvent]:
     target_weight_map = {
-        str(getattr(target, "instrument_id", "")): _to_decimal(getattr(target, "target_weight", Decimal("0")))
+        str(getattr(target, "instrument_id", "")): to_decimal(getattr(target, "target_weight", Decimal("0")))
         for target in targets
     }
     ranking_map = {
@@ -545,7 +519,7 @@ def _collect_exit_events(
             continue
         ranking = ranking_map.get(instrument_id, {})
         next_weight = target_weight_map.get(instrument_id, Decimal("0"))
-        previous_weight = _to_decimal(current_weights.get(instrument_id, Decimal("0")))
+        previous_weight = to_decimal(current_weights.get(instrument_id, Decimal("0")))
         reason_code, reason_label, detail = _classify_exit_reason(
             ranking=ranking,
             next_target_weight=next_weight,
@@ -567,7 +541,7 @@ def _collect_exit_events(
                 detail=detail,
                 previous_target_weight=previous_weight,
                 next_target_weight=next_weight,
-                score=_to_decimal(ranking.get("score", Decimal("0"))),
+                score=to_decimal(ranking.get("score", Decimal("0"))),
             )
         )
     return events
@@ -583,8 +557,8 @@ def _classify_exit_reason(
 ) -> tuple[str, str, str]:
     raw_features = ranking.get("raw_features", {}) if isinstance(ranking.get("raw_features", {}), Mapping) else {}
     contributions = ranking.get("contributions", {}) if isinstance(ranking.get("contributions", {}), Mapping) else {}
-    trend_value = _to_decimal(raw_features.get("trend", Decimal("0")))
-    risk_penalty = _to_decimal(contributions.get("volatility", Decimal("0"))) + _to_decimal(
+    trend_value = to_decimal(raw_features.get("trend", Decimal("0")))
+    risk_penalty = to_decimal(contributions.get("volatility", Decimal("0"))) + to_decimal(
         contributions.get("drawdown", Decimal("0"))
     )
     if next_target_weight <= 0 and trend_value <= 0:
@@ -690,14 +664,6 @@ def _build_summary(
     )
 
 
-def _weekdays(start: date, end: date):
-    current = start
-    while current <= end:
-        if current.weekday() < 5:
-            yield current
-        current += timedelta(days=1)
-
-
 def _actual_sessions(
     market: Market,
     start_date: date,
@@ -705,23 +671,17 @@ def _actual_sessions(
     detail_limit: int,
     history_limit: int,
     build_snapshot_fn=build_market_snapshot,
+    market_dataset: Optional[MarketDataset] = None,
 ) -> List[MarketSnapshot]:
-    sessions: List[MarketSnapshot] = []
-    for day in _weekdays(start_date, end_date):
-        snapshot_history_limit = max(
-            history_limit,
-            min(1000, max(120, (date.today() - day).days + 40)),
-        )
-        snapshot = build_snapshot_fn(
-            market,
-            symbols=[],
-            detail_limit=detail_limit,
-            history_limit=snapshot_history_limit,
-            as_of_date=day,
-        )
-        if snapshot.as_of.date() == day:
-            sessions.append(snapshot)
-    return sessions
+    dataset = market_dataset or build_market_dataset(
+        market=market,
+        start_date=start_date,
+        end_date=end_date,
+        detail_limit=detail_limit,
+        history_limit=history_limit,
+        build_snapshot_fn=build_snapshot_fn,
+    )
+    return dataset.materialize_snapshots()
 
 
 def _benchmark_weights(snapshot: MarketSnapshot, market: Market) -> Dict[str, Decimal]:
@@ -736,40 +696,38 @@ def _benchmark_weights(snapshot: MarketSnapshot, market: Market) -> Dict[str, De
     }
 
 
-def _build_orchestrator(snapshot: MarketSnapshot, state_store: InMemoryStateStore, top_n: int) -> Orchestrator:
-    strategy_runner = StandardStrategyRunner(
-        snapshot.data_provider,
-        snapshot.universe_provider,
-        snapshot.calendar_provider,
+def _run_backtest_orchestration(
+    *,
+    snapshot: MarketSnapshot,
+    state_store: InMemoryStateStore,
+    preset: StrategyPreset,
+    account_id: str,
+    execution_mode: ExecutionMode,
+) -> OrchestrationResult:
+    strategy = build_strategy_from_preset(
+        preset,
+        snapshot.benchmark_instrument_id,
+        _benchmark_weights(snapshot, snapshot.market),
     )
-    execution_planner = StandardExecutionPlanner(snapshot.data_provider)
-    return Orchestrator(
-        research_agent=ResearchAgent(strategy_runner),
-        strategy_agent=StrategyAgent(
-            strategy_runner,
-            EqualWeightPortfolioConstructor(top_n=top_n),
-            execution_planner,
-            state_store,
-        ),
-        review_agent=ReviewAgent(),
-        execution_planner=execution_planner,
-        risk_engine=StandardRiskEngine(
-            snapshot.data_provider,
-            {Market.CN: ChinaMarketRules(), Market.US: USMarketRules()},
-        ),
+    return run_strategy_cycle(
+        strategy=strategy,
+        context=BacktestContext(as_of=snapshot.as_of),
+        account_states=[state_store.get_account_state(account_id)],
+        execution_mode=execution_mode,
+        data_provider=snapshot.data_provider,
+        universe_provider=snapshot.universe_provider,
+        calendar_provider=snapshot.calendar_provider,
         state_store=state_store,
-        runtime_engine=RuntimeEngine(snapshot.data_provider, snapshot.calendar_provider),
+        top_n=preset.top_n,
     )
 
 
 def _mark_nav(account_state: AccountState, data_provider, as_of) -> Decimal:
-    nav = account_state.cash
-    for instrument_id, position in account_state.positions.items():
-        if position.qty == 0:
-            continue
-        bar = data_provider.get_latest_bar(instrument_id, as_of)
-        nav += bar.close * Decimal(position.qty)
-    return nav
+    ledger = BrokerLedger()
+    return ledger.mark_nav(
+        account_state,
+        price_lookup=lambda instrument_id: data_provider.get_latest_bar(instrument_id, as_of).close,
+    )
 
 
 def _compute_max_drawdown(nav_values: Iterable[Decimal]) -> Decimal:
@@ -852,4 +810,4 @@ def _simple_return(entry_price: Decimal, exit_price: Decimal) -> Decimal:
 def _optional_decimal(value: object) -> Decimal | None:
     if value in (None, "", "n/a"):
         return None
-    return _to_decimal(value)
+    return to_decimal(value)

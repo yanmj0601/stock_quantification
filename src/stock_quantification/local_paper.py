@@ -7,6 +7,7 @@ import shutil
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 from .artifacts import read_json_artifact, write_json_artifact, write_text_artifact
+from .broker_ledger import BrokerLedger
 from .models import AccountConstraints, AccountState, Market, OrderIntent, Position
 from .result_index import normalize_local_paper_run_summary
 from .runtime import ExecutionResult
@@ -73,6 +74,7 @@ def _deserialize_account_state(payload: Mapping[str, Any]) -> AccountState:
 class LocalPaperLedger:
     def __init__(self, base_dir: str | Path = DEFAULT_LOCAL_PAPER_ROOT) -> None:
         self._base_dir = Path(base_dir)
+        self._broker_ledger = BrokerLedger()
 
     def sync_account_state(
         self,
@@ -132,7 +134,6 @@ class LocalPaperLedger:
     ) -> Dict[str, Any]:
         instrument_names = instrument_names or {}
         price_map = price_map or {}
-        order_lookup = {intent.order_intent_id: intent for intent in order_intents if intent.account_id == account_id}
         relevant_results = [result for result in execution_results if result.output_account_state.account_id == account_id]
         if not relevant_results:
             return {"account": None, "trade_records": [], "paths": {}}
@@ -149,30 +150,14 @@ class LocalPaperLedger:
             "trades": [],
             "nav_history": [],
         }
-        trade_records: List[Dict[str, Any]] = []
-        for result in relevant_results:
-            for fill in result.fills:
-                if fill.filled_qty <= 0:
-                    continue
-                order_intent = order_lookup.get(fill.order_intent_id)
-                trade_records.append(
-                    {
-                        "executed_at": result.context.as_of.isoformat(),
-                        "trade_date": result.context.as_of.date().isoformat(),
-                        "account_id": account_id,
-                        "market": market.value,
-                        "strategy_id": strategy_id,
-                        "instrument_id": fill.instrument_id,
-                        "name": instrument_names.get(fill.instrument_id, fill.instrument_id),
-                        "side": order_intent.side.value if order_intent is not None else "UNKNOWN",
-                        "requested_qty": fill.requested_qty,
-                        "filled_qty": fill.filled_qty,
-                        "estimated_price": str(fill.estimated_price),
-                        "realized_price": str(fill.realized_price) if fill.realized_price is not None else None,
-                        "cash_delta": str(fill.cash_delta),
-                        "status": fill.status.value,
-                    }
-                )
+        trade_records = self._broker_ledger.execution_trade_records(
+            account_id=account_id,
+            strategy_id=strategy_id,
+            market=market.value,
+            order_intents=order_intents,
+            execution_results=relevant_results,
+            instrument_names=instrument_names,
+        )
         ledger["trades"] = list(ledger.get("trades", [])) + trade_records
         trades_all = list(ledger.get("trades", []))
         starting_cash = self._resolve_starting_cash(account_state, ledger, trades_all)
@@ -190,7 +175,7 @@ class LocalPaperLedger:
                     "cumulative_return": "0.0000",
                 }
             )
-        nav_snapshot = self._nav_snapshot(
+        nav_snapshot = self._broker_ledger.nav_snapshot(
             account_state=account_state,
             as_of=result_as_of,
             trade_date=latest_result.context.as_of.date().isoformat(),
@@ -337,33 +322,12 @@ class LocalPaperLedger:
             "trades": [],
             "nav_history": [],
         }
-        trade_records: List[Dict[str, Any]] = []
-        for position in stale_positions:
-            liquidation_price = position.avg_cost
-            cash_delta = (liquidation_price * Decimal(position.qty)).quantize(Decimal("0.0001"))
-            account_state.cash += cash_delta
-            account_state.buying_power += cash_delta
-            account_state.positions.pop(position.instrument_id, None)
-            trade_records.append(
-                {
-                    "executed_at": as_of.isoformat(),
-                    "trade_date": as_of.date().isoformat(),
-                    "account_id": account_id,
-                    "market": account_state.market.value,
-                    "strategy_id": strategy_id,
-                    "instrument_id": position.instrument_id,
-                    "name": position.instrument_id,
-                    "side": "SELL",
-                    "requested_qty": position.qty,
-                    "filled_qty": position.qty,
-                    "estimated_price": str(liquidation_price),
-                    "realized_price": str(liquidation_price),
-                    "cash_delta": str(cash_delta),
-                    "status": "FILLED",
-                    "note": "unknown_position_auto_liquidation",
-                }
-            )
-        account_state.last_sync_at = as_of
+        account_state, trade_records = self._broker_ledger.liquidate_unknown_positions(
+            account_state=account_state,
+            valid_instrument_ids=valid_ids,
+            as_of=as_of,
+            strategy_id=strategy_id,
+        )
         self._write_account(account_state)
 
         ledger["trades"] = list(ledger.get("trades", [])) + trade_records
@@ -383,7 +347,7 @@ class LocalPaperLedger:
                 }
             )
         nav_history.append(
-            self._nav_snapshot(
+            self._broker_ledger.nav_snapshot(
                 account_state=account_state,
                 as_of=as_of,
                 trade_date=as_of.date().isoformat(),
@@ -423,31 +387,6 @@ class LocalPaperLedger:
         if end_date:
             filtered = [row for row in filtered if str(row.get("trade_date", "")) <= end_date]
         return filtered
-
-    def _nav_snapshot(
-        self,
-        account_state: AccountState,
-        as_of: datetime,
-        trade_date: str,
-        starting_cash: Decimal,
-        price_map: Mapping[str, Decimal],
-    ) -> Dict[str, str]:
-        position_value = Decimal("0")
-        for position in account_state.positions.values():
-            mark_price = price_map.get(position.instrument_id, position.avg_cost)
-            position_value += Decimal(position.qty) * mark_price
-        nav = (account_state.cash + position_value).quantize(Decimal("0.0001"))
-        cumulative_return = Decimal("0")
-        if starting_cash != 0:
-            cumulative_return = ((nav / starting_cash) - Decimal("1")).quantize(Decimal("0.0001"))
-        return {
-            "as_of": as_of.isoformat(),
-            "trade_date": trade_date,
-            "nav": str(nav),
-            "cash": str(account_state.cash.quantize(Decimal("0.0001"))),
-            "position_value": str(position_value.quantize(Decimal("0.0001"))),
-            "cumulative_return": str(cumulative_return),
-        }
 
     def _resolve_starting_cash(
         self,

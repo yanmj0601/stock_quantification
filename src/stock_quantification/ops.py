@@ -38,6 +38,10 @@ class ProjectOpsStore:
         self._state.save_heartbeat(component, _now().isoformat(timespec="seconds"))
         return self.load_state()
 
+    @property
+    def sqlite(self) -> SQLiteStateStore:
+        return self._state
+
     def begin_job(
         self,
         kind: str,

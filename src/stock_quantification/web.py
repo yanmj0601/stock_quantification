@@ -16,6 +16,7 @@ import os
 from pathlib import Path
 from string import Template
 import threading
+import time
 from typing import Any, Dict, Iterable, List, Optional
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
@@ -246,6 +247,8 @@ class DashboardApp:
             return self.handle_strategy_candidate_promote(body)
         if path == "/factor-backtest" and method == "POST":
             return self.handle_factor_backtest(body)
+        if path == "/factor-backtest/continue" and method == "POST":
+            return self.handle_factor_backtest_continue(body)
         if path == "/chat" and method == "POST":
             return self.handle_chat(body)
         if path == "/artifact-file":
@@ -566,9 +569,27 @@ class DashboardApp:
         except (InvalidOperation, ValueError) as exc:
             self.state.push_flash(f"策略实验参数错误：{exc}", audience=view)
             return self._redirect(redirect_target)
+        checkpoint_key = self._factor_backtest_checkpoint_key(
+            market=market,
+            selected_factors=selected_factors,
+            start_date=start_date,
+            end_date=end_date,
+            holding_sessions=holding_sessions,
+            detail_limit=detail_limit,
+            history_limit=history_limit,
+            top_n=top_n,
+            initial_cash=initial_cash,
+            factor_tilts=factor_tilts,
+        )
+        existing_checkpoint = self._load_factor_backtest_checkpoint(checkpoint_key)
         reservation = self._ops_store().begin_job(
             "factor_backtest",
-            metadata={"market": market.value, "factors": selected_factors},
+            metadata={
+                "market": market.value,
+                "factors": selected_factors,
+                "checkpoint_key": checkpoint_key,
+                "resume_processed_dates": int((existing_checkpoint or {}).get("processed_dates", 0) or 0),
+            },
             payload={
                 "market": market.value,
                 "selected_factors": selected_factors,
@@ -580,6 +601,7 @@ class DashboardApp:
                 "top_n": top_n,
                 "initial_cash": self._stringify_decimal(initial_cash),
                 "factor_tilts": {name: self._stringify_decimal(value) for name, value in factor_tilts.items()},
+                "checkpoint_key": checkpoint_key,
             },
         )
         job_id = str(reservation["job"]["job_id"])
@@ -590,7 +612,60 @@ class DashboardApp:
             detail=f"已加入队列：{market.value} 因子回测任务",
             metadata={"job_id": job_id, "market": market.value, "factors": ",".join(selected_factors)},
         )
-        self.state.push_flash(f"{market.value} 因子回测任务已加入队列，等待后台执行。", audience=view)
+        if existing_checkpoint and int(existing_checkpoint.get("processed_dates", 0) or 0) > 0:
+            self.state.push_flash(
+                f"{market.value} 因子回测任务已加入队列，将从第 {existing_checkpoint['processed_dates']} 个样本后继续。",
+                audience=view,
+            )
+        else:
+            self.state.push_flash(f"{market.value} 因子回测任务已加入队列，等待后台执行。", audience=view)
+        self._ensure_job_worker_running()
+        self._job_worker_wakeup_event.set()
+        return self._redirect(redirect_target)
+
+    def handle_factor_backtest_continue(self, body: Dict[str, List[str]]) -> WebResponse:
+        view = self._requested_view(body, "optimize")
+        subview = self._requested_subview(body, view)
+        redirect_target = self._view_url(view, query={"subview": subview})
+        job_id = body.get("job_id", [""])[0].strip()
+        if not job_id:
+            self.state.push_flash("缺少任务 ID，无法继续策略实验。", audience=view)
+            return self._redirect(redirect_target)
+        resume_context = self._factor_backtest_resume_context(job_id)
+        if resume_context is None:
+            self.state.push_flash("当前任务没有可恢复的中间状态，请重新发起策略实验。", audience=view)
+            return self._redirect(redirect_target)
+        original_job = resume_context["job"]
+        payload = dict(original_job.get("payload", {}) if isinstance(original_job.get("payload"), dict) else {})
+        reservation = self._ops_store().begin_job(
+            "factor_backtest",
+            metadata={
+                "market": resume_context["market"],
+                "factors": resume_context["selected_factors"],
+                "checkpoint_key": resume_context["checkpoint_key"],
+                "resume_processed_dates": resume_context["processed_dates"],
+                "resumed_from_job_id": job_id,
+            },
+            payload=payload,
+        )
+        resumed_job_id = str(reservation["job"]["job_id"])
+        self._append_task_log(
+            category="research",
+            action="factor_backtest",
+            status="QUEUED",
+            detail=f"已加入队列：{resume_context['market']} 因子回测续跑任务",
+            metadata={
+                "job_id": resumed_job_id,
+                "market": resume_context["market"],
+                "factors": ",".join(resume_context["selected_factors"]),
+                "checkpoint_key": resume_context["checkpoint_key"],
+                "resumed_from_job_id": job_id,
+            },
+        )
+        self.state.push_flash(
+            f"{resume_context['market']} 因子回测任务已重新入队，将从第 {resume_context['processed_dates']} 个样本后继续。",
+            audience=view,
+        )
         self._ensure_job_worker_running()
         self._job_worker_wakeup_event.set()
         return self._redirect(redirect_target)
@@ -964,6 +1039,7 @@ class DashboardApp:
                 str(name): Decimal(str(value))
                 for name, value in (payload.get("factor_tilts", {}) or {}).items()
             },
+            checkpoint_key=str(payload.get("checkpoint_key") or ""),
         )
 
     def _run_strategy_job(
@@ -1093,6 +1169,7 @@ class DashboardApp:
         top_n: int,
         initial_cash: Decimal,
         factor_tilts: Dict[str, Decimal],
+        checkpoint_key: str = "",
     ) -> None:
         try:
             result = self._run_factor_backtest(
@@ -1106,6 +1183,7 @@ class DashboardApp:
                 top_n=top_n,
                 initial_cash=initial_cash,
                 factor_tilts=factor_tilts,
+                checkpoint_key=checkpoint_key,
                 progress_callback=lambda progress_pct, stage, detail, metadata=None: self._ops_store().update_active_job(
                     job_id,
                     progress_pct=progress_pct,
@@ -1170,6 +1248,8 @@ class DashboardApp:
                 detail=f"{market.value} 策略实验完成",
                 metadata={"observations": result["summary"].get("observations", 0)},
             )
+            if checkpoint_key:
+                self._clear_factor_backtest_checkpoint(checkpoint_key)
         except Exception as exc:
             self._ops_store().finish_job(job_id, "FAILED", str(exc))
             self.state.push_flash(f"因子回测失败：{exc}", audience="optimize")
@@ -1903,6 +1983,9 @@ class DashboardApp:
         market = str(metadata.get("market") or "").strip().upper()
         if market:
             return market
+        current_market = str(metadata.get("current_market") or "").strip().upper()
+        if current_market:
+            return current_market
         markets = metadata.get("markets")
         if isinstance(markets, list):
             values = [str(item).strip().upper() for item in markets if str(item).strip()]
@@ -2995,6 +3078,20 @@ class DashboardApp:
     def _render_history_progress_bar(self, record: Dict[str, Any]) -> str:
         default_progress = 100 if str(record.get("status", "")).upper() in {"SUCCESS", "FAILED", "BLOCKED", "MANUAL_RELEASED", "STALE"} else 0
         progress_pct = int(record.get("progress_pct", default_progress) or 0)
+        metadata = record.get("metadata", {}) if isinstance(record.get("metadata"), dict) else {}
+        eta_html = ""
+        try:
+            processed_dates = int(metadata.get("processed_dates", 0) or 0)
+            total_dates = int(metadata.get("total_dates", 0) or 0)
+            elapsed_seconds = float(metadata.get("elapsed_seconds", 0) or 0)
+        except (TypeError, ValueError):
+            processed_dates = 0
+            total_dates = 0
+            elapsed_seconds = 0
+        if processed_dates > 0 and total_dates > processed_dates and elapsed_seconds > 0:
+            avg_seconds_per_sample = elapsed_seconds / processed_dates
+            remaining_samples = total_dates - processed_dates
+            eta_html = f"<span>预计剩余 {escape(self._format_duration_brief(avg_seconds_per_sample * remaining_samples))}</span>"
         return f"""
           <div class="job-progress">
             <div class="job-progress__bar">
@@ -3003,6 +3100,7 @@ class DashboardApp:
             <div class="job-progress__meta">
               <strong>{progress_pct}%</strong>
               <span>{escape(str(record.get("stage", record.get("status", "N/A"))))}</span>
+              {eta_html}
             </div>
           </div>
         """
@@ -3408,11 +3506,15 @@ class DashboardApp:
         if str(row.get("category") or "") != "research" or str(row.get("action") or "") != "factor_backtest":
             return None
         status = str(row.get("status") or "").strip().upper()
-        if status not in {"QUEUED", "SUCCESS", "BLOCKED", "FAILED"}:
+        if status not in {"QUEUED", "SUCCESS", "BLOCKED", "FAILED", "STALE", "MANUAL_RELEASED"}:
             return None
         metadata = row.get("metadata", {}) if isinstance(row.get("metadata"), dict) else {}
         market = self._event_market_label(metadata)
         detail = str(row.get("detail") or "").strip() or "策略实验任务事件"
+        resume_context = None
+        job_id = str(metadata.get("job_id") or "").strip() or None
+        if status in {"FAILED", "STALE", "MANUAL_RELEASED"} and job_id:
+            resume_context = self._factor_backtest_resume_context(job_id)
         return {
             "record_type": "event",
             "record_id": f"factor_backtest:event:{row.get('created_at')}:{status}",
@@ -3423,7 +3525,7 @@ class DashboardApp:
             "status": status,
             "detail": detail,
             "created_at": str(row.get("created_at") or ""),
-            "job_id": str(metadata.get("job_id") or "").strip() or None,
+            "job_id": job_id,
             "event_id": row.get("event_id"),
             "summary": {
                 "subject_name": detail,
@@ -3436,6 +3538,8 @@ class DashboardApp:
             "artifact_href": None,
             "detail_href": None,
             "payload": None,
+            "resume_available": bool(resume_context),
+            "resume_processed_dates": int((resume_context or {}).get("processed_dates", 0) or 0),
         }
 
     def _enrich_optimize_event_records(self, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -3527,6 +3631,7 @@ class DashboardApp:
             "artifact_kind": "factor_backtest_event",
             "title": detail,
             "market": market,
+            "metadata": metadata,
             "status": status,
             "stage": str(row.get("stage") or status),
             "detail": detail,
@@ -3762,6 +3867,19 @@ class DashboardApp:
                     body_lines.append(f'<p><a href="{escape(str(detail_href))}">Open Detail / 打开详情</a></p>')
                 if artifact_href:
                     body_lines.append(f'<p><a href="{escape(str(artifact_href))}" target="_blank" rel="noreferrer">Open Artifact / 打开工件</a></p>')
+                if record.get("resume_available") and record.get("job_id"):
+                    resume_processed_dates = int(record.get("resume_processed_dates", 0) or 0)
+                    body_lines.append(f"<p>Resume / 续跑: 可从第 {resume_processed_dates} 个样本后继续。</p>")
+                    body_lines.append(
+                        f"""
+                        <form method="post" action="/factor-backtest/continue" class="inline-form">
+                          <input type="hidden" name="view" value="optimize" />
+                          <input type="hidden" name="subview" value="history" />
+                          <input type="hidden" name="job_id" value="{escape(str(record['job_id']))}" />
+                          <button class="button button--ghost" type="submit">Continue / 继续</button>
+                        </form>
+                        """
+                    )
             else:
                 progress_html = ""
                 body_lines = [
@@ -5585,6 +5703,7 @@ class DashboardApp:
         top_n: int,
         initial_cash: Decimal,
         factor_tilts: Dict[str, Decimal],
+        checkpoint_key: str = "",
         progress_callback: Optional[Any] = None,
     ) -> Dict[str, Any]:
         selected = [factor_name for factor_name in selected_factors if factor_name in self._baseline_alpha_weights(market)]
@@ -5596,17 +5715,41 @@ class DashboardApp:
         )
         trading_dates = self._trading_dates_for_market(market, start_date, end_date)
         snapshot_cache: Dict[date, Any] = {}
-        daily_reports: List[Dict[str, Any]] = []
-        skipped_samples: List[Dict[str, str]] = []
+        checkpoint = self._load_factor_backtest_checkpoint(checkpoint_key) if checkpoint_key else None
+        resumed_processed_dates = min(
+            len(trading_dates),
+            max(0, int((checkpoint or {}).get("processed_dates", 0) or 0)),
+        )
+        daily_reports: List[Dict[str, Any]] = list((checkpoint or {}).get("daily_reports", []) or [])
+        skipped_samples: List[Dict[str, str]] = list((checkpoint or {}).get("skipped_samples", []) or [])
+        started_monotonic = time.monotonic()
+        checkpoint_saved_processed = resumed_processed_dates
 
         total_dates = max(len(trading_dates), 1)
         for index, trade_date in enumerate(trading_dates, start=1):
+            if index <= resumed_processed_dates:
+                continue
             if progress_callback is not None:
+                already_processed = index - 1
+                detail = f"正在处理 {trade_date.isoformat()} 的因子样本 ({index}/{total_dates})。"
+                current_run_processed = max(0, already_processed - resumed_processed_dates)
+                if current_run_processed > 0:
+                    elapsed_seconds = max(time.monotonic() - started_monotonic, 0.001)
+                    avg_seconds_per_sample = elapsed_seconds / current_run_processed
+                    remaining_samples = max(total_dates - already_processed, 0)
+                    eta_seconds = avg_seconds_per_sample * remaining_samples
+                    detail += f" 预计剩余 {self._format_duration_brief(eta_seconds)}。"
                 progress_callback(
                     int(10 + ((index - 1) / total_dates) * 80),
                     "RUNNING_BACKTEST",
-                    f"正在处理 {trade_date.isoformat()} 的因子样本 ({index}/{total_dates})。",
-                    {"current_trade_date": trade_date.isoformat(), "processed_dates": index - 1, "total_dates": total_dates},
+                    detail,
+                    {
+                        "current_trade_date": trade_date.isoformat(),
+                        "processed_dates": index - 1,
+                        "total_dates": total_dates,
+                        "resumed_from_processed_dates": resumed_processed_dates,
+                        "elapsed_seconds": round(max(time.monotonic() - started_monotonic, 0.0), 2),
+                    },
                 )
             snapshot_history_limit = max(
                 history_limit,
@@ -5686,6 +5829,17 @@ class DashboardApp:
                 )
             except (RuntimeError, ValueError) as exc:
                 skipped_samples.append({"trade_date": trade_date.isoformat(), "reason": str(exc)})
+                if checkpoint_key and (index - checkpoint_saved_processed >= 10 or index == len(trading_dates)):
+                    checkpoint_saved_processed = index
+                    self._save_factor_backtest_checkpoint(
+                        checkpoint_key,
+                        {
+                            "processed_dates": index,
+                            "daily_reports": daily_reports[-400:],
+                            "skipped_samples": skipped_samples[-200:],
+                            "checkpointed_at": datetime.utcnow().isoformat(timespec="seconds"),
+                        },
+                    )
                 if progress_callback is not None:
                     progress_callback(
                         int(10 + (index / total_dates) * 80),
@@ -5713,11 +5867,30 @@ class DashboardApp:
                     "worst_name": summary["worst_name"],
                 }
             )
+            if checkpoint_key and (index - checkpoint_saved_processed >= 10 or index == len(trading_dates)):
+                checkpoint_saved_processed = index
+                self._save_factor_backtest_checkpoint(
+                    checkpoint_key,
+                    {
+                        "processed_dates": index,
+                        "daily_reports": daily_reports[-400:],
+                        "skipped_samples": skipped_samples[-200:],
+                        "checkpointed_at": datetime.utcnow().isoformat(timespec="seconds"),
+                    },
+                )
             if progress_callback is not None:
+                completed_samples = index
+                current_run_processed = max(0, completed_samples - resumed_processed_dates)
+                completion_detail = f"{trade_date.isoformat()} 样本处理完成。"
+                if current_run_processed > 0 and completed_samples < total_dates:
+                    elapsed_seconds = max(time.monotonic() - started_monotonic, 0.001)
+                    avg_seconds_per_sample = elapsed_seconds / current_run_processed
+                    remaining_samples = max(total_dates - completed_samples, 0)
+                    completion_detail += f" 预计剩余 {self._format_duration_brief(avg_seconds_per_sample * remaining_samples)}。"
                 progress_callback(
                     int(10 + (index / total_dates) * 80),
                     "BACKTEST_STEP_DONE",
-                    f"{trade_date.isoformat()} 样本处理完成。",
+                    completion_detail,
                     {"current_trade_date": trade_date.isoformat(), "processed_dates": index, "total_dates": total_dates},
                 )
 
@@ -5813,6 +5986,7 @@ class DashboardApp:
             "risk_exit_count": int(rolling_summary.get("risk_exit_count", 0) or 0),
             "other_exit_count": int(rolling_summary.get("other_exit_count", 0) or 0),
             "skipped_sample_count": len(skipped_samples),
+            "resumed_from_processed_dates": resumed_processed_dates,
         }
         serialized_regimes = serialize_regime_summaries(regime_summary)
         serialized_alpha_mix = serialize_alpha_mix(alpha_mix)
@@ -5860,6 +6034,85 @@ class DashboardApp:
         if not items:
             return Decimal("0")
         return sum(items, Decimal("0")) / Decimal(len(items))
+
+    def _factor_backtest_checkpoint_key(
+        self,
+        *,
+        market: Market,
+        selected_factors: List[str],
+        start_date: date,
+        end_date: date,
+        holding_sessions: int,
+        detail_limit: int,
+        history_limit: int,
+        top_n: int,
+        initial_cash: Decimal,
+        factor_tilts: Dict[str, Decimal],
+    ) -> str:
+        payload = {
+            "market": market.value,
+            "selected_factors": list(selected_factors),
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
+            "holding_sessions": int(holding_sessions),
+            "detail_limit": int(detail_limit),
+            "history_limit": int(history_limit),
+            "top_n": int(top_n),
+            "initial_cash": self._stringify_decimal(initial_cash),
+            "factor_tilts": {name: self._stringify_decimal(value) for name, value in sorted(factor_tilts.items())},
+        }
+        digest = hashlib.sha1(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()[:16]
+        return f"factor_backtest_checkpoint:{digest}"
+
+    def _load_factor_backtest_checkpoint(self, checkpoint_key: str) -> Optional[Dict[str, Any]]:
+        payload = self._ops_store().sqlite.get_kv(checkpoint_key, None)
+        return payload if isinstance(payload, dict) else None
+
+    def _save_factor_backtest_checkpoint(self, checkpoint_key: str, payload: Dict[str, Any]) -> None:
+        self._ops_store().sqlite.set_kv(checkpoint_key, payload)
+
+    def _clear_factor_backtest_checkpoint(self, checkpoint_key: str) -> None:
+        self._ops_store().sqlite.delete_kv(checkpoint_key)
+
+    def _factor_backtest_resume_context(self, job_id: str) -> Optional[Dict[str, Any]]:
+        job = self._ops_store().sqlite.get_job(job_id)
+        if not isinstance(job, dict) or str(job.get("kind") or "") != "factor_backtest":
+            return None
+        payload = job.get("payload", {}) if isinstance(job.get("payload"), dict) else {}
+        checkpoint_key = str(payload.get("checkpoint_key") or "").strip()
+        if not checkpoint_key:
+            return None
+        checkpoint = self._load_factor_backtest_checkpoint(checkpoint_key)
+        processed_dates = int((checkpoint or {}).get("processed_dates", 0) or 0)
+        if processed_dates <= 0:
+            return None
+        metadata = job.get("metadata", {}) if isinstance(job.get("metadata"), dict) else {}
+        selected_factors = payload.get("selected_factors", [])
+        if not isinstance(selected_factors, list):
+            selected_factors = []
+        if not selected_factors:
+            metadata_factors = metadata.get("factors", [])
+            if isinstance(metadata_factors, list):
+                selected_factors = [str(item).strip() for item in metadata_factors if str(item).strip()]
+            else:
+                selected_factors = [item.strip() for item in str(metadata_factors).split(",") if item.strip()]
+        return {
+            "job": job,
+            "checkpoint_key": checkpoint_key,
+            "processed_dates": processed_dates,
+            "market": str(payload.get("market") or metadata.get("market") or "N/A"),
+            "selected_factors": selected_factors,
+        }
+
+    def _format_duration_brief(self, seconds: float) -> str:
+        whole_seconds = max(0, int(round(seconds)))
+        hours, remainder = divmod(whole_seconds, 3600)
+        minutes, secs = divmod(remainder, 60)
+        if hours > 0:
+            return f"{hours}小时{minutes}分"
+        if minutes > 0:
+            return f"{minutes}分{secs}秒"
+        return f"{secs}秒"
 
     def _instrument_name_safe(self, instrument: Any, fallback: str) -> str:
         if instrument is None:

@@ -4,19 +4,14 @@ from datetime import date, datetime
 from decimal import Decimal
 import unittest
 
-from stock_quantification.agents import Orchestrator, ResearchAgent, ReviewAgent, StrategyAgent
 from stock_quantification.engine import (
     AStockSelectionStrategy,
-    EqualWeightPortfolioConstructor,
     InMemoryCalendarProvider,
     InMemoryMarketDataProvider,
     InMemoryUniverseProvider,
-    StandardExecutionPlanner,
-    StandardRiskEngine,
-    StandardStrategyRunner,
     USStockSelectionStrategy,
 )
-from stock_quantification.markets import ChinaMarketRules, USMarketRules
+from stock_quantification.execution_flow import run_strategy_cycle
 from stock_quantification.models import (
     AccountConstraints,
     AccountState,
@@ -75,10 +70,6 @@ class PlatformFixture:
         self.data_provider = InMemoryMarketDataProvider(instruments, bars)
         self.calendar_provider = InMemoryCalendarProvider({Market.CN: [self.cn_as_of], Market.US: [self.us_as_of]})
         self.universe_provider = InMemoryUniverseProvider(self.data_provider)
-        self.strategy_runner = StandardStrategyRunner(self.data_provider, self.universe_provider, self.calendar_provider)
-        self.portfolio_constructor = EqualWeightPortfolioConstructor(top_n=2)
-        self.execution_planner = StandardExecutionPlanner(self.data_provider)
-        self.risk_engine = StandardRiskEngine(self.data_provider, {Market.CN: ChinaMarketRules(), Market.US: USMarketRules()})
         self.state_store = InMemoryStateStore()
         self.state_store.save_account_state(
             AccountState(
@@ -115,18 +106,17 @@ class PlatformFixture:
                 constraints=AccountConstraints(max_position_weight=Decimal("0.60"), max_single_order_value=Decimal("1000000")),
             )
         )
-        self.orchestrator = Orchestrator(
-            research_agent=ResearchAgent(self.strategy_runner),
-            strategy_agent=StrategyAgent(
-                self.strategy_runner,
-                self.portfolio_constructor,
-                self.execution_planner,
-                self.state_store,
-            ),
-            review_agent=ReviewAgent(),
-            execution_planner=self.execution_planner,
-            risk_engine=self.risk_engine,
+    def run(self, context, strategy, account_ids, execution_mode):
+        return run_strategy_cycle(
+            strategy=strategy,
+            context=context,
+            account_states=[self.state_store.get_account_state(account_id) for account_id in account_ids],
+            execution_mode=execution_mode,
+            data_provider=self.data_provider,
+            universe_provider=self.universe_provider,
+            calendar_provider=self.calendar_provider,
             state_store=self.state_store,
+            top_n=2,
         )
 
 
@@ -135,13 +125,13 @@ class PlatformTests(unittest.TestCase):
         self.fixture = PlatformFixture()
 
     def test_cn_and_us_share_common_output_shapes(self) -> None:
-        cn_result = self.fixture.orchestrator.run(
+        cn_result = self.fixture.run(
             LiveContext(as_of=self.fixture.cn_as_of),
             AStockSelectionStrategy(),
             ["cn-alpha"],
             ExecutionMode.ADVISORY,
         )
-        us_result = self.fixture.orchestrator.run(
+        us_result = self.fixture.run(
             LiveContext(as_of=self.fixture.us_as_of),
             USStockSelectionStrategy(),
             ["us-alpha"],
@@ -154,7 +144,7 @@ class PlatformTests(unittest.TestCase):
         self.assertEqual(cn_result.proposal.targets[0].__class__, us_result.proposal.targets[0].__class__)
 
     def test_agent_chain_generates_daily_output(self) -> None:
-        result = self.fixture.orchestrator.run(
+        result = self.fixture.run(
             LiveContext(as_of=self.fixture.cn_as_of),
             AStockSelectionStrategy(),
             ["cn-alpha"],
@@ -165,7 +155,7 @@ class PlatformTests(unittest.TestCase):
         self.assertEqual(result.review.verdict.value, "PASS")
 
     def test_risk_engine_keeps_submission_outside_agents(self) -> None:
-        result = self.fixture.orchestrator.run(
+        result = self.fixture.run(
             LiveContext(as_of=self.fixture.cn_as_of),
             AStockSelectionStrategy(),
             ["cn-alpha"],
@@ -175,7 +165,7 @@ class PlatformTests(unittest.TestCase):
         self.assertTrue(all(intent.requires_manual_approval for intent in result.order_intents))
 
     def test_multi_account_state_is_isolated(self) -> None:
-        result = self.fixture.orchestrator.run(
+        result = self.fixture.run(
             LiveContext(as_of=self.fixture.cn_as_of),
             AStockSelectionStrategy(),
             ["cn-alpha", "cn-beta"],
@@ -188,13 +178,13 @@ class PlatformTests(unittest.TestCase):
         self.assertNotEqual(alpha_qty, beta_qty)
 
     def test_manual_and_auto_modes_share_same_planning_payload(self) -> None:
-        advisory_result = self.fixture.orchestrator.run(
+        advisory_result = self.fixture.run(
             LiveContext(as_of=self.fixture.us_as_of),
             USStockSelectionStrategy(),
             ["us-alpha"],
             ExecutionMode.ADVISORY,
         )
-        auto_result = self.fixture.orchestrator.run(
+        auto_result = self.fixture.run(
             LiveContext(as_of=self.fixture.us_as_of),
             USStockSelectionStrategy(),
             ["us-alpha"],
@@ -208,13 +198,13 @@ class PlatformTests(unittest.TestCase):
         self.assertTrue(all(not intent.requires_manual_approval for intent in auto_result.order_intents))
 
     def test_repeated_refresh_deduplicates_suggestions_and_orders(self) -> None:
-        first_result = self.fixture.orchestrator.run(
+        first_result = self.fixture.run(
             LiveContext(as_of=self.fixture.us_as_of),
             USStockSelectionStrategy(),
             ["us-alpha"],
             ExecutionMode.ADVISORY,
         )
-        self.fixture.orchestrator.run(
+        self.fixture.run(
             LiveContext(as_of=self.fixture.us_as_of),
             USStockSelectionStrategy(),
             ["us-alpha"],
@@ -229,7 +219,7 @@ class PlatformTests(unittest.TestCase):
         latest_cn_bar.extras["limit_up"] = True
         account = self.fixture.state_store.get_account_state("cn-alpha")
         account.positions["CN.600000"] = Position("CN.600000", 1000, Decimal("9.5"), last_trade_date=self.fixture.cn_as_of.date())
-        result = self.fixture.orchestrator.run(
+        result = self.fixture.run(
             LiveContext(as_of=self.fixture.cn_as_of),
             AStockSelectionStrategy(),
             ["cn-alpha"],
@@ -243,7 +233,7 @@ class PlatformTests(unittest.TestCase):
         self.assertEqual(instrument.asset_type, AssetType.ADR)
         extended_bar = self.fixture.data_provider._bars_by_instrument["US.MSFT"][-1]
         extended_bar.extras["extended_hours"] = True
-        result = self.fixture.orchestrator.run(
+        result = self.fixture.run(
             LiveContext(as_of=self.fixture.us_as_of),
             USStockSelectionStrategy(),
             ["us-alpha"],
@@ -254,19 +244,19 @@ class PlatformTests(unittest.TestCase):
         self.assertNotIn("US.BABA", [signal.instrument_id for signal in result.proposal.signals])
 
     def test_contexts_share_strategy_semantics(self) -> None:
-        backtest_result = self.fixture.orchestrator.run(
+        backtest_result = self.fixture.run(
             BacktestContext(as_of=self.fixture.us_as_of),
             USStockSelectionStrategy(),
             ["us-alpha"],
             ExecutionMode.ADVISORY,
         )
-        paper_result = self.fixture.orchestrator.run(
+        paper_result = self.fixture.run(
             PaperContext(as_of=self.fixture.us_as_of),
             USStockSelectionStrategy(),
             ["us-alpha"],
             ExecutionMode.ADVISORY,
         )
-        live_result = self.fixture.orchestrator.run(
+        live_result = self.fixture.run(
             LiveContext(as_of=self.fixture.us_as_of),
             USStockSelectionStrategy(),
             ["us-alpha"],

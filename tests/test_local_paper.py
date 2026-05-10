@@ -6,6 +6,7 @@ from decimal import Decimal
 from unittest import TestCase
 
 from stock_quantification.artifacts import read_json_artifact
+from stock_quantification.broker_ledger import BrokerLedger
 from stock_quantification.local_paper import LocalPaperLedger
 from stock_quantification.models import (
     AccountState,
@@ -225,6 +226,30 @@ class LocalPaperLedgerTests(TestCase):
             self.assertEqual(overview["trade_count"], 1)
             self.assertNotIn("US.STALE", {row["instrument_id"] for row in overview["positions"]})
             self.assertEqual(overview["cash"], "71000.0000")
+
+    def test_unknown_position_cleanup_uses_shared_ledger_events(self) -> None:
+        account_state = AccountState(
+            account_id="paper-us",
+            market=Market.US,
+            broker_id="local-paper",
+            cash=Decimal("70000"),
+            buying_power=Decimal("70000"),
+            positions={
+                "US.KEEP": Position("US.KEEP", 10, Decimal("100")),
+                "US.STALE": Position("US.STALE", 5, Decimal("200")),
+            },
+        )
+
+        cleaned_state, trade_records = BrokerLedger().liquidate_unknown_positions(
+            account_state=account_state,
+            valid_instrument_ids={"US.KEEP"},
+            as_of=datetime(2026, 5, 6, 16, 0, 0),
+        )
+
+        self.assertEqual(cleaned_state.cash, Decimal("71000.0000"))
+        self.assertEqual(len(trade_records), 1)
+        self.assertEqual(trade_records[0]["instrument_id"], "US.STALE")
+        self.assertEqual(trade_records[0]["note"], "unknown_position_auto_liquidation")
 
     def test_sync_account_state_rejects_cross_market_reuse(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

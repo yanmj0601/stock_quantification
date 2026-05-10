@@ -6,18 +6,13 @@ from decimal import Decimal
 import unittest
 from unittest.mock import patch
 
-from stock_quantification.agents import Orchestrator, ResearchAgent, ReviewAgent, StrategyAgent
 from stock_quantification.engine import (
     BaseSelectionStrategy,
-    EqualWeightPortfolioConstructor,
     InMemoryCalendarProvider,
     InMemoryMarketDataProvider,
     InMemoryUniverseProvider,
-    StandardExecutionPlanner,
-    StandardRiskEngine,
-    StandardStrategyRunner,
 )
-from stock_quantification.markets import ChinaMarketRules, USMarketRules
+from stock_quantification.execution_flow import run_strategy_cycle
 from stock_quantification.models import (
     AccountConstraints,
     AccountState,
@@ -212,9 +207,6 @@ class IntegrationFlowTests(unittest.TestCase):
         data_provider = InMemoryMarketDataProvider(instruments, bars)
         calendar_provider = InMemoryCalendarProvider({Market.US: [as_of]})
         universe_provider = InMemoryUniverseProvider(data_provider)
-        strategy_runner = StandardStrategyRunner(data_provider, universe_provider, calendar_provider)
-        execution_planner = StandardExecutionPlanner(data_provider)
-        risk_engine = StandardRiskEngine(data_provider, {Market.US: USMarketRules()})
         state_store = InMemoryStateStore()
         state_store.save_account_state(
             AccountState(
@@ -238,15 +230,17 @@ class IntegrationFlowTests(unittest.TestCase):
             ],
             signal_ids=["US.KEEP", "US.NEW"],
         )
-        orchestrator = Orchestrator(
-            research_agent=ResearchAgent(strategy_runner),
-            strategy_agent=StrategyAgent(strategy_runner, EqualWeightPortfolioConstructor(top_n=2), execution_planner, state_store),
-            review_agent=ReviewAgent(),
-            execution_planner=execution_planner,
-            risk_engine=risk_engine,
+        result = run_strategy_cycle(
+            strategy=strategy,
+            context=PaperContext(as_of=as_of),
+            account_states=[state_store.get_account_state("acct")],
+            execution_mode=ExecutionMode.ADVISORY,
+            data_provider=data_provider,
+            universe_provider=universe_provider,
+            calendar_provider=calendar_provider,
             state_store=state_store,
+            top_n=2,
         )
-        result = orchestrator.run(PaperContext(as_of=as_of), strategy, ["acct"], ExecutionMode.ADVISORY)
         actions = {(item.instrument_id, item.side.value, item.suggested_qty) for item in result.proposal.trade_suggestions}
         self.assertIn(("US.OLD", "SELL", 50), actions)
         self.assertIn(("US.KEEP", "SELL", 25), actions)
@@ -267,9 +261,6 @@ class IntegrationFlowTests(unittest.TestCase):
         data_provider = InMemoryMarketDataProvider(instruments, bars)
         calendar_provider = InMemoryCalendarProvider({Market.US: [as_of]})
         universe_provider = InMemoryUniverseProvider(data_provider)
-        strategy_runner = StandardStrategyRunner(data_provider, universe_provider, calendar_provider)
-        execution_planner = StandardExecutionPlanner(data_provider)
-        risk_engine = StandardRiskEngine(data_provider, {Market.US: USMarketRules()})
         state_store = InMemoryStateStore()
         state_store.save_account_state(
             AccountState(
@@ -293,15 +284,17 @@ class IntegrationFlowTests(unittest.TestCase):
             ],
             signal_ids=["US.KEEP", "US.NEW"],
         )
-        orchestrator = Orchestrator(
-            research_agent=ResearchAgent(strategy_runner),
-            strategy_agent=StrategyAgent(strategy_runner, EqualWeightPortfolioConstructor(top_n=2), execution_planner, state_store),
-            review_agent=ReviewAgent(),
-            execution_planner=execution_planner,
-            risk_engine=risk_engine,
+        result = run_strategy_cycle(
+            strategy=strategy,
+            context=PaperContext(as_of=as_of),
+            account_states=[state_store.get_account_state("acct")],
+            execution_mode=ExecutionMode.ADVISORY,
+            data_provider=data_provider,
+            universe_provider=universe_provider,
+            calendar_provider=calendar_provider,
             state_store=state_store,
+            top_n=2,
         )
-        result = orchestrator.run(PaperContext(as_of=as_of), strategy, ["acct"], ExecutionMode.ADVISORY)
         actions = {(item.instrument_id, item.side.value, item.suggested_qty) for item in result.proposal.trade_suggestions}
         self.assertIn(("US.NEW", "BUY", 50), actions)
         self.assertNotIn(("US.STALE", "SELL", 40), actions)
@@ -319,9 +312,6 @@ class IntegrationFlowTests(unittest.TestCase):
         data_provider = InMemoryMarketDataProvider(instruments, bars)
         calendar_provider = InMemoryCalendarProvider({Market.US: [as_of]})
         universe_provider = InMemoryUniverseProvider(data_provider)
-        strategy_runner = StandardStrategyRunner(data_provider, universe_provider, calendar_provider)
-        execution_planner = StandardExecutionPlanner(data_provider)
-        risk_engine = StandardRiskEngine(data_provider, {Market.US: USMarketRules()})
         state_store = InMemoryStateStore()
         state_store.save_account_state(
             AccountState(
@@ -342,15 +332,17 @@ class IntegrationFlowTests(unittest.TestCase):
             ],
             signal_ids=["US.AAA", "US.BBB"],
         )
-        orchestrator = Orchestrator(
-            research_agent=ResearchAgent(strategy_runner),
-            strategy_agent=StrategyAgent(strategy_runner, EqualWeightPortfolioConstructor(top_n=2), execution_planner, state_store),
-            review_agent=ReviewAgent(),
-            execution_planner=execution_planner,
-            risk_engine=risk_engine,
+        result = run_strategy_cycle(
+            strategy=strategy,
+            context=PaperContext(as_of=as_of),
+            account_states=[state_store.get_account_state("acct")],
+            execution_mode=ExecutionMode.ADVISORY,
+            data_provider=data_provider,
+            universe_provider=universe_provider,
+            calendar_provider=calendar_provider,
             state_store=state_store,
+            top_n=2,
         )
-        result = orchestrator.run(PaperContext(as_of=as_of), strategy, ["acct"], ExecutionMode.ADVISORY)
         approved = [(intent.instrument_id, intent.qty) for intent in result.order_intents]
         self.assertEqual(approved, [("US.AAA", 80)])
         rejections = {
@@ -373,9 +365,6 @@ class IntegrationFlowTests(unittest.TestCase):
         data_provider = InMemoryMarketDataProvider(instruments, bars)
         calendar_provider = InMemoryCalendarProvider({Market.US: [as_of]})
         universe_provider = InMemoryUniverseProvider(data_provider)
-        strategy_runner = StandardStrategyRunner(data_provider, universe_provider, calendar_provider)
-        execution_planner = StandardExecutionPlanner(data_provider)
-        risk_engine = StandardRiskEngine(data_provider, {Market.US: USMarketRules()})
         state_store = InMemoryStateStore()
         state_store.save_account_state(
             AccountState(
@@ -388,15 +377,17 @@ class IntegrationFlowTests(unittest.TestCase):
                 constraints=AccountConstraints(max_position_weight=Decimal("1.0"), max_single_order_value=Decimal("100000")),
             )
         )
-        orchestrator = Orchestrator(
-            research_agent=ResearchAgent(strategy_runner),
-            strategy_agent=StrategyAgent(strategy_runner, EqualWeightPortfolioConstructor(top_n=2), execution_planner, state_store),
-            review_agent=ReviewAgent(),
-            execution_planner=execution_planner,
-            risk_engine=risk_engine,
+        result = run_strategy_cycle(
+            strategy=TurnoverAwareStrategy(top_n=1),
+            context=PaperContext(as_of=as_of),
+            account_states=[state_store.get_account_state("acct")],
+            execution_mode=ExecutionMode.ADVISORY,
+            data_provider=data_provider,
+            universe_provider=universe_provider,
+            calendar_provider=calendar_provider,
             state_store=state_store,
+            top_n=2,
         )
-        result = orchestrator.run(PaperContext(as_of=as_of), TurnoverAwareStrategy(top_n=1), ["acct"], ExecutionMode.ADVISORY)
         target_ids = {target.instrument_id for target in result.proposal.targets}
         self.assertIn("US.AAPL", target_ids)
         self.assertIn("US.MSFT", target_ids)

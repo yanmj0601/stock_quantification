@@ -6,10 +6,11 @@ from tempfile import TemporaryDirectory
 from unittest import TestCase
 from unittest.mock import patch
 
-from stock_quantification.engine import InMemoryMarketDataProvider
+from stock_quantification.engine import InMemoryCalendarProvider, InMemoryMarketDataProvider, InMemoryUniverseProvider
 from stock_quantification.models import AssetType, Bar, Instrument, Market
 from stock_quantification.research_data import DataAvailability, build_default_bundle
 from stock_quantification.real_data import (
+    MarketSnapshot,
     build_market_snapshot,
     fetch_cn_benchmark_history,
     fetch_cn_daily_history,
@@ -30,6 +31,97 @@ class FakeResponse:
 
     def __exit__(self, exc_type, exc, tb):
         return False
+
+
+class SnapshotBuilderSpy:
+    def __init__(self, market: Market, sessions: list[date]) -> None:
+        if not sessions:
+            raise ValueError("sessions must not be empty")
+        self.market = market
+        self.sessions = list(sessions)
+        self.calls: list[dict[str, object]] = []
+
+        close_seed = Decimal("100")
+        if market == Market.US:
+            benchmark = Instrument("US.SPY", Market.US, "SPY", AssetType.ETF, "USD", "NYSE")
+            stock = Instrument("US.AAPL", Market.US, "AAPL", AssetType.COMMON_STOCK, "USD", "NASDAQ")
+            session_hour = 16
+            benchmark_id = "SP500_PROXY"
+        else:
+            benchmark = Instrument("CN.000300", Market.CN, "000300", AssetType.ETF, "CNY", "SSE")
+            stock = Instrument("CN.600000", Market.CN, "600000", AssetType.COMMON_STOCK, "CNY", "SSE")
+            session_hour = 15
+            benchmark_id = "CSI300_PROXY"
+
+        benchmark_bars = []
+        stock_bars = []
+        session_timestamps = []
+        for offset, session_date in enumerate(self.sessions):
+            timestamp = datetime(session_date.year, session_date.month, session_date.day, session_hour, 0, 0)
+            session_timestamps.append(timestamp)
+            benchmark_close = close_seed + Decimal(offset)
+            stock_close = close_seed + Decimal("10") + Decimal(offset)
+            benchmark_bars.append(
+                Bar(
+                    benchmark.instrument_id,
+                    timestamp,
+                    benchmark_close,
+                    benchmark_close,
+                    benchmark_close,
+                    benchmark_close,
+                    1000,
+                    benchmark_close * Decimal("1000"),
+                )
+            )
+            stock_bars.append(
+                Bar(
+                    stock.instrument_id,
+                    timestamp,
+                    stock_close,
+                    stock_close,
+                    stock_close,
+                    stock_close,
+                    1000,
+                    stock_close * Decimal("1000"),
+                )
+            )
+
+        provider = InMemoryMarketDataProvider(
+            [stock, benchmark],
+            {stock.instrument_id: stock_bars, benchmark.instrument_id: benchmark_bars},
+        )
+        bundle = build_default_bundle(provider, market, benchmark_id, self.sessions[0])
+        self.snapshots = {
+            session_date: MarketSnapshot(
+                market=market,
+                as_of=timestamp,
+                data_provider=provider,
+                calendar_provider=InMemoryCalendarProvider({market: session_timestamps}),
+                universe_provider=InMemoryUniverseProvider(provider),
+                research_data_bundle=bundle,
+                benchmark_instrument_id=benchmark.instrument_id,
+            )
+            for session_date, timestamp in zip(self.sessions, session_timestamps)
+        }
+
+    def __call__(
+        self,
+        market: Market,
+        symbols: list[str],
+        detail_limit: int,
+        history_limit: int,
+        as_of_date: date,
+    ) -> MarketSnapshot:
+        self.calls.append(
+            {
+                "market": market,
+                "symbols": list(symbols),
+                "detail_limit": detail_limit,
+                "history_limit": history_limit,
+                "as_of_date": as_of_date,
+            }
+        )
+        return self.snapshots[as_of_date]
 
 
 class RealDataTests(TestCase):
