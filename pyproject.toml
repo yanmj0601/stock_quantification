@@ -7,6 +7,9 @@ name = "stock-quantification"
 version = "0.1.0"
 description = "Dual-market quant platform skeleton with deterministic execution boundaries and minimal multi-agent orchestration."
 requires-python = ">=3.9"
+dependencies = [
+    "yfinance>=0.2.54",
+]
 
 [tool.setuptools]
 package-dir = {"" = "src"}

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
+from tempfile import TemporaryDirectory
 from unittest import TestCase
 from unittest.mock import patch
 
@@ -14,6 +15,7 @@ from stock_quantification.real_data import (
     fetch_cn_daily_history,
     fetch_us_daily_history,
 )
+from stock_quantification.sqlite_state import SQLiteStateStore
 
 
 class FakeResponse:
@@ -41,15 +43,87 @@ class RealDataTests(TestCase):
         self.assertEqual(instrument.exchange, "SSE")
         self.assertEqual(bars[-1].close, Decimal("10.12"))
 
-    @patch("stock_quantification.real_data.urlopen")
-    def test_fetch_us_daily_history_parses_nasdaq_payload(self, mock_urlopen) -> None:
-        mock_urlopen.return_value = FakeResponse(
-            '{"data":{"tradesTable":{"rows":[{"date":"04/02/2026","close":"$255.92","volume":"31,289,370","open":"$254.20","high":"$256.13","low":"$250.65"},{"date":"04/01/2026","close":"$255.63","volume":"40,059,430","open":"$254.08","high":"$256.18","low":"$253.33"}]}}}'
-        )
+    @patch("stock_quantification.real_data._fetch_yahoo_history_rows")
+    def test_fetch_us_daily_history_parses_yahoo_rows(self, mock_fetch_yahoo_history_rows) -> None:
+        mock_fetch_yahoo_history_rows.return_value = [
+            {"date": "2026-04-01", "close": "255.63", "volume": "40059430", "open": "254.08", "high": "256.18", "low": "253.33"},
+            {"date": "2026-04-02", "close": "255.92", "volume": "31289370", "open": "254.20", "high": "256.13", "low": "250.65"},
+        ]
         instrument, bars = fetch_us_daily_history("AAPL")
         self.assertEqual(instrument.instrument_id, "US.AAPL")
         self.assertEqual(instrument.asset_type, AssetType.COMMON_STOCK)
         self.assertEqual(bars[-1].close, Decimal("255.92"))
+
+    @patch("stock_quantification.real_data._fetch_yahoo_history_rows")
+    def test_fetch_us_daily_history_tolerates_na_volume(self, mock_fetch_yahoo_history_rows) -> None:
+        mock_fetch_yahoo_history_rows.return_value = [
+            {"date": "2026-04-01", "close": "255.63", "volume": "40059430", "open": "254.08", "high": "256.18", "low": "253.33"},
+            {"date": "2026-04-02", "close": "255.92", "volume": "N/A", "open": "254.20", "high": "256.13", "low": "250.65"},
+        ]
+        instrument, bars = fetch_us_daily_history("AAPL")
+        self.assertEqual(instrument.instrument_id, "US.AAPL")
+        self.assertEqual(bars[-1].volume, 0)
+        self.assertEqual(bars[-1].close, Decimal("255.92"))
+
+    @patch("stock_quantification.real_data._market_cache_store")
+    @patch("stock_quantification.real_data._fetch_yahoo_history_rows")
+    def test_fetch_us_daily_history_prefers_sqlite_cache(self, mock_fetch_yahoo_history_rows, mock_market_cache_store) -> None:
+        with TemporaryDirectory() as tmpdir:
+            store = SQLiteStateStore(tmpdir)
+            latest_trade_date = date.today() - timedelta(days=1)
+            prior_trade_date = latest_trade_date - timedelta(days=1)
+            earlier_trade_date = latest_trade_date - timedelta(days=9)
+            store.cache_market_bars(
+                market="US",
+                symbol="AAPL",
+                assetclass="stocks",
+                instrument_id="US.AAPL",
+                asset_type="COMMON_STOCK",
+                currency="USD",
+                exchange="NASDAQ",
+                display_name="Apple Inc.",
+                source="nasdaq",
+                bars=[
+                    {
+                        "trade_date": earlier_trade_date.isoformat(),
+                        "open_price": "200",
+                        "close_price": "201",
+                        "high_price": "202",
+                        "low_price": "199",
+                        "volume": 100,
+                        "turnover": "20100",
+                        "adjustment_flag": "RAW",
+                    },
+                    {
+                        "trade_date": prior_trade_date.isoformat(),
+                        "open_price": "205",
+                        "close_price": "206",
+                        "high_price": "207",
+                        "low_price": "204",
+                        "volume": 120,
+                        "turnover": "24720",
+                        "adjustment_flag": "RAW",
+                    },
+                    {
+                        "trade_date": latest_trade_date.isoformat(),
+                        "open_price": "206",
+                        "close_price": "207",
+                        "high_price": "208",
+                        "low_price": "205",
+                        "volume": 130,
+                        "turnover": "26910",
+                        "adjustment_flag": "RAW",
+                    },
+                ],
+            )
+            mock_market_cache_store.return_value = store
+
+            instrument, bars = fetch_us_daily_history("AAPL", lookback_days=10, limit=2)
+
+            mock_fetch_yahoo_history_rows.assert_not_called()
+            self.assertEqual(instrument.instrument_id, "US.AAPL")
+            self.assertEqual(len(bars), 2)
+            self.assertEqual(bars[-1].close, Decimal("207"))
 
     @patch("stock_quantification.real_data._http_get_json")
     def test_fetch_cn_benchmark_history_retries_after_param_error_payload(self, mock_http_get_json) -> None:
@@ -138,6 +212,44 @@ class RealDataTests(TestCase):
             snapshot.data_provider.get_next_bar("CN.600000", snapshot.as_of).timestamp.isoformat(),
             "2026-03-16T15:00:00",
         )
+
+    @patch("stock_quantification.real_data._build_real_research_bundle")
+    @patch("stock_quantification.real_data.fetch_us_benchmark_history")
+    @patch("stock_quantification.real_data.fetch_us_daily_history")
+    def test_build_market_snapshot_clears_us_benchmark_when_history_is_not_eligible(
+        self,
+        mock_fetch_us_daily_history,
+        mock_fetch_us_benchmark_history,
+        mock_bundle_builder,
+    ) -> None:
+        stock = Instrument("US.AAPL", Market.US, "AAPL", AssetType.COMMON_STOCK, "USD", "NASDAQ")
+        benchmark = Instrument("US.SPY", Market.US, "SPY", AssetType.ETF, "USD", "NYSE")
+        mock_fetch_us_daily_history.return_value = (
+            stock,
+            [
+                Bar("US.AAPL", datetime(2025, 5, 12, 16, 0, 0), Decimal("100"), Decimal("100"), Decimal("100"), Decimal("100"), 1, Decimal("1")),
+                Bar("US.AAPL", datetime(2025, 5, 13, 16, 0, 0), Decimal("101"), Decimal("101"), Decimal("101"), Decimal("101"), 1, Decimal("1")),
+            ],
+        )
+        mock_fetch_us_benchmark_history.return_value = (
+            benchmark,
+            [
+                Bar("US.SPY", datetime(2026, 5, 8, 16, 0, 0), Decimal("500"), Decimal("500"), Decimal("500"), Decimal("500"), 1, Decimal("1")),
+            ],
+        )
+        mock_bundle_builder.side_effect = (
+            lambda provider, market, as_of, benchmark_id, **kwargs: build_default_bundle(
+                provider,
+                market,
+                benchmark_id,
+                as_of,
+            )
+        )
+
+        snapshot = build_market_snapshot(Market.US, ["AAPL"], history_limit=200, as_of_date=datetime(2025, 5, 12).date())
+
+        self.assertEqual(snapshot.as_of.isoformat(), "2025-05-12T16:00:00")
+        self.assertIsNone(snapshot.benchmark_instrument_id)
 
     @patch("stock_quantification.real_data._build_real_research_bundle")
     @patch("stock_quantification.real_data.fetch_cn_detailed_history")

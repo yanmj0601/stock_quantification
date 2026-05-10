@@ -105,6 +105,7 @@ class FeatureConfig:
     trend_window: int = 20
     liquidity_window: int = 20
     benchmark_window: int = 20
+    technical_window: int = 200
     neutralize_by_sector: bool = False
 
     @property
@@ -115,6 +116,7 @@ class FeatureConfig:
             self.trend_window,
             self.liquidity_window,
             self.benchmark_window,
+            self.technical_window,
         )
 
 
@@ -295,6 +297,14 @@ class FeaturePipeline:
                 "volatility": _volatility(closes, blueprint.feature_config.volatility_window),
                 "drawdown": _max_drawdown(closes[-blueprint.feature_config.volatility_window :]),
                 "sector_momentum": _to_decimal(member.instrument.attributes.get("sector_momentum", 0)),
+                "ma_trend_alignment": _ma_trend_alignment(closes),
+                "breakout_strength": _breakout_strength(closes),
+                "base_breakout_score": _base_breakout_score(closes),
+                "volume_expansion": _volume_expansion(turnovers),
+                "price_volume_confirmation": _price_volume_confirmation(closes, turnovers),
+                "momentum_acceleration": _momentum_acceleration(closes),
+                "volatility_contraction": _volatility_contraction(closes),
+                "pullback_resilience": _pullback_resilience(closes),
             }
             for window in blueprint.feature_config.return_windows:
                 raw[f"ret_{window}"] = _simple_return(closes[-(window + 1) :])
@@ -625,6 +635,128 @@ def _volatility(closes: Sequence[Decimal], window: int) -> Decimal:
     return _std(returns)
 
 
+def _ma_trend_alignment(closes: Sequence[Decimal]) -> Decimal:
+    if len(closes) < 200:
+        return Decimal("0")
+    latest = closes[-1]
+    ma20 = _moving_average(closes[-20:])
+    ma60 = _moving_average(closes[-60:])
+    ma120 = _moving_average(closes[-120:])
+    ma200 = _moving_average(closes[-200:])
+    score = Decimal("0")
+    moving_averages = (ma20, ma60, ma120, ma200)
+    for moving_average in moving_averages:
+        if latest > moving_average:
+            score += Decimal("0.15")
+    if ma20 > ma60:
+        score += Decimal("0.10")
+    if ma60 > ma120:
+        score += Decimal("0.10")
+    if ma120 > ma200:
+        score += Decimal("0.10")
+    if ma20 > ma60 > ma120 > ma200:
+        score += Decimal("0.10")
+    spread_bonus = Decimal("0")
+    for upper, lower in ((latest, ma20), (ma20, ma60), (ma60, ma120), (ma120, ma200)):
+        if lower > 0:
+            spread_bonus += _clamp((upper / lower) - Decimal("1"), Decimal("0"), Decimal("0.20"))
+    score += spread_bonus
+    return score
+
+
+def _breakout_strength(closes: Sequence[Decimal], window: int = 120) -> Decimal:
+    if len(closes) < window + 1:
+        return Decimal("0")
+    prior_high = max(closes[-(window + 1) : -1], default=Decimal("0"))
+    if prior_high == 0:
+        return Decimal("0")
+    return _clamp((closes[-1] / prior_high) - Decimal("1"), Decimal("-1"), Decimal("1"))
+
+
+def _base_breakout_score(closes: Sequence[Decimal]) -> Decimal:
+    breakout = _breakout_strength(closes, window=60)
+    contraction = max(Decimal("0"), _range_contraction(closes, recent_window=20, base_window=60))
+    return breakout * (Decimal("1") + contraction)
+
+
+def _range_contraction(closes: Sequence[Decimal], recent_window: int, base_window: int) -> Decimal:
+    if len(closes) < recent_window + base_window:
+        return Decimal("0")
+    recent = closes[-recent_window:]
+    base = closes[-(recent_window + base_window) : -recent_window]
+    base_low = min(base, default=Decimal("0"))
+    recent_low = min(recent, default=Decimal("0"))
+    if base_low <= 0 or recent_low <= 0:
+        return Decimal("0")
+    base_range = (max(base) - base_low) / base_low
+    recent_range = (max(recent) - recent_low) / recent_low
+    if base_range <= 0:
+        return Decimal("0")
+    return _clamp((base_range - recent_range) / base_range, Decimal("-1"), Decimal("1"))
+
+
+def _volume_expansion(turnovers: Sequence[Decimal], window: int = 20) -> Decimal:
+    if len(turnovers) < window + 1:
+        return Decimal("0")
+    baseline = _mean(turnovers[-(window + 1) : -1])
+    if baseline <= 0:
+        return Decimal("0")
+    return _clamp((turnovers[-1] / baseline) - Decimal("1"), Decimal("-1"), Decimal("3"))
+
+
+def _price_volume_confirmation(closes: Sequence[Decimal], turnovers: Sequence[Decimal], window: int = 20) -> Decimal:
+    if len(closes) < window + 1 or len(turnovers) < window:
+        return Decimal("0")
+    score = Decimal("0")
+    baseline_turnover = _mean(turnovers[-window:])
+    if baseline_turnover <= 0:
+        return Decimal("0")
+    subset_closes = closes[-(window + 1) :]
+    subset_turnovers = turnovers[-window:]
+    for idx in range(1, len(subset_closes)):
+        prev = subset_closes[idx - 1]
+        current = subset_closes[idx]
+        if prev <= 0:
+            continue
+        day_return = (current / prev) - Decimal("1")
+        turnover_ratio = subset_turnovers[idx - 1] / baseline_turnover
+        score += day_return * turnover_ratio
+    return _clamp(score, Decimal("-1"), Decimal("1"))
+
+
+def _momentum_acceleration(closes: Sequence[Decimal]) -> Decimal:
+    if len(closes) < 61:
+        return Decimal("0")
+    short_momentum = _simple_return(closes[-21:])
+    medium_momentum = _simple_return(closes[-61:])
+    return short_momentum - medium_momentum
+
+
+def _volatility_contraction(closes: Sequence[Decimal], short_window: int = 10, long_window: int = 60) -> Decimal:
+    if len(closes) < long_window + 1:
+        return Decimal("0")
+    short_vol = _volatility(closes, short_window)
+    long_vol = _volatility(closes, long_window)
+    if long_vol <= 0:
+        return Decimal("0")
+    return _clamp((long_vol - short_vol) / long_vol, Decimal("-1"), Decimal("1"))
+
+
+def _pullback_resilience(closes: Sequence[Decimal], recovery_window: int = 20, anchor_window: int = 60) -> Decimal:
+    if len(closes) < anchor_window:
+        return Decimal("0")
+    recent = closes[-recovery_window:]
+    anchor = closes[-anchor_window:]
+    recent_low = min(recent, default=Decimal("0"))
+    anchor_high = max(anchor, default=Decimal("0"))
+    latest = closes[-1]
+    if recent_low <= 0 or anchor_high <= 0:
+        return Decimal("0")
+    rebound = (latest / recent_low) - Decimal("1")
+    proximity = (latest / anchor_high) - Decimal("1")
+    return rebound + proximity
+
+
 def build_cn_index_enhancement_blueprint(
     benchmark_instrument_id: Optional[str] = None,
     allowed_instrument_ids: Optional[Tuple[str, ...]] = None,
@@ -640,7 +772,14 @@ def build_cn_index_enhancement_blueprint(
             min_latest_price=Decimal("3"),
             allowed_instrument_ids=allowed_instrument_ids,
         ),
-        feature_config=FeatureConfig(return_windows=(5, 20, 60), volatility_window=20, trend_window=20, liquidity_window=20, benchmark_window=20),
+        feature_config=FeatureConfig(
+            return_windows=(5, 20, 60),
+            volatility_window=20,
+            trend_window=20,
+            liquidity_window=20,
+            benchmark_window=20,
+            technical_window=200,
+        ),
         alpha_weights={
             "rel_ret_20": Decimal("0.18"),
             "rel_ret_60": Decimal("0.24"),
@@ -649,6 +788,14 @@ def build_cn_index_enhancement_blueprint(
             "profitability": Decimal("0.25"),
             "volatility": Decimal("-0.10"),
             "drawdown": Decimal("-0.15"),
+            "ma_trend_alignment": Decimal("0"),
+            "breakout_strength": Decimal("0"),
+            "base_breakout_score": Decimal("0"),
+            "volume_expansion": Decimal("0"),
+            "price_volume_confirmation": Decimal("0"),
+            "momentum_acceleration": Decimal("0"),
+            "volatility_contraction": Decimal("0"),
+            "pullback_resilience": Decimal("0"),
         },
         portfolio_policy=PortfolioPolicy(
             top_n=4,
@@ -680,7 +827,14 @@ def build_us_quality_momentum_blueprint(
             min_latest_price=Decimal("5"),
             allowed_instrument_ids=allowed_instrument_ids,
         ),
-        feature_config=FeatureConfig(return_windows=(5, 20, 60), volatility_window=20, trend_window=20, liquidity_window=20, benchmark_window=20),
+        feature_config=FeatureConfig(
+            return_windows=(5, 20, 60),
+            volatility_window=20,
+            trend_window=20,
+            liquidity_window=20,
+            benchmark_window=20,
+            technical_window=200,
+        ),
         alpha_weights={
             "rel_ret_20": Decimal("0.15"),
             "rel_ret_60": Decimal("0.20"),
@@ -690,6 +844,14 @@ def build_us_quality_momentum_blueprint(
             "trend": Decimal("0.10"),
             "volatility": Decimal("-0.10"),
             "drawdown": Decimal("-0.15"),
+            "ma_trend_alignment": Decimal("0"),
+            "breakout_strength": Decimal("0"),
+            "base_breakout_score": Decimal("0"),
+            "volume_expansion": Decimal("0"),
+            "price_volume_confirmation": Decimal("0"),
+            "momentum_acceleration": Decimal("0"),
+            "volatility_contraction": Decimal("0"),
+            "pullback_resilience": Decimal("0"),
         },
         portfolio_policy=PortfolioPolicy(
             top_n=4,

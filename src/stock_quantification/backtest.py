@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import date, timedelta
 from decimal import Decimal
 from statistics import median
@@ -17,6 +17,7 @@ from .markets import ChinaMarketRules, USMarketRules
 from .models import AccountConstraints, AccountState, BacktestContext, ExecutionMode, Market
 from .real_data import (
     MarketSnapshot,
+    RealDataError,
     build_market_snapshot,
     fetch_cn_benchmark_history,
     fetch_cn_detailed_history,
@@ -104,6 +105,19 @@ class RollingBacktestDay:
 
 
 @dataclass(frozen=True)
+class RollingExitEvent:
+    trade_date: str
+    instrument_id: str
+    name: str
+    reason_code: str
+    reason_label: str
+    detail: str
+    previous_target_weight: Decimal
+    next_target_weight: Decimal
+    score: Decimal
+
+
+@dataclass(frozen=True)
 class RollingBacktestSummary:
     market: str
     preset_id: str
@@ -133,12 +147,17 @@ class RollingBacktestSummary:
     total_fees: Decimal
     fee_drag: Decimal
     pre_fee_return: Decimal
+    trend_exit_count: int = 0
+    rank_exit_count: int = 0
+    risk_exit_count: int = 0
+    other_exit_count: int = 0
 
 
 @dataclass(frozen=True)
 class RollingBacktestReport:
     summary: RollingBacktestSummary
     daily: List[RollingBacktestDay]
+    exit_events: List[RollingExitEvent] = field(default_factory=list)
 
 
 def _to_decimal(value: object) -> Decimal:
@@ -175,13 +194,20 @@ def serialize_backtest_report(report: BacktestReport) -> Dict[str, object]:
 def serialize_rolling_backtest_report(report: RollingBacktestReport) -> Dict[str, object]:
     summary = _serialize_summary(report.summary)
     daily: List[Dict[str, object]] = []
+    exit_events: List[Dict[str, object]] = []
     for item in report.daily:
         payload = asdict(item)
         for key, value in payload.items():
             if isinstance(value, Decimal):
                 payload[key] = str(value.quantize(Decimal("0.0001")))
         daily.append(payload)
-    return {"summary": summary, "daily": daily}
+    for item in report.exit_events:
+        payload = asdict(item)
+        for key, value in payload.items():
+            if isinstance(value, Decimal):
+                payload[key] = str(value.quantize(Decimal("0.0001")))
+        exit_events.append(payload)
+    return {"summary": summary, "daily": daily, "exit_events": exit_events}
 
 
 def build_forward_return_report(
@@ -199,12 +225,15 @@ def build_forward_return_report(
 
     rows: List[ForwardReturnRow] = []
     for stock in recommended_stocks:
-        entry_date, resolved_exit_date, entry_price, exit_price = _instrument_window(
-            market,
-            str(stock["instrument_id"]),
-            trade_date,
-            holding_sessions,
-        )
+        try:
+            entry_date, resolved_exit_date, entry_price, exit_price = _instrument_window(
+                market,
+                str(stock["instrument_id"]),
+                trade_date,
+                holding_sessions,
+            )
+        except (RealDataError, ValueError):
+            continue
         buy_price = _optional_decimal(stock.get("buy_price"))
         effective_entry = buy_price or entry_price
         forward_return = _simple_return(effective_entry, exit_price)
@@ -228,6 +257,9 @@ def build_forward_return_report(
                 reason=str(stock.get("reason", "")),
             )
         )
+
+    if not rows:
+        raise ValueError("No eligible instrument bars on or before %s" % trade_date.isoformat())
 
     rows.sort(key=lambda item: item.forward_return, reverse=True)
 
@@ -294,6 +326,7 @@ def build_rolling_strategy_backtest_report(
     total_fees = Decimal("0")
     period_returns: List[Decimal] = []
     turnovers: List[Decimal] = []
+    exit_events: List[RollingExitEvent] = []
 
     for index, snapshot in enumerate(snapshots):
         account_state = state_store.get_account_state(account_id)
@@ -372,6 +405,7 @@ def build_rolling_strategy_backtest_report(
         if index == len(snapshots) - 1:
             continue
 
+        current_weight_map = _position_weights(account_state, snapshot.data_provider, snapshot.as_of)
         orchestrator = _build_orchestrator(snapshot, state_store, preset.top_n)
         strategy = build_strategy_from_preset(
             preset,
@@ -384,6 +418,9 @@ def build_rolling_strategy_backtest_report(
             [account_id],
             ExecutionMode.AUTO,
         )
+        proposal = getattr(result, "proposal", None)
+        rankings = list(getattr(proposal, "research_rankings", []) or [])
+        targets = list(getattr(proposal, "targets", []) or [])
         next_execution_date = snapshots[index + 1].as_of.date().isoformat()
         next_day_stats = {
             "buy_fill_count": 0,
@@ -404,6 +441,17 @@ def build_rolling_strategy_backtest_report(
                     reference_price * Decimal(fill.filled_qty)
                 )
                 next_day_stats["total_fees"] = _to_decimal(next_day_stats["total_fees"]) + fill.total_fees
+            exit_events.extend(
+                _collect_exit_events(
+                    execution_result=execution_result,
+                    rankings=rankings,
+                    targets=targets,
+                    current_weights=current_weight_map,
+                    execution_date=next_execution_date,
+                    data_provider=snapshot.data_provider,
+                    top_n=preset.top_n,
+                )
+            )
         fills_by_execution_date[next_execution_date] = next_day_stats
 
     nav_values = [day.end_of_day_nav for day in daily]
@@ -415,6 +463,10 @@ def build_rolling_strategy_backtest_report(
         else None
     )
     performance = compute_performance_metrics(period_returns, turnovers)
+    trend_exit_count = sum(1 for event in exit_events if event.reason_code == "trend_broken")
+    rank_exit_count = sum(1 for event in exit_events if event.reason_code == "rank_fell_out")
+    risk_exit_count = sum(1 for event in exit_events if event.reason_code == "risk_triggered")
+    other_exit_count = max(len(exit_events) - trend_exit_count - rank_exit_count - risk_exit_count, 0)
     summary = RollingBacktestSummary(
         market=market.value,
         preset_id=preset.preset_id,
@@ -452,8 +504,123 @@ def build_rolling_strategy_backtest_report(
         total_fees=total_fees,
         fee_drag=(total_fees / initial_cash) if initial_cash != 0 else Decimal("0"),
         pre_fee_return=((final_nav + total_fees) / initial_cash) - Decimal("1"),
+        trend_exit_count=trend_exit_count,
+        rank_exit_count=rank_exit_count,
+        risk_exit_count=risk_exit_count,
+        other_exit_count=other_exit_count,
     )
-    return RollingBacktestReport(summary=summary, daily=daily)
+    return RollingBacktestReport(summary=summary, daily=daily, exit_events=exit_events[-12:])
+
+
+def _collect_exit_events(
+    *,
+    execution_result,
+    rankings: Sequence[Mapping[str, object]],
+    targets: Sequence[object],
+    current_weights: Mapping[str, Decimal],
+    execution_date: str,
+    data_provider,
+    top_n: int,
+) -> List[RollingExitEvent]:
+    target_weight_map = {
+        str(getattr(target, "instrument_id", "")): _to_decimal(getattr(target, "target_weight", Decimal("0")))
+        for target in targets
+    }
+    ranking_map = {
+        str(row.get("instrument_id")): row
+        for row in rankings
+        if isinstance(row, Mapping) and row.get("instrument_id")
+    }
+    rank_position_map = {
+        str(row.get("instrument_id")): index
+        for index, row in enumerate(rankings, start=1)
+        if isinstance(row, Mapping) and row.get("instrument_id")
+    }
+    events: List[RollingExitEvent] = []
+    for fill in getattr(execution_result, "fills", []):
+        if getattr(fill, "filled_qty", 0) <= 0 or getattr(fill, "cash_delta", Decimal("0")) <= 0:
+            continue
+        instrument_id = str(getattr(fill, "instrument_id", ""))
+        if not instrument_id:
+            continue
+        ranking = ranking_map.get(instrument_id, {})
+        next_weight = target_weight_map.get(instrument_id, Decimal("0"))
+        previous_weight = _to_decimal(current_weights.get(instrument_id, Decimal("0")))
+        reason_code, reason_label, detail = _classify_exit_reason(
+            ranking=ranking,
+            next_target_weight=next_weight,
+            previous_target_weight=previous_weight,
+            rank_position=rank_position_map.get(instrument_id),
+            top_n=top_n,
+        )
+        try:
+            name = data_provider.get_instrument(instrument_id).attributes.get("name") or data_provider.get_instrument(instrument_id).symbol
+        except KeyError:
+            name = instrument_id
+        events.append(
+            RollingExitEvent(
+                trade_date=execution_date,
+                instrument_id=instrument_id,
+                name=str(name),
+                reason_code=reason_code,
+                reason_label=reason_label,
+                detail=detail,
+                previous_target_weight=previous_weight,
+                next_target_weight=next_weight,
+                score=_to_decimal(ranking.get("score", Decimal("0"))),
+            )
+        )
+    return events
+
+
+def _classify_exit_reason(
+    *,
+    ranking: Mapping[str, object],
+    next_target_weight: Decimal,
+    previous_target_weight: Decimal,
+    rank_position: Optional[int],
+    top_n: int,
+) -> tuple[str, str, str]:
+    raw_features = ranking.get("raw_features", {}) if isinstance(ranking.get("raw_features", {}), Mapping) else {}
+    contributions = ranking.get("contributions", {}) if isinstance(ranking.get("contributions", {}), Mapping) else {}
+    trend_value = _to_decimal(raw_features.get("trend", Decimal("0")))
+    risk_penalty = _to_decimal(contributions.get("volatility", Decimal("0"))) + _to_decimal(
+        contributions.get("drawdown", Decimal("0"))
+    )
+    if next_target_weight <= 0 and trend_value <= 0:
+        return (
+            "trend_broken",
+            "趋势失效",
+            f"trend={trend_value.quantize(Decimal('0.0001'))}，目标仓位降到 0。",
+        )
+    if risk_penalty < 0 and next_target_weight < previous_target_weight:
+        return (
+            "risk_triggered",
+            "风险触发",
+            f"风险因子转弱，目标仓位从 {previous_target_weight.quantize(Decimal('0.0001'))} 降到 {next_target_weight.quantize(Decimal('0.0001'))}。",
+        )
+    rank_text = str(rank_position) if rank_position is not None else "未记录"
+    return (
+        "rank_fell_out",
+        "排名跌出",
+        f"最新排名回落到 {rank_text}，当前目标仓位 {next_target_weight.quantize(Decimal('0.0001'))}，超出 top {top_n} 的持仓优先级。",
+    )
+
+
+def _position_weights(account_state: AccountState, data_provider, as_of) -> Dict[str, Decimal]:
+    nav = _mark_nav(account_state, data_provider, as_of)
+    if nav <= 0:
+        return {}
+    weights: Dict[str, Decimal] = {}
+    for instrument_id, position in account_state.positions.items():
+        if position.qty == 0:
+            continue
+        try:
+            bar = data_provider.get_latest_bar(instrument_id, as_of)
+        except KeyError:
+            continue
+        weights[instrument_id] = (bar.close * Decimal(position.qty)) / nav
+    return weights
 
 
 def _build_summary(
@@ -619,10 +786,14 @@ def _compute_max_drawdown(nav_values: Iterable[Decimal]) -> Decimal:
 
 
 def _benchmark_window(market: Market, trade_date: date, holding_sessions: int) -> tuple[Decimal, Decimal, date]:
+    history_limit = _history_limit_for_trade_date(trade_date, holding_sessions)
     if market == Market.CN:
-        _, bars = fetch_cn_benchmark_history(limit=180)
+        _, bars = fetch_cn_benchmark_history(limit=history_limit)
     else:
-        _, bars = fetch_us_benchmark_history(limit=180)
+        _, bars = fetch_us_benchmark_history(
+            lookback_days=_lookback_days_for_trade_date(trade_date),
+            limit=history_limit,
+        )
     entry_date, exit_date, entry_price, exit_price = _price_window(bars, trade_date, holding_sessions)
     del entry_date
     return entry_price, exit_price, exit_date
@@ -635,11 +806,26 @@ def _instrument_window(
     holding_sessions: int,
 ) -> tuple[date, date, Decimal, Decimal]:
     symbol = instrument_id.split(".", 1)[1]
+    history_limit = _history_limit_for_trade_date(trade_date, holding_sessions)
     if market == Market.CN:
-        _, bars = fetch_cn_detailed_history(symbol, limit=180)
+        _, bars = fetch_cn_detailed_history(symbol, limit=history_limit)
     else:
-        _, bars = fetch_us_daily_history(symbol, lookback_days=365, limit=180)
+        _, bars = fetch_us_daily_history(
+            symbol,
+            lookback_days=_lookback_days_for_trade_date(trade_date),
+            limit=history_limit,
+        )
     return _price_window(bars, trade_date, holding_sessions)
+
+
+def _history_limit_for_trade_date(trade_date: date, holding_sessions: int) -> int:
+    age_days = max((date.today() - trade_date).days, 0)
+    session_estimate = int(age_days * 0.72)
+    return max(240, min(2000, session_estimate + holding_sessions + 40))
+
+
+def _lookback_days_for_trade_date(trade_date: date) -> int:
+    return max((date.today() - trade_date).days + 40, 365)
 
 
 def _price_window(bars: Sequence[object], trade_date: date, holding_sessions: int) -> tuple[date, date, Decimal, Decimal]:

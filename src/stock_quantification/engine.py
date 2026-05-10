@@ -359,10 +359,16 @@ class StandardStrategyRunner(StrategyRunner):
         for account_state in account_list:
             nav += account_state.cash
             for position in account_state.positions.values():
-                instrument = self._data_provider.get_instrument(position.instrument_id)
+                try:
+                    instrument = self._data_provider.get_instrument(position.instrument_id)
+                except KeyError:
+                    continue
                 if instrument.market != market or position.qty == 0:
                     continue
-                market_value = self._position_market_value(position.instrument_id, position.qty, as_of)
+                try:
+                    market_value = self._position_market_value(position.instrument_id, position.qty, as_of)
+                except KeyError:
+                    continue
                 values[position.instrument_id] = values.get(position.instrument_id, Decimal("0")) + market_value
                 nav += market_value
         if nav <= 0:
@@ -424,6 +430,7 @@ class StandardExecutionPlanner(ExecutionPlanner):
             nav = account_state.cash + sum(
                 self._position_market_value(position.instrument_id, position.qty, as_of)
                 for position in account_state.positions.values()
+                if self._has_market_data(position.instrument_id, as_of)
             )
             rebalance_instruments = set(targets_by_instrument) | {
                 instrument_id
@@ -441,10 +448,13 @@ class StandardExecutionPlanner(ExecutionPlanner):
                         target_weight=Decimal("0"),
                     ),
                 )
-                instrument = self._data_provider.get_instrument(target.instrument_id)
+                try:
+                    instrument = self._data_provider.get_instrument(target.instrument_id)
+                    latest_price = self._data_provider.get_latest_bar(target.instrument_id, as_of).close
+                except KeyError:
+                    continue
                 if instrument.market != account_state.market:
                     continue
-                latest_price = self._data_provider.get_latest_bar(target.instrument_id, as_of).close
                 raw_target_qty = (nav * target.target_weight / latest_price).to_integral_value(rounding=ROUND_DOWN)
                 target_qty = int(raw_target_qty)
                 if account_state.market == Market.CN:
@@ -497,6 +507,14 @@ class StandardExecutionPlanner(ExecutionPlanner):
     def _position_market_value(self, instrument_id: str, qty: int, as_of: datetime) -> Decimal:
         latest_price = self._data_provider.get_latest_bar(instrument_id, as_of).close
         return latest_price * Decimal(qty)
+
+    def _has_market_data(self, instrument_id: str, as_of: datetime) -> bool:
+        try:
+            self._data_provider.get_instrument(instrument_id)
+            self._data_provider.get_latest_bar(instrument_id, as_of)
+            return True
+        except KeyError:
+            return False
 
 
 class StandardRiskEngine(RiskEngine):
@@ -569,6 +587,7 @@ class StandardRiskEngine(RiskEngine):
         nav = projected_state.cash + sum(
             self._data_provider.get_latest_bar(position.instrument_id, as_of).close * Decimal(position.qty)
             for position in projected_state.positions.values()
+            if self._has_market_data(position.instrument_id, as_of)
         )
         if order_intent.side == OrderSide.BUY and order_value > account_state.buying_power:
             violations.append("insufficient_buying_power")
@@ -615,6 +634,14 @@ class StandardRiskEngine(RiskEngine):
         account_state.cash = projected.cash
         account_state.buying_power = projected.buying_power
         account_state.positions = projected.positions
+
+    def _has_market_data(self, instrument_id: str, as_of: datetime) -> bool:
+        try:
+            self._data_provider.get_instrument(instrument_id)
+            self._data_provider.get_latest_bar(instrument_id, as_of)
+            return True
+        except KeyError:
+            return False
 
     def _clone_account_state(self, account_state: AccountState) -> AccountState:
         return AccountState(

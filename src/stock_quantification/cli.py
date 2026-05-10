@@ -259,6 +259,14 @@ def run_market(
         if broker_name == "LOCAL_PAPER":
             local_paper = LocalPaperLedger()
             broker_account_state = local_paper.sync_account_state(account_id=account_id, market=market, initial_cash=cash)
+            liquidation_result = local_paper.liquidate_unknown_positions(
+                account_id=account_id,
+                valid_instrument_ids=[instrument.instrument_id for instrument in snapshot.data_provider.list_instruments(market)],
+                as_of=snapshot.as_of,
+            )
+            if liquidation_result.get("account") is not None:
+                refreshed_account = local_paper.sync_account_state(account_id=account_id, market=market, initial_cash=cash)
+                broker_account_state = refreshed_account
             if route_orders:
                 effective_runtime_mode = RuntimeMode.PAPER
         else:

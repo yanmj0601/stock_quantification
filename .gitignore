@@ -13,3 +13,8 @@ env/
 
 # Local caches and generated files
 .cache/
+
+# Runtime state and generated local ledgers
+artifacts/web/*.json
+artifacts/local_paper/
+artifacts/[0-9]*/

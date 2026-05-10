@@ -210,14 +210,34 @@ def _serialize_dataclass(item) -> Dict[str, object]:
 def _factor_groups(market: Market) -> Dict[str, List[str]]:
     if market == Market.CN:
         return {
-            "momentum": ["rel_ret_20", "rel_ret_60", "trend"],
+            "momentum": [
+                "rel_ret_20",
+                "rel_ret_60",
+                "trend",
+                "ma_trend_alignment",
+                "breakout_strength",
+                "base_breakout_score",
+                "price_volume_confirmation",
+                "momentum_acceleration",
+                "pullback_resilience",
+            ],
             "quality": ["profitability"],
-            "risk_control": ["volatility", "drawdown"],
-            "liquidity": ["liquidity"],
+            "risk_control": ["volatility", "drawdown", "volatility_contraction"],
+            "liquidity": ["liquidity", "volume_expansion"],
         }
     return {
-        "momentum": ["rel_ret_20", "rel_ret_60", "trend"],
+        "momentum": [
+            "rel_ret_20",
+            "rel_ret_60",
+            "trend",
+            "ma_trend_alignment",
+            "breakout_strength",
+            "base_breakout_score",
+            "price_volume_confirmation",
+            "momentum_acceleration",
+            "pullback_resilience",
+        ],
         "quality": ["profitability", "quality"],
-        "risk_control": ["volatility", "drawdown"],
-        "liquidity": ["liquidity"],
+        "risk_control": ["volatility", "drawdown", "volatility_contraction"],
+        "liquidity": ["liquidity", "volume_expansion"],
     }

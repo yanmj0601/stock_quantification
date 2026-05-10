@@ -16,6 +16,8 @@ class ProjectOpsStoreTests(TestCase):
             reservation = store.begin_job("strategy_run", metadata={"market": "US"})
             self.assertTrue(reservation["accepted"])
             job_id = reservation["job"]["job_id"]
+            claimed = store.claim_next_queued_job()
+            self.assertIsNotNone(claimed)
             state = store.load_state()
             self.assertEqual(state["active_job"]["job_id"], job_id)
             store.finish_job(job_id, "SUCCESS", detail="done", metadata={"count": 1})
@@ -24,14 +26,19 @@ class ProjectOpsStoreTests(TestCase):
             self.assertEqual(len(state["job_history"]), 1)
             self.assertEqual(state["job_history"][0]["status"], "SUCCESS")
 
-    def test_begin_job_blocks_when_active_job_is_fresh(self) -> None:
+    def test_begin_job_enqueues_when_another_job_is_running(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             store = ProjectOpsStore(tmpdir)
             first = store.begin_job("strategy_run")
             self.assertTrue(first["accepted"])
+            claimed = store.claim_next_queued_job()
+            self.assertIsNotNone(claimed)
             second = store.begin_job("factor_backtest")
-            self.assertFalse(second["accepted"])
-            self.assertEqual(second["active_job"]["kind"], "strategy_run")
+            self.assertTrue(second["accepted"])
+            state = store.load_state()
+            self.assertEqual(state["active_job"]["kind"], "strategy_run")
+            self.assertEqual(len(state["queued_jobs"]), 1)
+            self.assertEqual(state["queued_jobs"][0]["kind"], "factor_backtest")
 
     def test_append_event_persists_audit_entries(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -46,6 +53,7 @@ class ProjectOpsStoreTests(TestCase):
             store = ProjectOpsStore(tmpdir)
             reservation = store.begin_job("factor_backtest")
             self.assertTrue(reservation["accepted"])
+            store.claim_next_queued_job()
             state = store.release_active_job(detail="released")
             self.assertIsNone(state["active_job"])
             self.assertEqual(state["job_history"][-1]["status"], "MANUAL_RELEASED")
@@ -55,6 +63,7 @@ class ProjectOpsStoreTests(TestCase):
             store = ProjectOpsStore(tmpdir)
             reservation = store.begin_job("strategy_run", metadata={"market": "US"})
             job_id = reservation["job"]["job_id"]
+            store.claim_next_queued_job()
             state = store.update_active_job(
                 job_id,
                 progress_pct=42,
@@ -69,7 +78,6 @@ class ProjectOpsStoreTests(TestCase):
 
     def test_begin_job_recovers_legacy_active_job_from_previous_process(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
-            store = ProjectOpsStore(tmpdir)
             legacy_started_at = (ops_module._PROCESS_STARTED_AT - timedelta(seconds=5)).isoformat(timespec="seconds")
             write_json_artifact(
                 tmpdir,
@@ -91,10 +99,12 @@ class ProjectOpsStoreTests(TestCase):
                 },
             )
 
+            store = ProjectOpsStore(tmpdir)
             reservation = store.begin_job("factor_backtest")
 
             self.assertTrue(reservation["accepted"])
             state = store.load_state()
             self.assertEqual(state["job_history"][-1]["status"], "STALE")
             self.assertEqual(state["job_history"][-1]["job_id"], "legacy-lock")
-            self.assertEqual(state["active_job"]["kind"], "factor_backtest")
+            self.assertIsNone(state["active_job"])
+            self.assertEqual(state["queued_jobs"][0]["kind"], "factor_backtest")

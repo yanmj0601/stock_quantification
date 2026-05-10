@@ -1,15 +1,13 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-import hashlib
+from datetime import datetime
 import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from .artifacts import read_json_artifact, write_json_artifact
+from .sqlite_state import SQLiteStateStore
 
 
-OPS_STATE_RELATIVE_PATH = "web/ops_state.json"
 _PROCESS_PID = os.getpid()
 _PROCESS_STARTED_AT = datetime.utcnow()
 
@@ -18,110 +16,44 @@ def _now() -> datetime:
     return datetime.utcnow()
 
 
-def _parse_datetime(value: object) -> Optional[datetime]:
-    raw = str(value or "")
-    if not raw:
-        return None
-    try:
-        return datetime.fromisoformat(raw)
-    except ValueError:
-        return None
-
-
-def _pid_is_running(value: object) -> bool:
-    try:
-        pid = int(value)
-    except (TypeError, ValueError):
-        return False
-    if pid <= 0:
-        return False
-    try:
-        os.kill(pid, 0)
-    except OSError:
-        return False
-    return True
-
-
 class ProjectOpsStore:
-    def __init__(self, base_dir: str | Path, relative_path: str = OPS_STATE_RELATIVE_PATH) -> None:
-        self._base_dir = Path(base_dir)
-        self._relative_path = relative_path
+    def __init__(self, base_dir: str | Path) -> None:
+        self._state = SQLiteStateStore(base_dir)
+        self._state.mark_previous_running_jobs_stale(
+            owner_pid=_PROCESS_PID,
+            owner_started_at=_PROCESS_STARTED_AT.isoformat(timespec="seconds"),
+        )
 
     def load_state(self) -> Dict[str, Any]:
-        payload = read_json_artifact(self._base_dir, self._relative_path)
-        state = self._default_state()
-        if not isinstance(payload, dict):
-            return state
-        for key in ("heartbeats", "audit_events", "job_history"):
-            value = payload.get(key)
-            if isinstance(value, dict) and key == "heartbeats":
-                state[key] = value
-            elif isinstance(value, list):
-                state[key] = value
-        if isinstance(payload.get("active_job"), dict):
-            state["active_job"] = payload["active_job"]
-        if payload.get("updated_at"):
-            state["updated_at"] = payload["updated_at"]
-        return state
+        return {
+            "updated_at": _now().isoformat(timespec="seconds"),
+            "heartbeats": self._state.load_heartbeats(),
+            "active_job": self._state.get_active_job(),
+            "queued_jobs": self._state.list_queued_jobs(limit=200),
+            "job_history": self._state.list_recent_jobs(limit=200),
+            "audit_events": self._state.list_events(limit=400),
+        }
 
     def heartbeat(self, component: str) -> Dict[str, Any]:
-        state = self.load_state()
-        state["heartbeats"][component] = _now().isoformat(timespec="seconds")
-        self._save_state(state)
-        return state
+        self._state.save_heartbeat(component, _now().isoformat(timespec="seconds"))
+        return self.load_state()
 
     def begin_job(
         self,
         kind: str,
         metadata: Optional[Dict[str, Any]] = None,
         stale_after_minutes: int = 30,
+        payload: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        state = self.load_state()
-        active_job = state.get("active_job")
-        now = _now()
-        if isinstance(active_job, dict):
-            started_at = _parse_datetime(active_job.get("started_at"))
-            if self._should_recover_previous_process_job(active_job, started_at):
-                state["job_history"].append(
-                    {
-                        **active_job,
-                        "finished_at": now.isoformat(timespec="seconds"),
-                        "duration_seconds": int((now - started_at).total_seconds()) if started_at is not None else 0,
-                        "status": "STALE",
-                        "detail": "Recovered orphaned active job lock from previous process.",
-                    }
-                )
-                state["active_job"] = None
-            elif started_at is not None and now - started_at > timedelta(minutes=stale_after_minutes):
-                state["job_history"].append(
-                    {
-                        **active_job,
-                        "finished_at": now.isoformat(timespec="seconds"),
-                        "duration_seconds": int((now - started_at).total_seconds()),
-                        "status": "STALE",
-                        "detail": "Recovered stale active job lock.",
-                    }
-                )
-                state["active_job"] = None
-            else:
-                return {"accepted": False, "active_job": active_job}
-
-        job_id = hashlib.sha1(f"{kind}|{now.isoformat()}|{metadata}".encode("utf-8")).hexdigest()[:12]
-        job = {
-            "job_id": job_id,
-            "kind": kind,
-            "status": "RUNNING",
-            "started_at": now.isoformat(timespec="seconds"),
-            "owner_pid": _PROCESS_PID,
-            "owner_started_at": _PROCESS_STARTED_AT.isoformat(timespec="seconds"),
-            "progress_pct": 0,
-            "stage": "QUEUED",
-            "detail": "Task accepted and waiting to start.",
-            "metadata": metadata or {},
-        }
-        state["active_job"] = job
-        self._save_state(state)
+        del stale_after_minutes
+        job = self._state.enqueue_job(kind, metadata=metadata, payload=payload)
         return {"accepted": True, "job": job}
+
+    def claim_next_queued_job(self) -> Optional[Dict[str, Any]]:
+        return self._state.claim_next_job(
+            owner_pid=_PROCESS_PID,
+            owner_started_at=_PROCESS_STARTED_AT.isoformat(timespec="seconds"),
+        )
 
     def finish_job(
         self,
@@ -130,26 +62,8 @@ class ProjectOpsStore:
         detail: str = "",
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        state = self.load_state()
-        active_job = state.get("active_job")
-        now = _now()
-        if not isinstance(active_job, dict) or active_job.get("job_id") != job_id:
-            return state
-        started_at = _parse_datetime(active_job.get("started_at")) or now
-        state["job_history"].append(
-            {
-                **active_job,
-                "finished_at": now.isoformat(timespec="seconds"),
-                "duration_seconds": int((now - started_at).total_seconds()),
-                "status": status,
-                "detail": detail,
-                "result_metadata": metadata or {},
-            }
-        )
-        state["job_history"] = state["job_history"][-200:]
-        state["active_job"] = None
-        self._save_state(state)
-        return state
+        self._state.finish_job(job_id, status=status, detail=detail, metadata=metadata)
+        return self.load_state()
 
     def append_event(
         self,
@@ -159,46 +73,39 @@ class ProjectOpsStore:
         detail: str,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        state = self.load_state()
-        state["audit_events"].append(
-            {
-                "created_at": _now().isoformat(timespec="seconds"),
-                "category": category,
-                "action": action,
-                "status": status,
-                "detail": detail,
-                "metadata": metadata or {},
-            }
+        self._state.append_event(
+            category=category,
+            action=action,
+            status=status,
+            detail=detail,
+            metadata=metadata,
         )
-        state["audit_events"] = state["audit_events"][-400:]
-        self._save_state(state)
-        return state
+        return self.load_state()
+
+    def list_events(self, limit: int = 400) -> list[Dict[str, Any]]:
+        return self._state.list_events(limit=limit)
+
+    def append_run_history(self, records: list[Dict[str, Any]]) -> None:
+        self._state.append_run_history(records)
+
+    def list_run_history(self, limit: int = 200) -> list[Dict[str, Any]]:
+        return self._state.list_run_history(limit=limit)
 
     def release_active_job(
         self,
         detail: str = "Released active job manually.",
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        state = self.load_state()
-        active_job = state.get("active_job")
-        now = _now()
-        if not isinstance(active_job, dict):
-            return state
-        started_at = _parse_datetime(active_job.get("started_at")) or now
-        state["job_history"].append(
-            {
-                **active_job,
-                "finished_at": now.isoformat(timespec="seconds"),
-                "duration_seconds": int((now - started_at).total_seconds()),
-                "status": "MANUAL_RELEASED",
-                "detail": detail,
-                "result_metadata": metadata or {},
-            }
+        active_job = self._state.get_active_job()
+        if not active_job:
+            return self.load_state()
+        self._state.finish_job(
+            active_job["job_id"],
+            status="MANUAL_RELEASED",
+            detail=detail,
+            metadata=metadata,
         )
-        state["job_history"] = state["job_history"][-200:]
-        state["active_job"] = None
-        self._save_state(state)
-        return state
+        return self.load_state()
 
     def update_active_job(
         self,
@@ -209,48 +116,11 @@ class ProjectOpsStore:
         detail: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        state = self.load_state()
-        active_job = state.get("active_job")
-        if not isinstance(active_job, dict) or active_job.get("job_id") != job_id:
-            return state
-        updated = dict(active_job)
-        if progress_pct is not None:
-            updated["progress_pct"] = max(0, min(100, int(progress_pct)))
-        if stage is not None:
-            updated["stage"] = stage
-        if detail is not None:
-            updated["detail"] = detail
-        merged_metadata = dict(updated.get("metadata", {}))
-        if metadata:
-            merged_metadata.update(metadata)
-        updated["metadata"] = merged_metadata
-        state["active_job"] = updated
-        self._save_state(state)
-        return state
-
-    def _should_recover_previous_process_job(
-        self,
-        active_job: Dict[str, Any],
-        started_at: Optional[datetime],
-    ) -> bool:
-        owner_pid = active_job.get("owner_pid")
-        owner_started_at = _parse_datetime(active_job.get("owner_started_at"))
-        if owner_pid is None or owner_started_at is None:
-            return started_at is not None and started_at < _PROCESS_STARTED_AT
-        if int(owner_pid) == _PROCESS_PID and owner_started_at == _PROCESS_STARTED_AT:
-            return False
-        return not _pid_is_running(owner_pid)
-
-    def _save_state(self, payload: Dict[str, Any]) -> str:
-        payload = dict(payload)
-        payload["updated_at"] = _now().isoformat(timespec="seconds")
-        return write_json_artifact(self._base_dir, self._relative_path, payload)
-
-    def _default_state(self) -> Dict[str, Any]:
-        return {
-            "updated_at": _now().isoformat(timespec="seconds"),
-            "heartbeats": {},
-            "active_job": None,
-            "job_history": [],
-            "audit_events": [],
-        }
+        self._state.update_job(
+            job_id,
+            progress_pct=progress_pct,
+            stage=stage,
+            detail=detail,
+            metadata=metadata,
+        )
+        return self.load_state()

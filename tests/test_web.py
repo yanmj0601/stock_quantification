@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import Mock
@@ -7,20 +8,55 @@ from unittest.mock import patch
 from unittest import TestCase
 
 from stock_quantification.artifacts import write_json_artifact
+from stock_quantification.strategy_registry import StrategyRegistryStore
 from stock_quantification import web as web_module
 from stock_quantification.web import DashboardApp, DEFAULT_PROJECT_CONFIG
 
 
 class WebTests(TestCase):
+    def test_parse_form_body_supports_urlencoded_payloads(self) -> None:
+        payload = b"market=US&view=run&subview=create"
+        parsed = web_module.parse_form_body("application/x-www-form-urlencoded", payload)
+        self.assertEqual(parsed["market"], ["US"])
+        self.assertEqual(parsed["view"], ["run"])
+
+    def test_parse_form_body_supports_multipart_payloads(self) -> None:
+        boundary = "----CodexBoundary123"
+        payload = (
+            f"--{boundary}\r\n"
+            'Content-Disposition: form-data; name="market"\r\n\r\n'
+            "US\r\n"
+            f"--{boundary}\r\n"
+            'Content-Disposition: form-data; name="view"\r\n\r\n'
+            "run\r\n"
+            f"--{boundary}--\r\n"
+        ).encode("utf-8")
+        parsed = web_module.parse_form_body(f"multipart/form-data; boundary={boundary}", payload)
+        self.assertEqual(parsed["market"], ["US"])
+        self.assertEqual(parsed["view"], ["run"])
+
     def setUp(self) -> None:
         self.app = DashboardApp()
         self.ops_store = Mock()
         self.ops_store.begin_job.return_value = {"accepted": True, "job": {"job_id": "job-1", "kind": "test"}}
+        self.ops_store.claim_next_queued_job.return_value = None
         self.ops_store.finish_job.return_value = {}
         self.ops_store.append_event.return_value = {}
         self.ops_store.heartbeat.return_value = {}
+        self.ops_store.list_events.return_value = []
+        self.ops_store.list_run_history.return_value = []
         self.ops_store.load_state.return_value = {"active_job": None, "job_history": [], "audit_events": [], "heartbeats": {}}
         self.app._ops_store = Mock(return_value=self.ops_store)
+
+    def test_instrument_display_label_prefers_code_and_name(self) -> None:
+        self.assertEqual(
+            self.app._instrument_display_label("CN.600487", "亨通光电"),
+            "CN.600487 · 亨通光电",
+        )
+        self.assertEqual(
+            self.app._instrument_display_label("US.AAPL", "US.AAPL"),
+            "US.AAPL",
+        )
 
     @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
     @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")
@@ -29,8 +65,8 @@ class WebTests(TestCase):
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
         self.assertIn("模拟盘", body)
-        self.assertIn("策略优化", body)
-        self.assertIn("策略运行", body)
+        self.assertIn("策略实验", body)
+        self.assertIn("策略任务", body)
         self.assertIn("结果中心", body)
         self.assertNotIn("Overview / 总览", body)
         self.assertNotIn("Config / 项目配置", body)
@@ -39,7 +75,7 @@ class WebTests(TestCase):
 
     @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
     @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")
-    def test_home_page_exposes_report_first_shell_hooks_on_overview(self, _mock_paper_panel, _mock_symbol_catalog) -> None:
+    def test_home_page_exposes_report_first_shell_hooks_on_default_paper_view(self, _mock_paper_panel, _mock_symbol_catalog) -> None:
         response = self.app.render_home({})
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
@@ -48,10 +84,9 @@ class WebTests(TestCase):
         self.assertIn('<aside class="side-nav">', body)
         self.assertIn('<section class="page-shell">', body)
         self.assertIn('<header class="page-header">', body)
-        self.assertIn('<section class="summary-strip">', body)
-        self.assertIn("status-strip__nav-shell", body)
         self.assertIn("primary-nav", body)
         self.assertIn("section-tabs", body)
+        self.assertIn("导航", body)
         self.assertIn("page-shell__body", body)
         self.assertNotIn('class="app-shell shell"', body)
         self.assertNotIn('class="side-nav workspace__nav"', body)
@@ -357,13 +392,33 @@ class WebTests(TestCase):
             "filtered_trade_count": 0,
             "latest_nav": "100000",
             "cumulative_return": "0",
-            "positions": [],
+            "positions": [{"instrument_id": "US.AAPL", "qty": "10", "avg_cost": "180"}],
             "nav_history": [],
             "recent_trades": [],
             "today_summary": {},
             "sector_exposure_rows": [],
             "risk_alerts": [],
-            "position_rows": [],
+            "position_rows": [
+                {
+                    "instrument_id": "US.AAPL",
+                    "name": "Apple Inc.",
+                    "sector": "Tech",
+                    "qty": "10",
+                    "avg_cost": "180",
+                    "current_price": "200",
+                    "market_value": "2000",
+                    "weight_pct": "20",
+                    "unrealized_pnl": "200",
+                }
+            ],
+            "filtered_trades": [
+                {
+                    "instrument_id": "US.AAPL",
+                    "name": "Apple Inc.",
+                    "estimated_price": "200",
+                    "cash_delta": "-2000",
+                }
+            ],
             "filter_start_date": None,
             "filter_end_date": None,
         }
@@ -379,7 +434,8 @@ class WebTests(TestCase):
         self.assertIn("Execution Timeline / 执行时间线", body)
         self.assertIn("Account Conclusion / 账户结论", body)
         self.assertIn("Account Snapshot / 账户摘要", body)
-        self.assertNotIn("Account Workspace / 账户工作区", body)
+        self.assertIn("Account Workspace / 账户工作区", body)
+        self.assertIn('<select name="paper_account_id">', body)
         self.assertNotIn("Risk Alerts / 风险告警", body)
         self.assertNotIn("Current Positions / 当前持仓盈亏", body)
         self.assertNotIn("Recent Trades / 最近成交", body)
@@ -398,13 +454,33 @@ class WebTests(TestCase):
             "filtered_trade_count": 0,
             "latest_nav": "100000",
             "cumulative_return": "0",
-            "positions": [],
+            "positions": [{"instrument_id": "US.AAPL", "qty": "10", "avg_cost": "180"}],
             "nav_history": [],
             "recent_trades": [],
             "today_summary": {},
             "sector_exposure_rows": [],
             "risk_alerts": [],
-            "position_rows": [],
+            "position_rows": [
+                {
+                    "instrument_id": "US.AAPL",
+                    "name": "Apple Inc.",
+                    "sector": "Tech",
+                    "qty": "10",
+                    "avg_cost": "180",
+                    "current_price": "200",
+                    "market_value": "2000",
+                    "weight_pct": "20",
+                    "unrealized_pnl": "200",
+                }
+            ],
+            "filtered_trades": [
+                {
+                    "instrument_id": "US.AAPL",
+                    "name": "Apple Inc.",
+                    "estimated_price": "200",
+                    "cash_delta": "-2000",
+                }
+            ],
             "filter_start_date": None,
             "filter_end_date": None,
         }
@@ -428,7 +504,7 @@ class WebTests(TestCase):
         self.assertNotIn("Holdings Detail / 持仓详情", body)
         self.assertNotIn("Recent Trades / 最近成交", body)
         self.assertIn("Current Strategy / 当前策略", body)
-        self.assertIn("us_quality_focus", body)
+        self.assertIn("美股质量精选", body)
         self.assertIn('form method="post" action="/strategy-state/current"', body)
         self.assertIn('>设为当前执行策略<', body)
         self.assertNotIn('aria-disabled="true"', body)
@@ -480,6 +556,10 @@ class WebTests(TestCase):
         self.assertIn('name="paper_account_id" value="web-paper-us"', body)
         self.assertIn('name="paper_start_date" value="2026-04-01"', body)
         self.assertIn('name="paper_end_date" value="2026-04-30"', body)
+        self.assertIn("Account Workspace / 账户工作区", body)
+        self.assertIn('<select name="paper_account_id">', body)
+        self.assertIn("web-paper-cn", body)
+        self.assertIn("美股模拟盘", body)
 
     @patch("stock_quantification.web.StrategyStateStore")
     def test_handle_strategy_state_current_updates_state_and_redirects_to_paper_context(self, mock_strategy_state_cls) -> None:
@@ -535,6 +615,62 @@ class WebTests(TestCase):
         self.assertIn("设为当前执行策略失败", self.app.state.flash_messages[-1]["message"])
         self.assertEqual(self.app.state.flash_messages[-1]["audience"], "paper")
 
+    def test_handle_strategy_candidate_promote_registers_candidate_and_updates_challenger(self) -> None:
+        payload = {
+            "summary": {
+                "artifact_type": "factor_backtest",
+                "subject_id": "cn_strategy_lab:2026-01-02:2026-03-31:abcd1234",
+                "subject_name": "CN 因子实验 / 20日相对强度、60日相对强度",
+                "market": "CN",
+                "top_n": 6,
+                "turnover_cap": "0.1800",
+                "rebalance_buffer": "0.0500",
+                "selected_factor_rows": [
+                    {"factor_name": "rel_ret_20", "effective_weight": "0.2200"},
+                    {"factor_name": "rel_ret_60", "effective_weight": "0.3300"},
+                ],
+                "decision": "REVIEW",
+                "total_return": "0.1234",
+                "rolling_excess_return": "0.0567",
+                "sharpe_ratio": "1.23",
+            }
+        }
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            write_json_artifact(artifact_root, "2026-03-31/cn_factor_backtest_abcd1234.json", payload)
+            write_json_artifact(
+                artifact_root,
+                "web/strategy_state.json",
+                {
+                    "markets": {
+                        "CN": {
+                            "champion_preset_id": "cn_baseline",
+                            "challenger_preset_id": None,
+                            "current_execution_preset_id": "cn_baseline",
+                        }
+                    }
+                },
+            )
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                response = self.app.handle_strategy_candidate_promote(
+                    {
+                        "view": ["optimize"],
+                        "subview": ["detail"],
+                        "artifact": ["2026-03-31/cn_factor_backtest_abcd1234.json"],
+                    }
+                )
+                registry = StrategyRegistryStore(artifact_root)
+                promoted = registry.lookup_strategy("CN", "cn_candidate_abcd1234")
+                strategy_state = self.app._strategy_state_store().load_market_state("CN")
+                result_index = web_module.read_json_artifact(artifact_root, "web/result_index.json")
+
+        self.assertEqual(response.status, 303)
+        self.assertEqual(response.headers["Location"], "/?view=optimize&subview=detail&artifact=2026-03-31/cn_factor_backtest_abcd1234.json")
+        self.assertEqual(promoted.preset_id, "cn_candidate_abcd1234")
+        self.assertEqual(strategy_state["challenger_preset_id"], "cn_candidate_abcd1234")
+        self.assertEqual(result_index["records"][0]["artifact_kind"], "candidate_strategy")
+        self.assertEqual(result_index["records"][0]["summary"]["subject_id"], "cn_candidate_abcd1234")
+
     @patch("stock_quantification.web.StrategyStateStore")
     @patch("stock_quantification.web.LocalPaperLedger")
     def test_home_page_paper_view_falls_back_to_champion_when_current_execution_missing(self, mock_ledger_cls, mock_strategy_state_cls) -> None:
@@ -573,8 +709,85 @@ class WebTests(TestCase):
         self.assertEqual(response.status, 200)
         self.assertIn("Current Strategy / 当前策略", body)
         self.assertIn("Current Execution / 当前执行策略", body)
-        self.assertIn("us_baseline", body)
-        self.assertNotIn(">N/A<", body)
+        self.assertIn("美股基线质量动量", body)
+        self.assertNotIn('<span>Current Execution / 当前执行策略</span>\n          <strong>N/A</strong>', body)
+
+    @patch("stock_quantification.web.StrategyStateStore")
+    @patch("stock_quantification.web.LocalPaperLedger")
+    def test_home_page_paper_view_uses_latest_paper_run_strategy_when_state_is_empty(self, mock_ledger_cls, mock_strategy_state_cls) -> None:
+        ledger = mock_ledger_cls.return_value
+        ledger.latest_account_overview.return_value = {
+            "account_id": "web-paper-us",
+            "market": "US",
+            "cash": "100000",
+            "buying_power": "80000",
+            "position_count": 2,
+            "trade_count": 5,
+            "filtered_trade_count": 5,
+            "latest_nav": "103000",
+            "cumulative_return": "0.0300",
+            "positions": [],
+            "nav_history": [],
+            "recent_trades": [{"strategy_id": "us_baseline"}],
+            "today_summary": {},
+            "sector_exposure_rows": [],
+            "risk_alerts": [],
+            "position_rows": [],
+            "filter_start_date": None,
+            "filter_end_date": None,
+        }
+        ledger.list_accounts.return_value = ["web-paper-us"]
+        ledger.account_overview.return_value = ledger.latest_account_overview.return_value
+        mock_strategy_state_cls.return_value.load_market_state.return_value = {
+            "champion_preset_id": None,
+            "challenger_preset_id": None,
+            "current_execution_preset_id": None,
+        }
+        self.app._latest_paper_run_result = Mock(return_value={"paper_run_summary": {"strategy_id": "us_baseline", "account_id": "web-paper-us", "market": "US"}})
+
+        response = self.app.render_home({"view": ["paper"], "subview": ["main"]})
+        body = response.body.decode("utf-8")
+
+        self.assertEqual(response.status, 200)
+        self.assertIn("Current Execution / 当前执行策略", body)
+        self.assertIn("美股基线质量动量", body)
+        self.assertNotIn('<span>Current Execution / 当前执行策略</span>\n          <strong>N/A</strong>', body)
+
+    @patch("stock_quantification.web.LocalPaperLedger")
+    def test_home_page_paper_view_renders_real_account_conclusion_instead_of_only_note(self, mock_ledger_cls) -> None:
+        ledger = mock_ledger_cls.return_value
+        ledger.latest_account_overview.return_value = {
+            "account_id": "web-paper-us",
+            "market": "US",
+            "cash": "100000",
+            "buying_power": "80000",
+            "position_count": 2,
+            "trade_count": 5,
+            "filtered_trade_count": 5,
+            "latest_nav": "105000",
+            "cumulative_return": "0.0500",
+            "positions": [],
+            "nav_history": [],
+            "recent_trades": [{"strategy_id": "us_baseline"}],
+            "today_summary": {},
+            "sector_exposure_rows": [],
+            "risk_alerts": [],
+            "position_rows": [],
+            "filter_start_date": None,
+            "filter_end_date": None,
+        }
+        ledger.list_accounts.return_value = ["web-paper-us"]
+        ledger.account_overview.return_value = ledger.latest_account_overview.return_value
+        self.app._latest_paper_run_result = Mock(return_value={"review": {"verdict": "PASS"}, "paper_run_summary": {"strategy_id": "us_baseline"}})
+
+        response = self.app.render_home({"view": ["paper"], "subview": ["main"]})
+        body = response.body.decode("utf-8")
+
+        self.assertEqual(response.status, 200)
+        self.assertIn("Account Conclusion / 账户结论", body)
+        self.assertIn("账户增值中", body)
+        self.assertIn("Conclusion Basis / 结论依据", body)
+        self.assertIn("账户净值与持仓状态", body)
 
     @patch("stock_quantification.web.StrategyStateStore")
     @patch("stock_quantification.web.LocalPaperLedger")
@@ -590,13 +803,33 @@ class WebTests(TestCase):
             "filtered_trade_count": 1,
             "latest_nav": "100000",
             "cumulative_return": "0",
-            "positions": [],
+            "positions": [{"instrument_id": "US.AAPL", "qty": "10", "avg_cost": "180"}],
             "nav_history": [],
             "recent_trades": [],
             "today_summary": {},
             "sector_exposure_rows": [],
             "risk_alerts": [],
-            "position_rows": [],
+            "position_rows": [
+                {
+                    "instrument_id": "US.AAPL",
+                    "name": "Apple Inc.",
+                    "sector": "Tech",
+                    "qty": "10",
+                    "avg_cost": "180",
+                    "current_price": "200",
+                    "market_value": "2000",
+                    "weight_pct": "20",
+                    "unrealized_pnl": "200",
+                }
+            ],
+            "filtered_trades": [
+                {
+                    "instrument_id": "US.AAPL",
+                    "name": "Apple Inc.",
+                    "estimated_price": "200",
+                    "cash_delta": "-2000",
+                }
+            ],
             "filter_start_date": None,
             "filter_end_date": None,
         }
@@ -607,14 +840,15 @@ class WebTests(TestCase):
             "challenger_preset_id": "us_quality_focus",
             "current_execution_preset_id": "us_quality_focus",
         }
-
-        response = self.app.render_home({"view": ["paper"], "subview": ["holdings"]})
-        body = response.body.decode("utf-8")
+        with patch.object(self.app, "_enrich_local_paper_overview", side_effect=lambda payload: payload):
+            response = self.app.render_home({"view": ["paper"], "subview": ["holdings"]})
+            body = response.body.decode("utf-8")
 
         self.assertEqual(response.status, 200)
         self.assertIn('data-subview="holdings"', body)
         self.assertIn("Holdings Detail / 持仓详情", body)
         self.assertIn("Sector Exposure / 行业暴露", body)
+        self.assertIn("US.AAPL · Apple Inc.", body)
         self.assertNotIn("Account Conclusion / 账户结论", body)
         self.assertNotIn("Recent Trades / 最近成交", body)
 
@@ -634,7 +868,17 @@ class WebTests(TestCase):
             "cumulative_return": "0",
             "positions": [],
             "nav_history": [],
-            "recent_trades": [],
+            "recent_trades": [
+                {
+                    "trade_date": "2026-04-18",
+                    "side": "BUY",
+                    "instrument_id": "US.AAPL",
+                    "name": "Apple Inc.",
+                    "filled_qty": "10",
+                    "realized_price": "180",
+                    "cash_delta": "-1800",
+                }
+            ],
             "today_summary": {},
             "sector_exposure_rows": [],
             "risk_alerts": [],
@@ -656,41 +900,41 @@ class WebTests(TestCase):
         self.assertEqual(response.status, 200)
         self.assertIn('data-subview="trades"', body)
         self.assertIn("Recent Trades / 最近成交", body)
+        self.assertIn("US.AAPL · Apple Inc.", body)
         self.assertNotIn("Holdings Detail / 持仓详情", body)
         self.assertNotIn("Sector Exposure / 行业暴露", body)
         self.assertNotIn("Account Conclusion / 账户结论", body)
 
-    def test_home_page_falls_back_to_overview_for_invalid_view(self) -> None:
+    def test_home_page_falls_back_to_paper_for_invalid_view(self) -> None:
         response = self.app.render_home({"view": ["not-a-real-view"]})
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
-        self.assertIn("Morning Brief / 今日总览", body)
+        self.assertIn("Local Paper / 模拟盘", body)
         self.assertIn('data-primary-view="paper"', body)
         self.assertIn("primary-nav__link--active", body)
         self.assertIn("section-tabs", body)
+        self.assertNotIn("Morning Brief / 今日总览", body)
 
     @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
     @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")
-    def test_home_page_explicit_overview_view_renders_morning_briefing(self, _mock_paper_panel, _mock_symbol_catalog) -> None:
+    def test_home_page_legacy_overview_view_falls_back_to_paper(self, _mock_paper_panel, _mock_symbol_catalog) -> None:
         response = self.app.render_home({"view": ["overview"]})
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
-        self.assertIn("Morning Brief / 今日总览", body)
-        self.assertIn("Latest Research / 最近研究结果", body)
-        self.assertIn("Latest Runtime / 最近运行结果", body)
-        self.assertIn("Quick Actions / 快捷入口", body)
-        self.assertNotIn("策略实验台", body)
-        self.assertNotIn('data-async-job-form="strategy_run"', body)
-        self.assertNotIn("和我交互", body)
+        self.assertIn("Local Paper / 模拟盘", body)
+        self.assertIn('data-primary-view="paper"', body)
+        self.assertNotIn("Morning Brief / 今日总览", body)
 
     @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
     @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")
-    def test_home_page_supports_workbench_view(self, _mock_paper_panel, _mock_symbol_catalog) -> None:
+    def test_home_page_legacy_workbench_view_falls_back_to_paper(self, _mock_paper_panel, _mock_symbol_catalog) -> None:
         response = self.app.render_home({"view": ["workbench"]})
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
-        self.assertIn("策略优化", body)
+        self.assertIn("Local Paper / 模拟盘", body)
+        self.assertIn('data-primary-view="paper"', body)
         self.assertIn("section-tabs", body)
+        self.assertNotIn("Morning Brief / 今日总览", body)
 
     @patch("stock_quantification.web.StrategyStateStore")
     @patch("stock_quantification.web.LocalPaperLedger")
@@ -736,9 +980,20 @@ class WebTests(TestCase):
         body = response.body.decode("utf-8")
 
         self.assertEqual(response.status, 200)
-        self.assertIn("Strategy Run / 策略运行", body)
+        self.assertIn("Strategy Tasks / 策略任务", body)
         self.assertIn('value="cn_quality_momentum" selected', body)
         self.assertIn('value="us_quality_focus" selected', body)
+        self.assertNotIn('id="run-create-progress"', body)
+        self.assertIn('data-async-submit-feedback', body)
+        self.assertIn('data-submit-label="提交策略任务"', body)
+        self.assertIn('data-pending-label="策略任务提交中..."', body)
+        self.assertIn("response.url === window.location.href", body)
+        self.assertIn("现在提交的新任务会进入队列", body)
+        self.assertIn('type="number" min="1" step="1" name="cash"', body)
+        self.assertIn('type="date" name="as_of_date"', body)
+        self.assertIn('<select id="run-broker-account-id" name="broker_account_id"', body)
+        self.assertIn('data-market="US"', body)
+        self.assertIn('data-market="CN"', body)
         self.assertNotIn("Current Defaults / 当前默认配置", body)
         self.assertNotIn("Recent Execution / 最近执行反馈", body)
         self.assertNotIn("workbench-grid", body)
@@ -790,12 +1045,41 @@ class WebTests(TestCase):
         self.assertIn('value="cn_baseline" selected', body)
         self.assertIn('value="us_baseline" selected', body)
 
+    def test_home_page_run_create_view_lists_promoted_candidates_as_executable_strategies(self) -> None:
+        payload = {
+            "summary": {
+                "artifact_type": "factor_backtest",
+                "subject_id": "us_strategy_lab:2026-01-02:2026-03-31:ffff2222",
+                "subject_name": "US 因子实验 / 质量精选",
+                "market": "US",
+                "top_n": 5,
+                "turnover_cap": "0.1000",
+                "rebalance_buffer": "0.0800",
+                "selected_factor_rows": [
+                    {"factor_name": "profitability", "effective_weight": "0.3200"},
+                    {"factor_name": "quality", "effective_weight": "0.2400"},
+                ],
+            }
+        }
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            registry = StrategyRegistryStore(artifact_root)
+            registry.promote_factor_backtest_candidate(payload, artifact_path="2026-03-31/us_factor_backtest_ffff2222.json")
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                response = self.app.render_home({"view": ["run"], "subview": ["create"]})
+
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn("us_candidate_ffff2222", body)
+        self.assertIn("实验候选", body)
+
     def test_home_page_run_create_view_renders_run_scoped_flash(self) -> None:
         self.app.state.push_flash("运行页消息", audience="run")
         response = self.app.render_home({"view": ["run"], "subview": ["create"]})
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
         self.assertIn("运行页消息", body)
+        self.assertNotIn('id="run-create-progress"', body)
 
     @patch("stock_quantification.web.LocalPaperLedger")
     def test_home_page_run_history_view_lists_runs_most_recent_first(self, mock_ledger_cls) -> None:
@@ -848,12 +1132,16 @@ class WebTests(TestCase):
         response = self.app.render_home({"view": ["run"], "subview": ["history"]})
         body = response.body.decode("utf-8")
         latest_run_ref = self.app._run_result_ref(self.app.state.last_run_results[-1])
+        older_run_ref = self.app._run_result_ref(self.app.state.last_run_results[0])
 
         self.assertEqual(response.status, 200)
         self.assertIn("Run History / 运行历史", body)
-        self.assertLess(body.index("us_quality_focus"), body.index("us_baseline"))
+        self.assertIn("timeline-stack", body)
+        self.assertNotIn("card-grid", body)
+        self.assertLess(body.index(f"run_ref={web_module.quote(latest_run_ref)}"), body.index(f"run_ref={web_module.quote(older_run_ref)}"))
         self.assertIn(f"run_ref={web_module.quote(latest_run_ref)}", body)
         self.assertIn("view=run&amp;subview=detail", body)
+        self.assertNotIn('data-subview="detail"', body)
 
     def test_home_page_run_history_view_reads_persisted_history(self) -> None:
         with TemporaryDirectory() as tmpdir:
@@ -878,11 +1166,127 @@ class WebTests(TestCase):
                 },
             )
             with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
-                response = self.app.render_home({"view": ["run"], "subview": ["history"]})
+                with patch.object(self.app, "_ops_store", return_value=web_module.ProjectOpsStore(artifact_root)):
+                    response = self.app.render_home({"view": ["run"], "subview": ["history"]})
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
         self.assertIn("us_quality_focus", body)
+        self.assertIn("timeline-stack", body)
         self.assertIn("view=run&amp;subview=detail", body)
+
+    def test_home_page_run_history_shows_recent_success_event_above_older_blocked_events(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                ops_store = web_module.ProjectOpsStore(artifact_root)
+                with patch("stock_quantification.sqlite_state._utc_now", side_effect=["2026-05-05T09:00:00", "2026-05-05T09:05:00", "2026-05-05T09:05:01"]):
+                    ops_store.append_event(
+                        category="runtime",
+                        action="strategy_run",
+                        status="BLOCKED",
+                        detail="策略运行被运行守护拦截",
+                        metadata={"active_job": "factor_backtest"},
+                    )
+                    ops_store.append_event(
+                        category="runtime",
+                        action="strategy_run",
+                        status="SUCCESS",
+                        detail="运行 1 个市场，execution=ADVISORY，runtime=PAPER",
+                        metadata={"account_id": "web-paper-us", "markets": "US"},
+                    )
+                    ops_store.append_run_history(
+                        [
+                            {
+                                "market": "US",
+                                "trade_date": "2026-04-19",
+                                "strategy_id": "us_quality_focus",
+                                "review": {"verdict": "PASS", "comments": ["persisted"]},
+                                "paper_trade_records": [],
+                                "run_instance_id": "recent-run-1",
+                            }
+                        ]
+                    )
+                with patch.object(self.app, "_ops_store", return_value=ops_store):
+                    response = self.app.render_home({"view": ["run"], "subview": ["history"]})
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn("us_quality_focus", body)
+        self.assertIn("SUCCESS", body)
+        self.assertIn("BLOCKED", body)
+        self.assertLess(body.find("SUCCESS"), body.find("BLOCKED"))
+
+    def test_home_page_run_history_prioritizes_run_results_above_runtime_events(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                ops_store = web_module.ProjectOpsStore(artifact_root)
+                with patch("stock_quantification.sqlite_state._utc_now", side_effect=["2026-05-05T10:00:00", "2026-05-05T10:00:01"]):
+                    ops_store.append_event(
+                        category="runtime",
+                        action="strategy_run",
+                        status="SUCCESS",
+                        detail="运行 1 个市场，execution=ADVISORY，runtime=PAPER",
+                        metadata={"account_id": "web-paper-us", "markets": "US"},
+                    )
+                    ops_store.append_run_history(
+                        [
+                            {
+                                "market": "US",
+                                "trade_date": "2026-05-04",
+                                "strategy_id": "us_quality_focus",
+                                "review": {"verdict": "PASS", "comments": ["persisted"]},
+                                "paper_trade_records": [],
+                                "run_instance_id": "persisted-run-2",
+                            }
+                        ]
+                    )
+                with patch.object(self.app, "_ops_store", return_value=ops_store):
+                    response = self.app.render_home({"view": ["run"], "subview": ["history"]})
+
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn("SUCCESS", body)
+        self.assertIn("us_quality_focus", body)
+        self.assertLess(body.find("us_quality_focus"), body.find("SUCCESS"))
+
+    def test_home_page_run_history_surfaces_matching_run_detail_above_success_event(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                ops_store = web_module.ProjectOpsStore(artifact_root)
+                run_result = {
+                    "market": "US",
+                    "trade_date": "2026-05-05",
+                    "strategy_id": "us_quality_focus",
+                    "review": {"verdict": "PASS", "comments": ["persisted"]},
+                    "paper_trade_records": [],
+                    "paper_run_summary": {
+                        "account_id": "web-paper-us",
+                        "strategy_id": "us_quality_focus",
+                        "as_of": "2026-05-05T08:23:25",
+                        "trade_count": 0,
+                        "position_count": 0,
+                    },
+                    "run_instance_id": "recent-run-1",
+                }
+                with patch("stock_quantification.sqlite_state._utc_now", return_value="2026-05-05T08:23:25"):
+                    ops_store.append_event(
+                        category="runtime",
+                        action="strategy_run",
+                        status="SUCCESS",
+                        detail="运行 1 个市场，execution=ADVISORY，runtime=PAPER",
+                        metadata={"account_id": "web-paper-us", "markets": "US"},
+                    )
+                    ops_store.append_run_history([run_result])
+                with patch.object(self.app, "_ops_store", return_value=ops_store):
+                    response = self.app.render_home({"view": ["run"], "subview": ["history"]})
+        body = response.body.decode("utf-8")
+        expected_run_ref = web_module.quote(self.app._run_result_ref(run_result))
+        self.assertEqual(response.status, 200)
+        self.assertIn("Run 1", body)
+        self.assertIn(f"run_ref={expected_run_ref}", body)
+        self.assertIn("Open Detail / 打开详情", body)
+        self.assertLess(body.find("Run 1"), body.find("Run Event 2"))
 
     def test_home_page_run_history_view_shows_blocked_runtime_events(self) -> None:
         with TemporaryDirectory() as tmpdir:
@@ -904,11 +1308,89 @@ class WebTests(TestCase):
                 },
             )
             with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
-                response = self.app.render_home({"view": ["run"], "subview": ["history"]})
+                with patch.object(self.app, "_ops_store", return_value=web_module.ProjectOpsStore(artifact_root)):
+                    response = self.app.render_home({"view": ["run"], "subview": ["history"]})
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
         self.assertIn("BLOCKED", body)
         self.assertIn("策略运行被运行守护拦截", body)
+        self.assertIn("timeline-stack", body)
+        self.assertNotIn('data-subview="detail"', body)
+
+    def test_home_page_run_history_view_keeps_duplicate_blocked_runtime_events(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            write_json_artifact(
+                artifact_root,
+                "web/task_logs.json",
+                {
+                    "entries": [
+                        {
+                            "created_at": "2026-05-05T08:38:21",
+                            "category": "runtime",
+                            "action": "strategy_run",
+                            "status": "STARTED",
+                            "detail": "已提交 2 个市场的策略运行任务",
+                            "metadata": {"markets": "CN,US"},
+                        },
+                        {
+                            "created_at": "2026-05-05T08:38:25",
+                            "category": "runtime",
+                            "action": "strategy_run",
+                            "status": "BLOCKED",
+                            "detail": "策略运行被运行守护拦截",
+                            "metadata": {"markets": "CN,US"},
+                        },
+                        {
+                            "created_at": "2026-05-05T08:38:34",
+                            "category": "runtime",
+                            "action": "strategy_run",
+                            "status": "BLOCKED",
+                            "detail": "策略运行被运行守护拦截",
+                            "metadata": {"markets": "CN,US"},
+                        },
+                    ]
+                },
+            )
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                with patch.object(self.app, "_ops_store", return_value=web_module.ProjectOpsStore(artifact_root)):
+                    response = self.app.render_home({"view": ["run"], "subview": ["history"]})
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertEqual(body.count("策略运行被运行守护拦截"), 2)
+
+    def test_home_page_run_history_view_shows_recent_queued_jobs(self) -> None:
+        self.ops_store.load_state.return_value = {
+            "active_job": None,
+            "queued_jobs": [
+                {
+                    "job_id": "queue-1",
+                    "kind": "strategy_run",
+                    "status": "QUEUED",
+                    "stage": "QUEUED",
+                    "detail": "Task accepted and waiting in queue.",
+                    "metadata": {"markets": ["US"]},
+                    "created_at": "2026-05-05T10:00:00",
+                }
+            ],
+            "job_history": [],
+            "audit_events": [],
+            "heartbeats": {},
+        }
+        response = self.app.render_home({"view": ["run"], "subview": ["history"]})
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn("QUEUED", body)
+        self.assertIn("Task accepted and waiting in queue.", body)
+        self.assertIn("US", body)
+
+    def test_run_form_renders_write_to_paper_impact_hint(self) -> None:
+        response = self.app.render_home({"view": ["run"], "subview": ["create"]})
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn('id="run-impact-hint"', body)
+        self.assertIn("本次仅生成策略结果，不会写入模拟盘。", body)
+        self.assertIn('id="run-route-orders"', body)
 
     @patch("stock_quantification.web.LocalPaperLedger")
     def test_home_page_run_detail_view_renders_selected_run(self, mock_ledger_cls) -> None:
@@ -964,10 +1446,12 @@ class WebTests(TestCase):
 
         self.assertEqual(response.status, 200)
         self.assertIn("Run Detail / 运行详情", body)
-        self.assertIn("US.MSFT", body)
+        self.assertIn("Execution Snapshot / 执行摘要", body)
+        self.assertIn("Task Review / 任务审核", body)
+        self.assertIn("US.MSFT · Microsoft", body)
         self.assertIn("suggestion-new", body)
         self.assertIn("REVIEW", body)
-        self.assertIn("Simulated Account Effect / 模拟盘影响", body)
+        self.assertNotIn("Simulated Account Effect / 模拟盘影响", body)
         self.assertIn("101000", body)
 
     @patch("stock_quantification.web.LocalPaperLedger")
@@ -1072,16 +1556,64 @@ class WebTests(TestCase):
         response = self.app.render_home({"view": ["optimize"], "subview": ["create"]})
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
-        self.assertIn("Strategy Optimize / 策略优化", body)
+        self.assertIn("Strategy Experiments / 策略实验", body)
         self.assertIn("Factor Backtest / 因子回测", body)
         self.assertIn('id="factor-backtest-form"', body)
         self.assertIn('data-subview="create"', body)
         self.assertIn("section-tabs", body)
-        self.assertNotIn("Strategy Run / 策略运行", body)
+        self.assertNotIn("Strategy Tasks / 策略任务", body)
         self.assertNotIn('data-async-job-form="strategy_run"', body)
         self.assertNotIn("Current Defaults / 当前默认配置", body)
         self.assertNotIn("Recent Execution / 最近执行反馈", body)
         self.assertNotIn("Current Strategy / 当前策略", body)
+        self.assertNotIn("Detail / 详情", body)
+        self.assertIn('type="date" name="factor_start_date"', body)
+        self.assertIn('type="date" name="factor_end_date"', body)
+        self.assertIn('type="number" min="1" max="10" step="1" name="factor_top_n"', body)
+        self.assertIn('type="number" min="1" step="1" name="factor_initial_cash"', body)
+        self.assertIn(f'value="{DEFAULT_PROJECT_CONFIG["factor_defaults"]["factor_start_date"]}"', body)
+        self.assertIn(f'value="{DEFAULT_PROJECT_CONFIG["factor_defaults"]["factor_end_date"]}"', body)
+        self.assertIn('value="10"', body)
+        self.assertIn('value="50"', body)
+        self.assertIn('value="200"', body)
+        self.assertIn("均线多头排列", body)
+        self.assertIn("突破强度", body)
+        self.assertIn("量价确认", body)
+        self.assertIn("回调韧性", body)
+        self.assertNotIn('name="factor_turnover_cap"', body)
+        self.assertNotIn('name="factor_rebalance_buffer"', body)
+
+    @patch("stock_quantification.web.LocalPaperLedger")
+    def test_paper_workspace_uses_date_inputs_for_filters(self, mock_ledger_cls) -> None:
+        ledger = mock_ledger_cls.return_value
+        overview = {
+            "account_id": "web-paper-us",
+            "market": "US",
+            "cash": "100000",
+            "buying_power": "100000",
+            "position_count": 0,
+            "trade_count": 0,
+            "filtered_trade_count": 0,
+            "latest_nav": "100000",
+            "cumulative_return": "0",
+            "positions": [],
+            "nav_history": [],
+            "recent_trades": [],
+            "today_summary": {},
+            "sector_exposure_rows": [],
+            "risk_alerts": [],
+            "position_rows": [],
+            "filter_start_date": "2026-04-01",
+            "filter_end_date": "2026-04-30",
+        }
+        ledger.account_overview.return_value = overview
+        ledger.latest_account_overview.return_value = overview
+        ledger.list_accounts.return_value = ["web-paper-cn", "web-paper-us"]
+        response = self.app.render_home({"view": ["paper"], "subview": ["main"], "paper_account_id": ["web-paper-us"]})
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn('type="date" name="paper_start_date" value="2026-04-01"', body)
+        self.assertIn('type="date" name="paper_end_date" value="2026-04-30"', body)
 
     @patch.object(DashboardApp, "_load_project_config", return_value=DEFAULT_PROJECT_CONFIG)
     def test_optimize_history_view_renders_timeline_cards_only(self, _mock_config) -> None:
@@ -1129,16 +1661,22 @@ class WebTests(TestCase):
                 },
             )
             with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
-                response = self.app.render_home({"view": ["optimize"], "subview": ["history"]})
+                with patch.object(self.app, "_ops_store", return_value=web_module.ProjectOpsStore(artifact_root)):
+                    response = self.app.render_home({"view": ["optimize"], "subview": ["history"]})
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
         self.assertIn("Optimization Timeline / 优化时间线", body)
         self.assertIn("timeline-stack", body)
         self.assertIn("美股因子回测", body)
         self.assertIn("美股策略套件", body)
+        self.assertIn("Decision / 结论: KEEP | Score / 评分: 0.8800", body)
+        self.assertIn("Return / 收益: 0.0821 | Market / 市场: US", body)
+        self.assertIn("Excess / 超额: 0.0215", body)
+        self.assertIn("Open Detail / 打开详情", body)
         self.assertNotIn('id="factor-backtest-form"', body)
         self.assertNotIn("Current Defaults / 当前默认配置", body)
         self.assertNotIn("Recent Execution / 最近执行反馈", body)
+        self.assertNotIn("Detail / 详情", body)
 
     @patch.object(DashboardApp, "_load_project_config", return_value=DEFAULT_PROJECT_CONFIG)
     def test_optimize_history_view_filters_out_paper_runs_before_limit(self, _mock_config) -> None:
@@ -1194,11 +1732,178 @@ class WebTests(TestCase):
                 },
             )
             with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
-                response = self.app.render_home({"view": ["optimize"], "subview": ["history"]})
+                with patch.object(self.app, "_ops_store", return_value=web_module.ProjectOpsStore(artifact_root)):
+                    response = self.app.render_home({"view": ["optimize"], "subview": ["history"]})
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
         self.assertIn("因子回测被运行守护拦截", body)
         self.assertIn("BLOCKED", body)
+        self.assertIn("Score / 评分: 事件", body)
+        self.assertIn("Return / 收益: 未生成 | Market / 市场: CN", body)
+        self.assertNotIn("Open Artifact / 打开工件", body)
+
+    @patch.object(DashboardApp, "_load_project_config", return_value=DEFAULT_PROJECT_CONFIG)
+    def test_optimize_history_view_shows_recent_queued_experiment_jobs(self, _mock_config) -> None:
+        self.ops_store.load_state.return_value = {
+            "active_job": None,
+            "queued_jobs": [
+                {
+                    "job_id": "factor-job-1",
+                    "kind": "factor_backtest",
+                    "status": "QUEUED",
+                    "stage": "QUEUED",
+                    "detail": "Task accepted and waiting in queue.",
+                    "metadata": {"market": "US"},
+                    "created_at": "2026-05-06T10:00:00",
+                    "progress_pct": 15,
+                }
+            ],
+            "job_history": [],
+            "audit_events": [],
+            "heartbeats": {},
+        }
+        response = self.app.render_home({"view": ["optimize"], "subview": ["history"]})
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn("QUEUED", body)
+        self.assertIn("Task accepted and waiting in queue.", body)
+        self.assertIn("Market / 市场: US", body)
+        self.assertIn("15%", body)
+        self.assertIn("job-progress__bar", body)
+
+    @patch.object(DashboardApp, "_load_project_config", return_value=DEFAULT_PROJECT_CONFIG)
+    def test_optimize_history_view_prioritizes_success_event_above_older_indexed_results(self, _mock_config) -> None:
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            write_json_artifact(
+                artifact_root,
+                "web/result_index.json",
+                {
+                    "records": [
+                        {
+                            "result_id": "factor_backtest:US:2026-03-31",
+                            "artifact_kind": "factor_backtest",
+                            "market": "US",
+                            "sort_date": "2026-03-31",
+                            "summary": {"subject_name": "旧实验", "decision": "KEEP", "score": "1.23", "return": "0.10"},
+                            "artifacts": {"json": "2026-03-31/us_factor_backtest_old.json"},
+                        }
+                    ]
+                },
+            )
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                ops_store = web_module.ProjectOpsStore(artifact_root)
+                with patch("stock_quantification.sqlite_state._utc_now", return_value="2026-05-06T10:05:00"):
+                    ops_store.append_event(
+                        category="research",
+                        action="factor_backtest",
+                        status="SUCCESS",
+                        detail="US 策略实验完成：20日相对强度、60日相对强度",
+                        metadata={"job_id": "factor-job-2", "market": "US"},
+                    )
+                with patch.object(self.app, "_ops_store", return_value=ops_store):
+                    response = self.app.render_home({"view": ["optimize"], "subview": ["history"]})
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn("SUCCESS", body)
+        self.assertIn("旧实验", body)
+        self.assertLess(body.find("SUCCESS"), body.find("旧实验"))
+
+    @patch.object(DashboardApp, "_load_project_config", return_value=DEFAULT_PROJECT_CONFIG)
+    def test_optimize_history_view_links_success_event_to_matching_result(self, _mock_config) -> None:
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            write_json_artifact(
+                artifact_root,
+                "web/result_index.json",
+                {
+                    "records": [
+                        {
+                            "result_id": "factor_backtest:CN:2026-05-06",
+                            "artifact_kind": "factor_backtest",
+                            "market": "CN",
+                            "sort_date": "2026-05-06",
+                            "summary": {
+                                "subject_name": "CN 因子实验 / 20日相对强度、60日相对强度、趋势强度",
+                                "decision": "REVIEW",
+                                "score": "0.77",
+                                "return": "0.24",
+                                "excess_return": "0.05",
+                            },
+                            "artifacts": {"json": "2026-05-06/cn_factor_backtest_xxx.json"},
+                        }
+                    ]
+                },
+            )
+            write_json_artifact(
+                artifact_root,
+                "web/task_logs.json",
+                {
+                    "entries": [
+                        {
+                            "created_at": "2026-05-06T13:44:55",
+                            "category": "research",
+                            "action": "factor_backtest",
+                            "status": "SUCCESS",
+                            "detail": "CN 策略实验完成：20日相对强度、60日相对强度、趋势强度",
+                            "metadata": {"market": "CN", "factors": "rel_ret_20,rel_ret_60,trend"},
+                        }
+                    ]
+                },
+            )
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                with patch.object(self.app, "_ops_store", return_value=web_module.ProjectOpsStore(artifact_root)):
+                    response = self.app.render_home({"view": ["optimize"], "subview": ["history"]})
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn("Open Detail / 打开详情", body)
+        self.assertIn("Open Artifact / 打开工件", body)
+        self.assertIn("Return / 收益: 0.24 | Market / 市场: CN", body)
+        self.assertIn("Excess / 超额: 0.05", body)
+
+    @patch.object(DashboardApp, "_load_project_config", return_value=DEFAULT_PROJECT_CONFIG)
+    def test_optimize_history_view_links_success_event_to_next_day_result(self, _mock_config) -> None:
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            write_json_artifact(
+                artifact_root,
+                "web/result_index.json",
+                {
+                    "records": [
+                        {
+                            "result_id": "factor_backtest:CN:2026-05-10",
+                            "artifact_kind": "factor_backtest",
+                            "market": "CN",
+                            "sort_date": "2026-05-10",
+                            "summary": {
+                                "subject_name": "CN 因子实验 / 20日相对强度、60日相对强度、趋势强度、均线多头排列",
+                                "decision": "REVIEW",
+                                "score": "-0.77",
+                                "return": "0.03",
+                                "excess_return": "-0.22",
+                            },
+                            "artifacts": {"json": "2026-05-10/cn_factor_backtest_new.json"},
+                        }
+                    ]
+                },
+            )
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                ops_store = web_module.ProjectOpsStore(artifact_root)
+                with patch("stock_quantification.sqlite_state._utc_now", return_value="2026-05-09T18:26:01"):
+                    ops_store.append_event(
+                        category="research",
+                        action="factor_backtest",
+                        status="SUCCESS",
+                        detail="CN 策略实验完成：20日相对强度、60日相对强度、趋势强度、均线多头排列",
+                        metadata={"market": "CN", "factors": "rel_ret_20,rel_ret_60,trend,ma_trend_alignment"},
+                    )
+                with patch.object(self.app, "_ops_store", return_value=ops_store):
+                    response = self.app.render_home({"view": ["optimize"], "subview": ["history"]})
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn("Open Detail / 打开详情", body)
+        self.assertIn("Return / 收益: 0.03 | Market / 市场: CN", body)
+        self.assertIn("Excess / 超额: -0.22", body)
 
     @patch.object(DashboardApp, "_load_project_config", return_value=DEFAULT_PROJECT_CONFIG)
     def test_optimize_history_view_shows_index_warning_when_index_is_invalid(self, _mock_config) -> None:
@@ -1279,9 +1984,10 @@ class WebTests(TestCase):
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
         self.assertIn("US Quality Focus", body)
+        self.assertIn("Strategy Experiments / 策略实验", body)
         self.assertIn("Champion Candidate", body)
         self.assertIn("Challenger Candidate", body)
-        self.assertIn("send to current strategy", body)
+        self.assertIn("当前详情不是可晋升实验，或已经是正式策略结果。", body)
         self.assertIn("recommended_presets", body)
         self.assertIn("watchlist_presets", body)
         self.assertNotIn("Factor Backtest / 因子回测", body)
@@ -1323,28 +2029,18 @@ class WebTests(TestCase):
 
     @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
     @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")
-    def test_home_page_renders_morning_briefing_overview(self, _mock_paper_panel, _mock_symbol_catalog) -> None:
+    def test_home_page_renders_paper_first_shell_without_legacy_overview_content(self, _mock_paper_panel, _mock_symbol_catalog) -> None:
         response = self.app.render_home({})
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
-        self.assertIn("Morning Brief / 今日总览", body)
+        self.assertIn("Local Paper / 模拟盘", body)
         self.assertIn("Project Status", body)
-        self.assertIn("Latest Research / 最近研究结果", body)
-        self.assertIn("Latest Runtime / 最近运行结果", body)
-        self.assertIn("Quick Actions / 快捷入口", body)
         self.assertIn("primary-nav", body)
         self.assertIn("section-tabs", body)
-        self.assertIn("Research Workbench / 研究工作台", body)
-        self.assertIn("Research Results / 研究结果", body)
-        self.assertIn("Local Paper / 模拟盘", body)
-        self.assertIn("Ops / 运维中心", body)
-        self.assertNotIn("策略实验台", body)
+        self.assertNotIn("Research Workbench / 研究工作台", body)
+        self.assertNotIn("Morning Brief / 今日总览", body)
         self.assertNotIn('data-async-job-form="strategy_run"', body)
         self.assertNotIn('id="factor-backtest-form"', body)
-        self.assertNotIn("重置账户", body)
-        self.assertNotIn("持仓详情", body)
-        self.assertNotIn("当日成交汇总", body)
-        self.assertNotIn("最近结果", body)
         self.assertNotIn("和我交互", body)
 
     @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
@@ -1828,6 +2524,7 @@ class WebTests(TestCase):
                 "end_date": "2026-03-31",
                 "total_return": "0.0821",
                 "rolling_excess_return": "0.0215",
+                "benchmark_total_return": "0.0606",
                 "sharpe_ratio": "1.2200",
                 "max_drawdown": "-0.0540",
                 "average_turnover": "0.1200",
@@ -1838,7 +2535,31 @@ class WebTests(TestCase):
                 "selected_factor_rows": [{"label": "20日相对强度", "effective_weight": "0.2200", "tilt": "1.2", "base_weight": "0.1500"}],
             },
             "signal_validation": {"daily": [{"trade_date": "2026-03-12", "equal_weight_return": "0.0120", "excess_return": "0.0050", "win_rate": "0.6000"}]},
-            "rolling_backtest": {"daily": [{"trade_date": "2026-03-12", "end_of_day_nav": "100000"}, {"trade_date": "2026-03-13", "end_of_day_nav": "101200", "period_return": "0.0120", "cumulative_portfolio_return": "0.0120", "turnover": "0.0800", "total_fees": "12.5"}]},
+            "rolling_backtest": {
+                "daily": [
+                    {"trade_date": "2026-03-12", "end_of_day_nav": "100000", "benchmark_nav": "100000", "benchmark_period_return": "0.0000", "cumulative_benchmark_return": "0.0000"},
+                    {"trade_date": "2026-03-13", "end_of_day_nav": "101200", "benchmark_nav": "100600", "period_return": "0.0120", "benchmark_period_return": "0.0060", "cumulative_portfolio_return": "0.0120", "cumulative_benchmark_return": "0.0060", "turnover": "0.0800", "total_fees": "12.5"},
+                ],
+                "summary": {
+                    "final_nav": "108210.0000",
+                    "benchmark_final_nav": "106060.0000",
+                    "benchmark_total_return": "0.0606",
+                    "excess_return": "0.0215",
+                    "trend_exit_count": 2,
+                    "rank_exit_count": 1,
+                    "risk_exit_count": 1,
+                    "other_exit_count": 0,
+                },
+                "exit_events": [
+                    {
+                        "trade_date": "2026-03-13",
+                        "instrument_id": "US.AAPL",
+                        "name": "Apple",
+                        "reason_label": "趋势失效",
+                        "detail": "trend=-0.3000，目标仓位降到 0。",
+                    }
+                ],
+            },
             "attribution": {
                 "alpha_mix": [{"family": "momentum", "net_weight": "0.4200", "gross_weight": "0.4200", "share_of_gross": "0.5300"}],
                 "regime_summary": [{"regime": "UP", "observations": 8, "average_period_return": "0.0050", "average_excess_period_return": "0.0020", "win_rate": "0.6250"}],
@@ -1853,6 +2574,12 @@ class WebTests(TestCase):
         self.assertIn("Factor Setup / 因子配置", body)
         self.assertIn("Regime Attribution / 市场状态归因", body)
         self.assertIn("Alpha Mix / 因子家族暴露", body)
+        self.assertIn("Exit Signals / 退出信号", body)
+        self.assertIn("趋势失效", body)
+        self.assertIn("Strategy NAV / 策略净值", body)
+        self.assertIn("Benchmark NAV / 基准净值", body)
+        self.assertIn("Benchmark Return / 基准收益", body)
+        self.assertIn("Excess Return / 超额收益", body)
         self.assertIn("Next Iteration / 下一轮迭代建议", body)
         self.assertNotIn('id="factor-backtest-form"', body)
 
@@ -1872,12 +2599,12 @@ class WebTests(TestCase):
         self.assertEqual(second_html, "")
 
     def test_scoped_flash_messages_only_render_on_target_page(self) -> None:
-        self.app.state.push_flash("工作台错误", audience="workbench")
+        self.app.state.push_flash("策略优化错误", audience="optimize")
         paper_html = self.app._render_flash_messages("paper")
-        workbench_html = self.app._render_flash_messages("workbench")
+        optimize_html = self.app._render_flash_messages("optimize")
         self.assertEqual(paper_html, "")
-        self.assertIn("工作台错误", workbench_html)
-        self.assertEqual(self.app._render_flash_messages("workbench"), "")
+        self.assertIn("策略优化错误", optimize_html)
+        self.assertEqual(self.app._render_flash_messages("optimize"), "")
 
     @patch.object(DashboardApp, "_run_factor_backtest")
     def test_factor_backtest_updates_state_and_redirects(self, mock_run_factor_backtest) -> None:
@@ -1904,28 +2631,28 @@ class WebTests(TestCase):
         with TemporaryDirectory() as tmpdir:
             artifact_root = Path(tmpdir)
             with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
-                with patch.object(self.app, "_start_background_task", side_effect=lambda target, *args: target(*args)):
-                    response = self.app.handle_factor_backtest(
-                        {
-                            "view": ["workbench"],
-                            "factor_market": ["CN"],
-                            "factor": ["rel_ret_20", "rel_ret_60"],
-                            "factor_start_date": ["2026-01-02"],
-                            "factor_end_date": ["2026-03-31"],
-                            "factor_holding_sessions": ["5"],
-                            "factor_detail_limit": ["8"],
-                            "factor_history_limit": ["60"],
-                            "factor_top_n": ["4"],
-                            "factor_initial_cash": ["100000"],
-                            "factor_turnover_cap": ["0.18"],
-                            "factor_rebalance_buffer": ["0.05"],
-                            "factor_tilt_rel_ret_20": ["1.2"],
-                            "factor_tilt_rel_ret_60": ["0.8"],
-                        }
-                    )
+                with patch.object(self.app, "_ops_store", return_value=web_module.ProjectOpsStore(artifact_root)):
+                    with patch.object(self.app, "_ensure_job_worker_running"), patch.object(self.app._job_worker_wakeup_event, "set"):
+                        response = self.app.handle_factor_backtest(
+                            {
+                                "view": ["optimize"],
+                                "factor_market": ["CN"],
+                                "factor": ["rel_ret_20", "rel_ret_60"],
+                                "factor_start_date": ["2026-01-02"],
+                                "factor_end_date": ["2026-03-31"],
+                                "factor_holding_sessions": ["5"],
+                                "factor_detail_limit": ["50"],
+                                "factor_history_limit": ["200"],
+                                "factor_top_n": ["10"],
+                                "factor_initial_cash": ["100000"],
+                                "factor_tilt_rel_ret_20": ["1.2"],
+                                "factor_tilt_rel_ret_60": ["0.8"],
+                            }
+                        )
+                        self.app._drain_job_queue_once()
                 recorded_index = web_module.read_json_artifact(artifact_root, "web/result_index.json")
         self.assertEqual(response.status, 303)
-        self.assertEqual(response.headers["Location"], "/?view=workbench&subview=create")
+        self.assertEqual(response.headers["Location"], "/?view=optimize&subview=create")
         self.assertEqual(self.app.state.last_factor_backtest_result["summary"]["market"], "CN")
         self.assertEqual(recorded_index["records"][0]["artifact_kind"], "factor_backtest")
         self.assertEqual(recorded_index["records"][0]["summary"]["subject_name"], "CN 因子实验 / 20日相对强度、60日相对强度")
@@ -1937,22 +2664,25 @@ class WebTests(TestCase):
             "attribution": {"scorecard": {"decision": "REVIEW"}},
             "artifacts": {"json": "/tmp/cn_factor.json", "markdown": "/tmp/cn_factor.md"},
         }
-        with patch.object(self.app, "_start_background_task", side_effect=lambda target, *args: target(*args)):
-            response = self.app.handle_factor_backtest(
-                {
-                    "factor_market": ["CN"],
-                    "factor_selection_payload": ["rel_ret_20,trend"],
-                    "factor_start_date": ["2026-01-02"],
-                    "factor_end_date": ["2026-03-31"],
-                    "factor_holding_sessions": ["5"],
-                    "factor_detail_limit": ["8"],
-                    "factor_history_limit": ["60"],
-                    "factor_top_n": ["4"],
-                    "factor_initial_cash": ["100000"],
-                    "factor_turnover_cap": ["0.18"],
-                    "factor_rebalance_buffer": ["0.05"],
-                }
-            )
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                with patch.object(self.app, "_ops_store", return_value=web_module.ProjectOpsStore(artifact_root)):
+                    with patch.object(self.app, "_ensure_job_worker_running"), patch.object(self.app._job_worker_wakeup_event, "set"):
+                        response = self.app.handle_factor_backtest(
+                            {
+                                "factor_market": ["CN"],
+                                "factor_selection_payload": ["rel_ret_20,trend"],
+                                "factor_start_date": ["2026-01-02"],
+                                "factor_end_date": ["2026-03-31"],
+                                "factor_holding_sessions": ["5"],
+                                "factor_detail_limit": ["50"],
+                                "factor_history_limit": ["200"],
+                                "factor_top_n": ["10"],
+                                "factor_initial_cash": ["100000"],
+                            }
+                        )
+                        self.app._drain_job_queue_once()
         self.assertEqual(response.status, 303)
         args = mock_run_factor_backtest.call_args.kwargs
         self.assertEqual(args["selected_factors"], ["rel_ret_20", "trend"])
@@ -1964,25 +2694,28 @@ class WebTests(TestCase):
             "attribution": {"scorecard": {"decision": "REVIEW"}},
             "artifacts": {"json": "/tmp/cn_factor.json", "markdown": "/tmp/cn_factor.md"},
         }
-        with patch.object(self.app, "_start_background_task", side_effect=lambda target, *args: target(*args)):
-            response = self.app.handle_factor_backtest(
-                {
-                    "factor_market": ["CN"],
-                    "factor_start_date": ["2026-01-02"],
-                    "factor_end_date": ["2026-03-31"],
-                    "factor_holding_sessions": ["5"],
-                    "factor_detail_limit": ["8"],
-                    "factor_history_limit": ["60"],
-                    "factor_top_n": ["4"],
-                    "factor_initial_cash": ["100000"],
-                    "factor_turnover_cap": ["0.18"],
-                    "factor_rebalance_buffer": ["0.05"],
-                    "factor_tilt_rel_ret_20": ["1.0"],
-                    "factor_tilt_rel_ret_60": ["1.0"],
-                    "factor_tilt_trend": ["1.0"],
-                    "factor_tilt_quality": ["1.0"],
-                }
-            )
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                with patch.object(self.app, "_ops_store", return_value=web_module.ProjectOpsStore(artifact_root)):
+                    with patch.object(self.app, "_ensure_job_worker_running"), patch.object(self.app._job_worker_wakeup_event, "set"):
+                        response = self.app.handle_factor_backtest(
+                            {
+                                "factor_market": ["CN"],
+                                "factor_start_date": ["2026-01-02"],
+                                "factor_end_date": ["2026-03-31"],
+                                "factor_holding_sessions": ["5"],
+                                "factor_detail_limit": ["50"],
+                                "factor_history_limit": ["200"],
+                                "factor_top_n": ["10"],
+                                "factor_initial_cash": ["100000"],
+                                "factor_tilt_rel_ret_20": ["1.0"],
+                                "factor_tilt_rel_ret_60": ["1.0"],
+                                "factor_tilt_trend": ["1.0"],
+                                "factor_tilt_quality": ["1.0"],
+                            }
+                        )
+                        self.app._drain_job_queue_once()
         self.assertEqual(response.status, 303)
         args = mock_run_factor_backtest.call_args.kwargs
         self.assertEqual(args["selected_factors"], ["rel_ret_20", "rel_ret_60", "trend"])
@@ -2008,25 +2741,30 @@ class WebTests(TestCase):
             },
             "paper_trade_records": [{"instrument_id": "US.AAPL"}],
         }
-        with patch.object(self.app, "_start_background_task", side_effect=lambda target, *args: target(*args)):
-            response = self.app.handle_run(
-                {
-                    "market": ["US"],
-                    "runtime_mode": ["LIVE"],
-                    "execution_mode": ["AUTO"],
-                    "broker": ["LOCAL_PAPER"],
-                    "route_orders": ["on"],
-                    "broker_account_id": ["web-paper-us"],
-                    "selected_strategy_us": ["us_quality_focus"],
-                    "cash": ["100000"],
-                    "top_n": ["2"],
-                    "detail_limit": ["10"],
-                    "history_limit": ["90"],
-                    "beta_window": ["20"],
-                    "forward_days": ["0"],
-                    "symbols_us": ["AAPL"],
-                }
-        )
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                with patch.object(self.app, "_ops_store", return_value=web_module.ProjectOpsStore(artifact_root)):
+                    with patch.object(self.app, "_ensure_job_worker_running"), patch.object(self.app._job_worker_wakeup_event, "set"):
+                        response = self.app.handle_run(
+                            {
+                                "market": ["US"],
+                                "runtime_mode": ["LIVE"],
+                                "execution_mode": ["AUTO"],
+                                "broker": ["LOCAL_PAPER"],
+                                "route_orders": ["on"],
+                                "broker_account_id": ["web-paper-us"],
+                                "selected_strategy_us": ["us_quality_focus"],
+                                "cash": ["100000"],
+                                "top_n": ["2"],
+                                "detail_limit": ["10"],
+                                "history_limit": ["90"],
+                                "beta_window": ["20"],
+                                "forward_days": ["0"],
+                                "symbols_us": ["AAPL"],
+                            }
+                        )
+                        self.app._drain_job_queue_once()
         self.assertEqual(response.status, 303)
         self.assertEqual(mock_run_market.call_args.kwargs["selected_preset_id"], "us_quality_focus")
         self.assertEqual(self.app.state.last_local_paper_account["account_id"], "web-paper-us")
@@ -2053,43 +2791,46 @@ class WebTests(TestCase):
         with TemporaryDirectory() as tmpdir:
             artifact_root = Path(tmpdir)
             with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
-                with patch.object(self.app, "_start_background_task", side_effect=lambda target, *args: target(*args)):
-                    first_response = self.app.handle_run(
-                        {
-                            "market": ["US"],
-                            "runtime_mode": ["PAPER"],
-                            "execution_mode": ["ADVISORY"],
-                            "cash": ["100000"],
-                            "top_n": ["2"],
-                            "detail_limit": ["10"],
-                            "history_limit": ["90"],
-                            "beta_window": ["20"],
-                            "forward_days": ["0"],
-                            "selected_strategy_us": ["us_baseline"],
-                        }
-                    )
-                    second_response = self.app.handle_run(
-                        {
-                            "market": ["US"],
-                            "runtime_mode": ["PAPER"],
-                            "execution_mode": ["ADVISORY"],
-                            "cash": ["100000"],
-                            "top_n": ["2"],
-                            "detail_limit": ["10"],
-                            "history_limit": ["90"],
-                            "beta_window": ["20"],
-                            "forward_days": ["0"],
-                            "selected_strategy_us": ["us_quality_focus"],
-                        }
-                    )
-                persisted_history = web_module.read_json_artifact(artifact_root, "web/run_history.json")
+                with patch.object(self.app, "_ops_store", return_value=web_module.ProjectOpsStore(artifact_root)):
+                    with patch.object(self.app, "_ensure_job_worker_running"), patch.object(self.app._job_worker_wakeup_event, "set"):
+                        first_response = self.app.handle_run(
+                            {
+                                "market": ["US"],
+                                "runtime_mode": ["PAPER"],
+                                "execution_mode": ["ADVISORY"],
+                                "cash": ["100000"],
+                                "top_n": ["2"],
+                                "detail_limit": ["10"],
+                                "history_limit": ["90"],
+                                "beta_window": ["20"],
+                                "forward_days": ["0"],
+                                "selected_strategy_us": ["us_baseline"],
+                            }
+                        )
+                        self.app._drain_job_queue_once()
+                        second_response = self.app.handle_run(
+                            {
+                                "market": ["US"],
+                                "runtime_mode": ["PAPER"],
+                                "execution_mode": ["ADVISORY"],
+                                "cash": ["100000"],
+                                "top_n": ["2"],
+                                "detail_limit": ["10"],
+                                "history_limit": ["90"],
+                                "beta_window": ["20"],
+                                "forward_days": ["0"],
+                                "selected_strategy_us": ["us_quality_focus"],
+                            }
+                        )
+                        self.app._drain_job_queue_once()
+                persisted_history = web_module.ProjectOpsStore(artifact_root).list_run_history(limit=10)
 
         self.assertEqual(first_response.status, 303)
         self.assertEqual(second_response.status, 303)
         self.assertEqual(len(self.app.state.last_run_results), 2)
         self.assertEqual(self.app.state.last_run_results[0]["strategy_id"], "us_baseline")
         self.assertEqual(self.app.state.last_run_results[1]["strategy_id"], "us_quality_focus")
-        self.assertEqual(len(persisted_history["records"]), 2)
+        self.assertEqual(len(persisted_history), 2)
 
     @patch("stock_quantification.web.run_market")
     def test_strategy_run_assigns_unique_instance_ids_for_identical_submissions(self, mock_run_market) -> None:
@@ -2104,39 +2845,93 @@ class WebTests(TestCase):
         }
         mock_run_market.side_effect = [dict(identical_result), dict(identical_result)]
 
-        with patch.object(self.app, "_start_background_task", side_effect=lambda target, *args: target(*args)):
-            self.app.handle_run(
-                {
-                    "market": ["US"],
-                    "runtime_mode": ["PAPER"],
-                    "execution_mode": ["ADVISORY"],
-                    "cash": ["100000"],
-                    "top_n": ["2"],
-                    "detail_limit": ["10"],
-                    "history_limit": ["90"],
-                    "beta_window": ["20"],
-                    "forward_days": ["0"],
-                    "selected_strategy_us": ["us_quality_focus"],
-                }
-            )
-            self.app.handle_run(
-                {
-                    "market": ["US"],
-                    "runtime_mode": ["PAPER"],
-                    "execution_mode": ["ADVISORY"],
-                    "cash": ["100000"],
-                    "top_n": ["2"],
-                    "detail_limit": ["10"],
-                    "history_limit": ["90"],
-                    "beta_window": ["20"],
-                    "forward_days": ["0"],
-                    "selected_strategy_us": ["us_quality_focus"],
-                }
-            )
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                with patch.object(self.app, "_ops_store", return_value=web_module.ProjectOpsStore(artifact_root)):
+                    with patch.object(self.app, "_ensure_job_worker_running"), patch.object(self.app._job_worker_wakeup_event, "set"):
+                        self.app.handle_run(
+                            {
+                                "market": ["US"],
+                                "runtime_mode": ["PAPER"],
+                                "execution_mode": ["ADVISORY"],
+                                "cash": ["100000"],
+                                "top_n": ["2"],
+                                "detail_limit": ["10"],
+                                "history_limit": ["90"],
+                                "beta_window": ["20"],
+                                "forward_days": ["0"],
+                                "selected_strategy_us": ["us_quality_focus"],
+                            }
+                        )
+                        self.app._drain_job_queue_once()
+                        self.app.handle_run(
+                            {
+                                "market": ["US"],
+                                "runtime_mode": ["PAPER"],
+                                "execution_mode": ["ADVISORY"],
+                                "cash": ["100000"],
+                                "top_n": ["2"],
+                                "detail_limit": ["10"],
+                                "history_limit": ["90"],
+                                "beta_window": ["20"],
+                                "forward_days": ["0"],
+                                "selected_strategy_us": ["us_quality_focus"],
+                            }
+                        )
+                        self.app._drain_job_queue_once()
 
         first_run, second_run = self.app.state.last_run_results
         self.assertNotEqual(first_run["run_instance_id"], second_run["run_instance_id"])
         self.assertNotEqual(self.app._run_result_ref(first_run), self.app._run_result_ref(second_run))
+
+    @patch("stock_quantification.web.run_market")
+    def test_run_paper_automation_cycle_executes_current_strategies_once_per_trade_date(self, mock_run_market) -> None:
+        mock_run_market.side_effect = [
+            {
+                "market": "CN",
+                "trade_date": "2026-05-04",
+                "strategy_id": "cn_baseline",
+                "paper_account": {"account_id": "web-paper-cn", "market": "CN"},
+                "paper_trade_records": [{"instrument_id": "CN.600000"}],
+            },
+            {
+                "market": "US",
+                "trade_date": "2026-05-04",
+                "strategy_id": "us_baseline",
+                "paper_account": {"account_id": "web-paper-us", "market": "US"},
+                "paper_trade_records": [{"instrument_id": "US.AAPL"}],
+            },
+        ]
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            write_json_artifact(
+                artifact_root,
+                "web/strategy_state.json",
+                {
+                    "markets": {
+                        "CN": {
+                            "champion_preset_id": "cn_baseline",
+                            "challenger_preset_id": None,
+                            "current_execution_preset_id": "cn_baseline",
+                        },
+                        "US": {
+                            "champion_preset_id": "us_baseline",
+                            "challenger_preset_id": None,
+                            "current_execution_preset_id": "us_baseline",
+                        },
+                    }
+                },
+            )
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                with patch.object(self.app, "_effective_trade_date_for_market", return_value=datetime.fromisoformat("2026-05-04T00:00:00").date()):
+                    self.app._run_paper_automation_cycle(now=datetime.fromisoformat("2026-05-04T09:30:00"))
+                    self.app._run_paper_automation_cycle(now=datetime.fromisoformat("2026-05-04T15:30:00"))
+                    automation_state = web_module.read_json_artifact(artifact_root, "web/paper_automation_state.json")
+
+        self.assertEqual(mock_run_market.call_count, 2)
+        self.assertEqual(automation_state["accounts"]["web-paper-cn"]["last_trade_date"], "2026-05-04")
+        self.assertEqual(automation_state["accounts"]["web-paper-us"]["last_trade_date"], "2026-05-04")
 
     @patch("stock_quantification.web.LocalPaperLedger")
     def test_local_paper_reset_redirects_and_flashes(self, mock_ledger_cls) -> None:
@@ -2174,49 +2969,6 @@ class WebTests(TestCase):
         self.assertIn("缺少账户 ID", self.app.state.flash_messages[-1]["message"])
         self.assertEqual(self.app.state.flash_messages[-1]["audience"], "paper")
 
-    @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
-    @patch.object(DashboardApp, "_load_project_config", return_value=DEFAULT_PROJECT_CONFIG)
-    def test_project_config_page_renders(self, _mock_config, _mock_symbol_catalog) -> None:
-        response = self.app.render_project_config()
-        body = response.body.decode("utf-8")
-        self.assertEqual(response.status, 200)
-        self.assertIn("Project Settings / 项目设置", body)
-        self.assertIn("Default Rules / 默认规则", body)
-        self.assertIn("只影响未来运行和默认页面行为", body)
-        self.assertIn("保存项目配置", body)
-        self.assertIn("推荐账户名", body)
-        self.assertIn("立即搜索", body)
-        self.assertIn("Turnover Cap / 换手上限", body)
-
-    @patch.object(DashboardApp, "_load_task_logs", return_value=[{"created_at": "2026-04-06T09:30:00", "category": "runtime", "action": "strategy_run", "status": "SUCCESS", "detail": "ok", "metadata": {"market": "US"}}])
-    def test_task_logs_page_renders(self, _mock_logs) -> None:
-        response = self.app.render_task_logs({})
-        body = response.body.decode("utf-8")
-        self.assertEqual(response.status, 200)
-        self.assertIn("任务日志", body)
-        self.assertIn("Current Log State / 当前日志状态", body)
-        self.assertIn("Log Filters / 日志筛选", body)
-        self.assertIn("strategy_run", body)
-
-    @patch.object(DashboardApp, "_build_system_status", return_value={"overall_status": "WARN", "artifact_count": 5, "task_log_count": 3, "paper_account_count": 1, "broker_credentials_ready": False, "latest_review": "WARN", "active_job": None, "job_history": [], "audit_events": [], "components": [{"name": "artifact_storage", "status": "UP", "detail": "ok"}]})
-    def test_ops_center_renders(self, _mock_status) -> None:
-        response = self.app.render_ops_center()
-        body = response.body.decode("utf-8")
-        self.assertEqual(response.status, 200)
-        self.assertIn("Operations / 运维中心", body)
-        self.assertIn("System Conclusion / 系统结论", body)
-        self.assertIn("Operational Snapshot / 运维摘要", body)
-        self.assertIn("artifact_storage", body)
-
-    def test_release_active_job_redirects_and_flashes(self) -> None:
-        self.ops_store.load_state.return_value = {"active_job": {"job_id": "job-1", "kind": "factor_backtest"}, "job_history": [], "audit_events": [], "heartbeats": {}}
-        self.ops_store.release_active_job.return_value = {"active_job": None}
-        response = self.app.handle_release_active_job({"action": ["release_active_job"]})
-        self.assertEqual(response.status, 303)
-        self.assertEqual(response.headers["Location"], "/project/ops")
-        self.assertIn("已释放任务", self.app.state.flash_messages[-1]["message"])
-        self.assertEqual(self.app.state.flash_messages[-1]["audience"], "ops")
-
     def test_health_and_ready_endpoints_return_json(self) -> None:
         health = self.app.dispatch("GET", "/healthz", {}, {})
         ready = self.app.dispatch("GET", "/readyz", {}, {})
@@ -2242,7 +2994,7 @@ class WebTests(TestCase):
     @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
     @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")
     def test_dispatch_page_routes_smoke(self, _mock_paper_panel, _mock_symbol_catalog) -> None:
-        routes = ["/", "/project/config", "/project/logs", "/project/ops", "/healthz", "/readyz", "/api/project/status"]
+        routes = ["/", "/healthz", "/readyz", "/api/project/status"]
         for route in routes:
             response = self.app.dispatch("GET", route, {}, {})
             self.assertIn(response.status, {200}, route)
@@ -2260,80 +3012,37 @@ class WebTests(TestCase):
         unknown = self.app.serve_artifact({"path": ["web/does-not-exist.json"]})
         self.assertEqual(unknown.status, 404)
 
-    def test_run_guard_blocks_when_active_job_exists(self) -> None:
-        ops_store = Mock()
-        ops_store.begin_job.return_value = {"accepted": False, "active_job": {"kind": "factor_backtest"}}
-        with patch.object(self.app, "_ops_store", return_value=ops_store):
-            response = self.app.handle_run(
-                {
-                    "view": ["run"],
-                    "subview": ["create"],
-                    "market": ["US"],
-                    "runtime_mode": ["LIVE"],
-                    "execution_mode": ["AUTO"],
-                    "broker": ["LOCAL_PAPER"],
-                    "route_orders": ["on"],
-                    "broker_account_id": ["web-paper-us"],
-                    "cash": ["100000"],
-                    "top_n": ["2"],
-                    "detail_limit": ["10"],
-                    "history_limit": ["90"],
-                    "beta_window": ["20"],
-                    "forward_days": ["0"],
-                    "symbols_us": ["AAPL"],
-                }
-            )
-        self.assertEqual(response.status, 303)
-        self.assertEqual(response.headers["Location"], "/?view=run&subview=create")
-        self.assertIn("后台已有任务运行中", self.app.state.flash_messages[-1]["message"])
-        self.assertEqual(self.app.state.flash_messages[-1]["audience"], "run")
-
-    @patch.object(DashboardApp, "_save_project_config")
-    @patch.object(DashboardApp, "_load_project_config", return_value=DEFAULT_PROJECT_CONFIG)
-    def test_project_config_save_redirects(self, _mock_config, mock_save) -> None:
-        response = self.app.handle_project_config(
+    def test_run_submission_enqueues_when_another_job_exists(self) -> None:
+        response = self.app.handle_run(
             {
+                "view": ["run"],
+                "subview": ["create"],
                 "market": ["US"],
                 "runtime_mode": ["LIVE"],
                 "execution_mode": ["AUTO"],
                 "broker": ["LOCAL_PAPER"],
-                "cash": ["200000"],
-                "broker_account_id": ["paper-us"],
-                "top_n": ["8"],
-                "detail_limit": ["16"],
-                "history_limit": ["120"],
-                "beta_window": ["30"],
-                "forward_days": ["5"],
-                "as_of_date": [""],
-                "symbols_cn": [""],
-                "symbols_us": ["AAPL,MSFT,NVDA"],
                 "route_orders": ["on"],
-                "factor_market": ["US"],
-                "factor_start_date": ["2026-01-01"],
-                "factor_end_date": ["2026-03-31"],
-                "factor_holding_sessions": ["5"],
-                "factor_top_n": ["6"],
-                "factor_detail_limit": ["10"],
-                "factor_history_limit": ["90"],
-                "factor_initial_cash": ["150000"],
-                "factor_turnover_cap": ["0.16"],
-                "factor_rebalance_buffer": ["0.06"],
-                "paper_account_id": ["paper-us"],
-                "paper_start_date": ["2026-04-01"],
-                "paper_end_date": ["2026-04-30"],
-                "paper_recent_trade_limit": ["20"],
+                "broker_account_id": ["web-paper-us"],
+                "cash": ["100000"],
+                "top_n": ["2"],
+                "detail_limit": ["10"],
+                "history_limit": ["90"],
+                "beta_window": ["20"],
+                "forward_days": ["0"],
+                "symbols_us": ["AAPL"],
             }
         )
         self.assertEqual(response.status, 303)
-        self.assertEqual(response.headers["Location"], "/project/config")
-        self.assertTrue(mock_save.called)
+        self.assertEqual(response.headers["Location"], "/?view=run&subview=create")
+        self.assertIn("已加入队列", self.app.state.flash_messages[-1]["message"])
+        self.assertEqual(self.app.state.flash_messages[-1]["audience"], "run")
 
     def test_handle_run_invalid_form_value_redirects_with_flash(self) -> None:
         response = self.app.handle_run({"market": ["US"], "cash": ["abc"]})
         self.assertEqual(response.status, 303)
-        self.assertEqual(response.headers["Location"], "/?view=workbench&subview=create")
+        self.assertEqual(response.headers["Location"], "/?view=run&subview=create")
         self.assertIn("策略运行参数错误", self.app.state.flash_messages[-1]["message"])
-        self.assertEqual(self.app.state.flash_messages[-1]["audience"], "workbench")
+        self.assertEqual(self.app.state.flash_messages[-1]["audience"], "run")
         self.assertFalse(self.ops_store.begin_job.called)
 
     def test_handle_run_rejects_invalid_selected_strategy_before_job_start(self) -> None:
@@ -2352,9 +3061,9 @@ class WebTests(TestCase):
             }
         )
         self.assertEqual(response.status, 303)
-        self.assertEqual(response.headers["Location"], "/?view=workbench&subview=create")
+        self.assertEqual(response.headers["Location"], "/?view=run&subview=create")
         self.assertIn("策略运行参数错误", self.app.state.flash_messages[-1]["message"])
-        self.assertEqual(self.app.state.flash_messages[-1]["audience"], "workbench")
+        self.assertEqual(self.app.state.flash_messages[-1]["audience"], "run")
         self.assertFalse(self.ops_store.begin_job.called)
 
     def test_factor_backtest_invalid_form_value_redirects_with_flash(self) -> None:
@@ -2367,118 +3076,31 @@ class WebTests(TestCase):
             }
         )
         self.assertEqual(response.status, 303)
-        self.assertEqual(response.headers["Location"], "/?view=workbench&subview=create")
+        self.assertEqual(response.headers["Location"], "/?view=optimize&subview=create")
         self.assertIn("策略实验参数错误", self.app.state.flash_messages[-1]["message"])
-        self.assertEqual(self.app.state.flash_messages[-1]["audience"], "workbench")
+        self.assertEqual(self.app.state.flash_messages[-1]["audience"], "optimize")
         self.assertFalse(self.ops_store.begin_job.called)
 
-    def test_factor_backtest_guard_stays_on_optimize_create_page(self) -> None:
-        ops_store = Mock()
-        ops_store.begin_job.return_value = {"accepted": False, "active_job": {"kind": "strategy_run"}}
-        with patch.object(self.app, "_ops_store", return_value=ops_store):
-            response = self.app.handle_factor_backtest(
-                {
-                    "view": ["optimize"],
-                    "subview": ["create"],
-                    "factor_market": ["CN"],
-                    "factor": ["rel_ret_20"],
-                    "factor_start_date": ["2026-01-02"],
-                    "factor_end_date": ["2026-03-31"],
-                    "factor_holding_sessions": ["5"],
-                    "factor_detail_limit": ["8"],
-                    "factor_history_limit": ["60"],
-                    "factor_top_n": ["4"],
-                    "factor_initial_cash": ["100000"],
-                    "factor_turnover_cap": ["0.18"],
-                    "factor_rebalance_buffer": ["0.05"],
-                }
-            )
+    def test_factor_backtest_submission_stays_on_optimize_create_page(self) -> None:
+        response = self.app.handle_factor_backtest(
+            {
+                "view": ["optimize"],
+                "subview": ["create"],
+                "factor_market": ["CN"],
+                "factor": ["rel_ret_20"],
+                "factor_start_date": ["2026-01-02"],
+                "factor_end_date": ["2026-03-31"],
+                "factor_holding_sessions": ["5"],
+                "factor_detail_limit": ["50"],
+                "factor_history_limit": ["200"],
+                "factor_top_n": ["10"],
+                "factor_initial_cash": ["100000"],
+            }
+        )
         self.assertEqual(response.status, 303)
         self.assertEqual(response.headers["Location"], "/?view=optimize&subview=create")
-        self.assertIn("因子回测被拦截", self.app.state.flash_messages[-1]["message"])
+        self.assertIn("已加入队列", self.app.state.flash_messages[-1]["message"])
         self.assertEqual(self.app.state.flash_messages[-1]["audience"], "optimize")
-
-    @patch.object(DashboardApp, "_save_project_config")
-    def test_project_config_invalid_input_does_not_save(self, mock_save) -> None:
-        response = self.app.handle_project_config(
-            {
-                "market": ["US"],
-                "runtime_mode": ["LIVE"],
-                "execution_mode": ["AUTO"],
-                "broker": ["LOCAL_PAPER"],
-                "cash": ["0"],
-                "broker_account_id": ["paper-us"],
-                "top_n": ["8"],
-                "detail_limit": ["16"],
-                "history_limit": ["120"],
-                "beta_window": ["30"],
-                "forward_days": ["5"],
-                "as_of_date": [""],
-                "symbols_cn": [""],
-                "symbols_us": ["AAPL,MSFT,NVDA"],
-                "route_orders": ["on"],
-                "factor_market": ["US"],
-                "factor_start_date": ["2026-04-01"],
-                "factor_end_date": ["2026-03-31"],
-                "factor_holding_sessions": ["5"],
-                "factor_top_n": ["6"],
-                "factor_detail_limit": ["10"],
-                "factor_history_limit": ["90"],
-                "factor_initial_cash": ["150000"],
-                "factor_turnover_cap": ["0.16"],
-                "factor_rebalance_buffer": ["0.06"],
-                "paper_account_id": ["paper-us"],
-                "paper_start_date": ["2026-04-01"],
-                "paper_end_date": ["2026-04-30"],
-                "paper_recent_trade_limit": ["20"],
-            }
-        )
-        self.assertEqual(response.status, 303)
-        self.assertEqual(response.headers["Location"], "/project/config")
-        self.assertIn("项目配置保存失败", self.app.state.flash_messages[-1]["message"])
-        self.assertEqual(self.app.state.flash_messages[-1]["audience"], "config")
-        self.assertFalse(mock_save.called)
-
-    @patch.object(DashboardApp, "_save_project_config")
-    def test_project_config_rejects_reversed_paper_default_window(self, mock_save) -> None:
-        response = self.app.handle_project_config(
-            {
-                "market": ["US"],
-                "runtime_mode": ["LIVE"],
-                "execution_mode": ["AUTO"],
-                "broker": ["LOCAL_PAPER"],
-                "cash": ["100000"],
-                "broker_account_id": ["paper-us"],
-                "top_n": ["8"],
-                "detail_limit": ["16"],
-                "history_limit": ["120"],
-                "beta_window": ["30"],
-                "forward_days": ["5"],
-                "as_of_date": [""],
-                "symbols_cn": [""],
-                "symbols_us": ["AAPL,MSFT,NVDA"],
-                "route_orders": ["on"],
-                "factor_market": ["US"],
-                "factor_start_date": ["2026-01-01"],
-                "factor_end_date": ["2026-03-31"],
-                "factor_holding_sessions": ["5"],
-                "factor_top_n": ["6"],
-                "factor_detail_limit": ["10"],
-                "factor_history_limit": ["90"],
-                "factor_initial_cash": ["150000"],
-                "factor_turnover_cap": ["0.16"],
-                "factor_rebalance_buffer": ["0.06"],
-                "paper_account_id": ["paper-us"],
-                "paper_start_date": ["2026-05-01"],
-                "paper_end_date": ["2026-04-01"],
-                "paper_recent_trade_limit": ["20"],
-            }
-        )
-        self.assertEqual(response.status, 303)
-        self.assertEqual(response.headers["Location"], "/project/config")
-        self.assertIn("项目配置保存失败", self.app.state.flash_messages[-1]["message"])
-        self.assertEqual(self.app.state.flash_messages[-1]["audience"], "config")
-        self.assertFalse(mock_save.called)
 
     def test_load_project_config_sanitizes_bad_persisted_values(self) -> None:
         broken_payload = {
@@ -2501,12 +3123,10 @@ class WebTests(TestCase):
                 "factor_start_date": "bad",
                 "factor_end_date": "also-bad",
                 "factor_holding_sessions": "0",
-                "factor_top_n": "-1",
+                "factor_top_n": "99",
                 "factor_detail_limit": "",
                 "factor_history_limit": "oops",
                 "factor_initial_cash": "bad",
-                "factor_turnover_cap": "-1",
-                "factor_rebalance_buffer": "-1",
             },
             "ui_defaults": {
                 "paper_account_id": "",
@@ -2597,6 +3217,35 @@ class WebTests(TestCase):
         self.assertIn("Recent Run Context / 最近运行上下文", html)
         self.assertIn("us_quality_momentum", html)
         self.assertIn("2026-04-06T16:00:00", html)
+
+    @patch.object(web_module, "build_market_snapshot")
+    def test_enrich_local_paper_overview_uses_ledger_prices_without_live_fetch(self, mock_snapshot) -> None:
+        overview = {
+            "account_id": "web-paper-us",
+            "market": "US",
+            "cash": "98000",
+            "latest_nav": "100000",
+            "positions": [{"instrument_id": "US.AAPL", "qty": "10", "avg_cost": "180"}],
+            "filtered_trades": [
+                {
+                    "trade_date": "2026-04-06",
+                    "side": "BUY",
+                    "instrument_id": "US.AAPL",
+                    "estimated_price": "200",
+                    "cash_delta": "-2000",
+                    "name": "Apple Inc.",
+                }
+            ],
+            "nav_history": [{"trade_date": "2026-04-06", "nav": "100000"}],
+        }
+
+        enriched = self.app._enrich_local_paper_overview(overview)
+
+        mock_snapshot.assert_not_called()
+        self.assertEqual(enriched["mark_source"], "ledger")
+        self.assertEqual(enriched["position_rows"][0]["current_price"], "200.0000")
+        self.assertEqual(enriched["position_rows"][0]["name"], "Apple Inc.")
+        self.assertEqual(enriched["position_rows"][0]["sector"], "UNKNOWN")
 
     def test_local_paper_panel_prefers_matching_account_run_summary(self) -> None:
         self.app.state.last_run_results = [

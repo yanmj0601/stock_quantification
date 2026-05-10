@@ -16,8 +16,11 @@ from html import unescape
 from http.client import RemoteDisconnected
 from typing import Dict, Iterable, Iterator, List, Mapping, Optional, Sequence, Tuple
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
+try:
+    import yfinance as yf
+except ImportError:  # pragma: no cover - dependency is installed in runtime/tests
+    yf = None
 
 from .artifacts import read_bytes_artifact, read_json_artifact, write_bytes_artifact, write_json_artifact
 from .engine import InMemoryCalendarProvider, InMemoryMarketDataProvider, InMemoryUniverseProvider
@@ -33,6 +36,7 @@ from .research_data import (
     build_default_bundle,
     build_point_in_time_safe_snapshots,
 )
+from .sqlite_state import SQLiteStateStore
 
 _HTTP_HEADERS = {
     "user-agent": "Mozilla/5.0",
@@ -48,9 +52,12 @@ _XLSX_NS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
 _XLSX_REL_NS = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
 _SEC_TICKER_CACHE: Optional[Dict[str, str]] = None
 _US_SCREENER_CACHE: Optional[Dict[str, Dict[str, str]]] = None
+_SQLITE_MARKET_CACHE: Optional[SQLiteStateStore] = None
 _CACHE_DIR = ".cache/stock_quantification"
 _HTTP_CACHE_TTL_HOURS = 6
 _HTTP_RETRY_COUNT = 3
+_HTTP_PRIMARY_TIMEOUT_SECONDS = 8
+_HTTP_CURL_TIMEOUT_SECONDS = 12
 
 
 class RealDataError(RuntimeError):
@@ -74,6 +81,101 @@ def _http_cache_path(url: str) -> str:
     return f"http/{host}/{digest}.bin"
 
 
+def _market_cache_store() -> SQLiteStateStore:
+    global _SQLITE_MARKET_CACHE
+    if _SQLITE_MARKET_CACHE is None:
+        _SQLITE_MARKET_CACHE = SQLiteStateStore("artifacts")
+    return _SQLITE_MARKET_CACHE
+
+
+def _cached_us_history_rows(
+    symbol: str,
+    *,
+    assetclass: str,
+    from_date: date,
+    to_date: date,
+) -> List[Dict[str, object]]:
+    rows = _market_cache_store().load_market_bars(
+        market=Market.US.value,
+        symbol=symbol.upper(),
+        assetclass=assetclass,
+        start_date=from_date,
+        end_date=to_date,
+    )
+    if not rows:
+        return []
+    first_trade_date = date.fromisoformat(str(rows[0]["trade_date"]))
+    latest_trade_date = date.fromisoformat(str(rows[-1]["trade_date"]))
+    if first_trade_date > from_date:
+        return []
+    if latest_trade_date < (to_date - timedelta(days=7)):
+        return []
+    return rows
+
+
+def _bars_from_cached_us_rows(rows: Sequence[Dict[str, object]], *, asset_type: AssetType) -> Tuple[Instrument, List[Bar]]:
+    first = rows[0]
+    instrument = Instrument(
+        instrument_id=str(first["instrument_id"]),
+        market=Market.US,
+        symbol=str(first["symbol"]),
+        asset_type=asset_type,
+        currency=str(first["currency"]),
+        exchange=str(first["exchange"]),
+        attributes={"name": str(first["display_name"])},
+    )
+    bars: List[Bar] = []
+    for row in rows:
+        bars.append(
+            Bar(
+                instrument_id=instrument.instrument_id,
+                timestamp=datetime.strptime(str(row["trade_date"]) + " 16:00:00", "%Y-%m-%d %H:%M:%S"),
+                open=_parse_decimal(str(row["open_price"])),
+                close=_parse_decimal(str(row["close_price"])),
+                high=_parse_decimal(str(row["high_price"])),
+                low=_parse_decimal(str(row["low_price"])),
+                volume=int(row["volume"] or 0),
+                turnover=_parse_decimal(str(row["turnover"])),
+                adjustment_flag=str(row.get("adjustment_flag") or "RAW"),
+            )
+        )
+    return instrument, bars
+
+
+def _cache_us_history(
+    symbol: str,
+    *,
+    assetclass: str,
+    instrument: Instrument,
+    bars: Sequence[Bar],
+    source: str,
+) -> None:
+    _market_cache_store().cache_market_bars(
+        market=Market.US.value,
+        symbol=symbol.upper(),
+        assetclass=assetclass,
+        instrument_id=instrument.instrument_id,
+        asset_type=instrument.asset_type.value,
+        currency=instrument.currency,
+        exchange=instrument.exchange,
+        display_name=str(instrument.attributes.get("name") or instrument.symbol),
+        bars=[
+            {
+                "trade_date": bar.timestamp.date().isoformat(),
+                "open_price": str(bar.open),
+                "close_price": str(bar.close),
+                "high_price": str(bar.high),
+                "low_price": str(bar.low),
+                "volume": int(bar.volume),
+                "turnover": str(bar.turnover),
+                "adjustment_flag": bar.adjustment_flag or "RAW",
+            }
+            for bar in bars
+        ],
+        source=source,
+    )
+
+
 def _sleep_before_retry(attempt: int) -> None:
     if attempt <= 0:
         return
@@ -90,6 +192,47 @@ def _http_get_json_via_curl(url: str) -> Dict[str, object]:
 
 def _http_get_json_with_headers(url: str, headers: Mapping[str, str]) -> Dict[str, object]:
     return json.loads(_http_get_bytes(url, headers=headers).decode("utf-8"))
+
+
+def _fetch_yahoo_history_rows(symbol: str, *, start_date: date, end_date: date) -> List[Dict[str, object]]:
+    if yf is None:
+        raise RealDataError("yfinance is not installed")
+    try:
+        history = yf.download(
+            symbol,
+            start=start_date.isoformat(),
+            end=(end_date + timedelta(days=1)).isoformat(),
+            interval="1d",
+            auto_adjust=False,
+            actions=False,
+            progress=False,
+            threads=False,
+        )
+    except Exception as exc:
+        raise RealDataError("Yahoo Finance history request failed for %s: %s" % (symbol, exc)) from exc
+    if history is None or getattr(history, "empty", True):
+        return []
+    normalized = history
+    columns = getattr(history, "columns", None)
+    if columns is not None and getattr(columns, "nlevels", 1) > 1:
+        try:
+            normalized = history.droplevel(-1, axis=1)
+        except Exception:
+            normalized = history
+    rows: List[Dict[str, object]] = []
+    for timestamp, row in normalized.iterrows():
+        resolved_dt = timestamp.to_pydatetime() if hasattr(timestamp, "to_pydatetime") else timestamp
+        rows.append(
+            {
+                "date": resolved_dt.date().isoformat(),
+                "open": row.get("Open"),
+                "close": row.get("Close"),
+                "high": row.get("High"),
+                "low": row.get("Low"),
+                "volume": row.get("Volume"),
+            }
+        )
+    return rows
 
 
 def _http_get_text(url: str, encoding: str = "utf-8", headers: Optional[Mapping[str, str]] = None) -> str:
@@ -111,13 +254,13 @@ def _http_get_bytes(url: str, headers: Optional[Mapping[str, str]] = None) -> by
     last_error: Optional[Exception] = None
     for attempt in range(_HTTP_RETRY_COUNT):
         try:
-            with urlopen(request, timeout=20) as response:
+            with urlopen(request, timeout=_HTTP_PRIMARY_TIMEOUT_SECONDS) as response:
                 payload = response.read()
                 write_bytes_artifact(_CACHE_DIR, cache_path, payload)
                 return payload
         except (RemoteDisconnected, socket.timeout, TimeoutError) as exc:
             last_error = exc
-            _sleep_before_retry(attempt + 1)
+            break
         except HTTPError as exc:
             raise RealDataError("HTTP error when loading %s: %s" % (url, exc)) from exc
         except URLError as exc:
@@ -138,7 +281,7 @@ def _http_get_bytes(url: str, headers: Optional[Mapping[str, str]] = None) -> by
 
 def _http_get_bytes_via_curl(url: str, headers: Mapping[str, str]) -> bytes:
     try:
-        args = ["curl", "-L", "--max-time", "20"]
+        args = ["curl", "-L", "--max-time", str(_HTTP_CURL_TIMEOUT_SECONDS)]
         for key, value in headers.items():
             args.extend(["-H", f"{key}: {value}"])
         args.append(url)
@@ -203,20 +346,6 @@ def _build_cn_history_url(symbol: str, limit: int) -> str:
         "secid=%s&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61"
         "&klt=101&fqt=1&lmt=%s&end=20500101"
         % (_cn_secid(symbol), limit)
-    )
-
-
-def _build_us_url(symbol: str, from_date: str, to_date: str, limit: int, assetclass: str = "stocks") -> str:
-    return "https://api.nasdaq.com/api/quote/%s/historical?%s" % (
-        symbol,
-        urlencode(
-            {
-                "assetclass": assetclass,
-                "fromdate": from_date,
-                "todate": to_date,
-                "limit": str(limit),
-            }
-        ),
     )
 
 
@@ -994,18 +1123,16 @@ def fetch_us_daily_history(
     asset_type: AssetType = AssetType.COMMON_STOCK,
 ) -> Tuple[Instrument, List[Bar]]:
     today = datetime.now().date()
-    payload = _http_get_json(
-        _build_us_url(
-            symbol,
-            from_date=(today - timedelta(days=lookback_days)).isoformat(),
-            to_date=today.isoformat(),
-            limit=limit,
-            assetclass=assetclass,
-        )
+    from_date = today - timedelta(days=lookback_days)
+    cached_rows = _cached_us_history_rows(
+        symbol,
+        assetclass=assetclass,
+        from_date=from_date,
+        to_date=today,
     )
-    data = payload.get("data")
-    trades_table = data.get("tradesTable") if isinstance(data, dict) else None
-    rows = trades_table.get("rows") if isinstance(trades_table, dict) else None
+    if cached_rows:
+        return _bars_from_cached_us_rows(cached_rows[-limit:], asset_type=asset_type)
+    rows = _fetch_yahoo_history_rows(symbol, start_date=from_date, end_date=today)
     if not rows:
         raise RealDataError("No U.S. history returned for %s" % symbol)
 
@@ -1018,24 +1145,33 @@ def fetch_us_daily_history(
         exchange="NASDAQ",
         attributes={"name": _us_company_name(symbol)},
     )
-    bars: List[Bar] = []
-    for row in reversed(rows):
-        close = _parse_decimal(row["close"])
-        volume = int(row["volume"].replace(",", ""))
-        bars.append(
+    all_bars: List[Bar] = []
+    for row in rows:
+        open_price = _parse_optional_decimal(row.get("open"))
+        close = _parse_optional_decimal(row.get("close"))
+        high_price = _parse_optional_decimal(row.get("high"))
+        low_price = _parse_optional_decimal(row.get("low"))
+        if None in {open_price, close, high_price, low_price}:
+            continue
+        volume_value = _parse_optional_decimal(row.get("volume"))
+        volume = int(volume_value or Decimal("0"))
+        all_bars.append(
             Bar(
                 instrument_id=instrument.instrument_id,
-                timestamp=datetime.strptime(row["date"] + " 16:00:00", "%m/%d/%Y %H:%M:%S"),
-                open=_parse_decimal(row["open"]),
+                timestamp=datetime.strptime(str(row["date"]) + " 16:00:00", "%Y-%m-%d %H:%M:%S"),
+                open=open_price,
                 close=close,
-                high=_parse_decimal(row["high"]),
-                low=_parse_decimal(row["low"]),
+                high=high_price,
+                low=low_price,
                 volume=volume,
                 turnover=(close * Decimal(volume)).quantize(Decimal("0.01")),
                 adjustment_flag="RAW",
             )
         )
-    return instrument, bars
+    if not all_bars:
+        raise RealDataError("No valid U.S. history rows returned for %s" % symbol)
+    _cache_us_history(symbol, assetclass=assetclass, instrument=instrument, bars=all_bars, source="yahoo")
+    return instrument, all_bars[-limit:]
 
 
 def fetch_us_benchmark_history(symbol: str = "SPY", lookback_days: int = 180, limit: int = 120) -> Tuple[Instrument, List[Bar]]:
@@ -1120,11 +1256,19 @@ def build_market_snapshot(
         if market == Market.CN:
             benchmark_instrument, benchmark_bars = fetch_cn_benchmark_history(limit=history_limit)
         else:
-            benchmark_instrument, benchmark_bars = fetch_us_benchmark_history(limit=history_limit)
+            benchmark_lookback_days = max(history_limit * 2, 180)
+            if as_of_date is not None:
+                benchmark_lookback_days = max(benchmark_lookback_days, (date.today() - as_of_date).days + 40)
+            benchmark_instrument, benchmark_bars = fetch_us_benchmark_history(
+                lookback_days=benchmark_lookback_days,
+                limit=history_limit,
+            )
         benchmark_eligible = [bar for bar in benchmark_bars if bar.timestamp <= as_of]
         if benchmark_eligible:
             instruments.append(benchmark_instrument)
             bars_by_instrument[benchmark_instrument.instrument_id] = benchmark_bars
+        else:
+            benchmark_instrument_id = None
     except Exception:
         benchmark_instrument_id = None
 

@@ -198,6 +198,34 @@ class LocalPaperLedgerTests(TestCase):
             self.assertTrue(ledger.reset_account("paper-us"))
             self.assertIsNone(ledger.account_overview("paper-us"))
 
+    def test_liquidate_unknown_positions_clears_stale_holdings_and_records_sell_trades(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            ledger = LocalPaperLedger(tmpdir)
+            account = ledger.sync_account_state("paper-us", Market.US, Decimal("100000"))
+            account.cash = Decimal("70000")
+            account.buying_power = Decimal("70000")
+            account.positions = {
+                "US.KEEP": Position("US.KEEP", 10, Decimal("100")),
+                "US.STALE": Position("US.STALE", 5, Decimal("200")),
+            }
+            ledger._write_account(account)
+
+            result = ledger.liquidate_unknown_positions(
+                account_id="paper-us",
+                valid_instrument_ids={"US.KEEP"},
+                as_of=datetime(2026, 5, 6, 16, 0, 0),
+            )
+
+            self.assertEqual(result["liquidated_count"], 1)
+            self.assertEqual(len(result["trade_records"]), 1)
+            self.assertEqual(result["trade_records"][0]["instrument_id"], "US.STALE")
+            self.assertEqual(result["trade_records"][0]["side"], "SELL")
+            overview = ledger.account_overview("paper-us")
+            self.assertEqual(overview["position_count"], 1)
+            self.assertEqual(overview["trade_count"], 1)
+            self.assertNotIn("US.STALE", {row["instrument_id"] for row in overview["positions"]})
+            self.assertEqual(overview["cash"], "71000.0000")
+
     def test_sync_account_state_rejects_cross_market_reuse(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             ledger = LocalPaperLedger(tmpdir)

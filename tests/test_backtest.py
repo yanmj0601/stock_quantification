@@ -6,17 +6,21 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from stock_quantification.backtest import (
+    _benchmark_window,
+    _instrument_window,
     build_forward_return_report,
     build_rolling_strategy_backtest_report,
     serialize_backtest_report,
     serialize_rolling_backtest_report,
 )
 from stock_quantification.engine import InMemoryCalendarProvider, InMemoryMarketDataProvider, InMemoryUniverseProvider
+from stock_quantification.models import ReviewReport, ReviewVerdict
 from stock_quantification.research_data import ResearchDataBundle, build_default_bundle
 from stock_quantification.real_data import MarketSnapshot
+from stock_quantification.runtime import ExecutionFill, ExecutionResult, ExecutionStatus
 from stock_quantification.strategy_catalog import strategy_presets_for_market
 
-from stock_quantification.models import AssetType, Bar, Instrument, Market
+from stock_quantification.models import AccountState, AssetType, Bar, Instrument, Market, RuntimeMode
 
 
 class BacktestTests(TestCase):
@@ -72,6 +76,51 @@ class BacktestTests(TestCase):
         self.assertEqual(serialized["summary"]["benchmark_return"], "0.0200")
         self.assertEqual(serialized["rows"][0]["instrument_id"], "US.AAPL")
         self.assertEqual(serialized["rows"][0]["forward_return"], "0.1000")
+
+    @patch("stock_quantification.backtest.fetch_us_benchmark_history")
+    @patch("stock_quantification.backtest.fetch_us_daily_history")
+    def test_build_forward_return_report_skips_instruments_without_eligible_bars(self, mock_fetch_history, mock_fetch_benchmark) -> None:
+        mock_fetch_history.side_effect = [
+            (
+                Instrument("US.AAPL", Market.US, "AAPL", AssetType.COMMON_STOCK, "USD", "NASDAQ"),
+                [
+                    Bar("US.AAPL", datetime(2026, 3, 12, 16, 0, 0), Decimal("100"), Decimal("101"), Decimal("99"), Decimal("100"), 100, Decimal("1000")),
+                    Bar("US.AAPL", datetime(2026, 3, 20, 16, 0, 0), Decimal("109"), Decimal("111"), Decimal("108"), Decimal("110"), 100, Decimal("1000")),
+                ],
+            ),
+            (
+                Instrument("US.MSFT", Market.US, "MSFT", AssetType.COMMON_STOCK, "USD", "NASDAQ"),
+                [
+                    Bar("US.MSFT", datetime(2026, 3, 21, 16, 0, 0), Decimal("190"), Decimal("191"), Decimal("189"), Decimal("190"), 100, Decimal("1000")),
+                ],
+            ),
+        ]
+        mock_fetch_benchmark.return_value = (
+            Instrument("US.SPY", Market.US, "SPY", AssetType.ETF, "USD", "NYSE"),
+            [
+                Bar("US.SPY", datetime(2026, 3, 12, 16, 0, 0), Decimal("300"), Decimal("301"), Decimal("299"), Decimal("300"), 100, Decimal("1000")),
+                Bar("US.SPY", datetime(2026, 3, 20, 16, 0, 0), Decimal("306"), Decimal("307"), Decimal("305"), Decimal("306"), 100, Decimal("1000")),
+            ],
+        )
+
+        report = build_forward_return_report(
+            Market.US,
+            datetime(2026, 3, 13).date(),
+            recommended_stocks=[
+                {"instrument_id": "US.AAPL", "name": "Apple", "sector": "Technology", "score": "1.0", "target_weight": "0.2", "qty": 10, "buy_price": "100", "reason": "alpha(momentum)"},
+                {"instrument_id": "US.MSFT", "name": "Microsoft", "sector": "Technology", "score": "0.5", "target_weight": "0.1", "qty": 5, "buy_price": "200", "reason": "alpha(quality)"},
+            ],
+            ranked_candidates=[
+                {"instrument_id": "US.AAPL", "score": "1.0"},
+                {"instrument_id": "US.MSFT", "score": "0.5"},
+            ],
+            holding_sessions=1,
+        )
+
+        serialized = serialize_backtest_report(report)
+        self.assertEqual(serialized["summary"]["selected_count"], 1)
+        self.assertEqual(len(serialized["rows"]), 1)
+        self.assertEqual(serialized["rows"][0]["instrument_id"], "US.AAPL")
 
     @patch("stock_quantification.backtest._build_orchestrator")
     def test_build_rolling_strategy_backtest_report(self, mock_build_orchestrator) -> None:
@@ -146,3 +195,197 @@ class BacktestTests(TestCase):
         self.assertTrue(serialized["summary"]["benchmark_available"])
         self.assertEqual(serialized["daily"][0]["period_return"], "0.0000")
         self.assertEqual(serialized["daily"][0]["cumulative_portfolio_return"], "0.0000")
+
+    @patch("stock_quantification.backtest.fetch_cn_benchmark_history")
+    @patch("stock_quantification.backtest.fetch_cn_detailed_history")
+    def test_cn_history_windows_expand_for_year_long_backtests(self, mock_fetch_cn_detailed_history, mock_fetch_cn_benchmark_history) -> None:
+        benchmark = Instrument("CN.000300", Market.CN, "000300", AssetType.ETF, "CNY", "SSE")
+        stock = Instrument("CN.600487", Market.CN, "600487", AssetType.COMMON_STOCK, "CNY", "SSE")
+        benchmark_bars = [
+            Bar(benchmark.instrument_id, datetime(2025, 5, 6, 15, 0, 0), Decimal("100"), Decimal("100"), Decimal("100"), Decimal("100"), 100, Decimal("1000")),
+            Bar(benchmark.instrument_id, datetime(2025, 5, 7, 15, 0, 0), Decimal("101"), Decimal("101"), Decimal("101"), Decimal("101"), 100, Decimal("1010")),
+        ]
+        stock_bars = [
+            Bar(stock.instrument_id, datetime(2025, 5, 6, 15, 0, 0), Decimal("20"), Decimal("20"), Decimal("20"), Decimal("20"), 100, Decimal("2000")),
+            Bar(stock.instrument_id, datetime(2025, 5, 7, 15, 0, 0), Decimal("21"), Decimal("21"), Decimal("21"), Decimal("21"), 100, Decimal("2100")),
+        ]
+        mock_fetch_cn_benchmark_history.return_value = (benchmark, benchmark_bars)
+        mock_fetch_cn_detailed_history.return_value = (stock, stock_bars)
+
+        benchmark_entry_price, benchmark_exit_price, exit_date = _benchmark_window(Market.CN, date(2025, 5, 6), 1)
+        entry_date, resolved_exit_date, entry_price, exit_price = _instrument_window(Market.CN, "CN.600487", date(2025, 5, 6), 1)
+
+        self.assertEqual(benchmark_entry_price, Decimal("100"))
+        self.assertEqual(benchmark_exit_price, Decimal("101"))
+        self.assertEqual(exit_date, date(2025, 5, 7))
+        self.assertEqual(entry_date, date(2025, 5, 6))
+        self.assertEqual(resolved_exit_date, date(2025, 5, 7))
+        self.assertEqual(entry_price, Decimal("20"))
+        self.assertEqual(exit_price, Decimal("21"))
+        self.assertGreaterEqual(mock_fetch_cn_benchmark_history.call_args.kwargs["limit"], 240)
+        self.assertGreaterEqual(mock_fetch_cn_detailed_history.call_args.kwargs["limit"], 240)
+
+    @patch("stock_quantification.backtest.fetch_us_benchmark_history")
+    @patch("stock_quantification.backtest.fetch_us_daily_history")
+    def test_us_history_windows_expand_for_year_long_backtests(self, mock_fetch_us_daily_history, mock_fetch_us_benchmark_history) -> None:
+        benchmark = Instrument("US.SPY", Market.US, "SPY", AssetType.ETF, "USD", "NYSE")
+        stock = Instrument("US.AAPL", Market.US, "AAPL", AssetType.COMMON_STOCK, "USD", "NASDAQ")
+        benchmark_bars = [
+            Bar(benchmark.instrument_id, datetime(2025, 5, 12, 16, 0, 0), Decimal("500"), Decimal("500"), Decimal("500"), Decimal("500"), 100, Decimal("5000")),
+            Bar(benchmark.instrument_id, datetime(2025, 5, 13, 16, 0, 0), Decimal("505"), Decimal("505"), Decimal("505"), Decimal("505"), 100, Decimal("5050")),
+        ]
+        stock_bars = [
+            Bar(stock.instrument_id, datetime(2025, 5, 12, 16, 0, 0), Decimal("180"), Decimal("180"), Decimal("180"), Decimal("180"), 100, Decimal("1800")),
+            Bar(stock.instrument_id, datetime(2025, 5, 13, 16, 0, 0), Decimal("183"), Decimal("183"), Decimal("183"), Decimal("183"), 100, Decimal("1830")),
+        ]
+        mock_fetch_us_benchmark_history.return_value = (benchmark, benchmark_bars)
+        mock_fetch_us_daily_history.return_value = (stock, stock_bars)
+
+        benchmark_entry_price, benchmark_exit_price, exit_date = _benchmark_window(Market.US, date(2025, 5, 12), 1)
+        entry_date, resolved_exit_date, entry_price, exit_price = _instrument_window(Market.US, "US.AAPL", date(2025, 5, 12), 1)
+
+        self.assertEqual(benchmark_entry_price, Decimal("500"))
+        self.assertEqual(benchmark_exit_price, Decimal("505"))
+        self.assertEqual(exit_date, date(2025, 5, 13))
+        self.assertEqual(entry_date, date(2025, 5, 12))
+        self.assertEqual(resolved_exit_date, date(2025, 5, 13))
+        self.assertEqual(entry_price, Decimal("180"))
+        self.assertEqual(exit_price, Decimal("183"))
+        self.assertGreaterEqual(mock_fetch_us_benchmark_history.call_args.kwargs["limit"], 240)
+        self.assertGreaterEqual(mock_fetch_us_benchmark_history.call_args.kwargs["lookback_days"], 365)
+        self.assertGreaterEqual(mock_fetch_us_daily_history.call_args.kwargs["limit"], 240)
+        self.assertGreaterEqual(mock_fetch_us_daily_history.call_args.kwargs["lookback_days"], 365)
+
+    @patch("stock_quantification.backtest._build_orchestrator")
+    def test_build_rolling_strategy_backtest_report_records_exit_signals(self, mock_build_orchestrator) -> None:
+        class FakeOrchestrator:
+            def run(self, *args, **kwargs):
+                fill = ExecutionFill(
+                    order_intent_id="sell-aapl",
+                    account_id="us-test",
+                    instrument_id="US.AAPL",
+                    mode=RuntimeMode.BACKTEST,
+                    status=ExecutionStatus.FILLED,
+                    requested_qty=10,
+                    filled_qty=10,
+                    remaining_qty=0,
+                    reference_price=Decimal("100"),
+                    estimated_price=Decimal("100"),
+                    realized_price=Decimal("100"),
+                    slippage_bps=Decimal("0"),
+                    commission=Decimal("0"),
+                    taxes=Decimal("0"),
+                    total_fees=Decimal("0"),
+                    cash_delta=Decimal("1000"),
+                    estimated_cash_delta=Decimal("1000"),
+                )
+                execution_result = ExecutionResult(
+                    context=type("Context", (), {"as_of": datetime(2026, 3, 2, 16, 0, 0), "mode": RuntimeMode.BACKTEST})(),
+                    input_account_state=AccountState(
+                        account_id="us-test",
+                        market=Market.US,
+                        broker_id="paper-us",
+                        cash=Decimal("0"),
+                        buying_power=Decimal("0"),
+                    ),
+                    output_account_state=AccountState(
+                        account_id="us-test",
+                        market=Market.US,
+                        broker_id="paper-us",
+                        cash=Decimal("1000"),
+                        buying_power=Decimal("1000"),
+                    ),
+                    fills=[fill],
+                    applied_corporate_actions=[],
+                )
+                proposal = type(
+                    "Proposal",
+                    (),
+                    {
+                        "targets": [],
+                        "research_rankings": [
+                            {
+                                "instrument_id": "US.AAPL",
+                                "score": Decimal("-0.2200"),
+                                "selected": False,
+                                "target_weight": Decimal("0"),
+                                "raw_features": {"trend": Decimal("-0.3000")},
+                                "contributions": {"trend": Decimal("-0.1800"), "volatility": Decimal("-0.0200")},
+                            }
+                        ],
+                    },
+                )()
+                return type(
+                    "Result",
+                    (),
+                    {
+                        "execution_results": [execution_result],
+                        "proposal": proposal,
+                        "review": ReviewReport(verdict=ReviewVerdict.PASS, comments=[]),
+                    },
+                )()
+
+        mock_build_orchestrator.return_value = FakeOrchestrator()
+
+        stock = Instrument("US.AAPL", Market.US, "AAPL", AssetType.COMMON_STOCK, "USD", "NASDAQ")
+        benchmark = Instrument("US.SPY", Market.US, "SPY", AssetType.ETF, "USD", "NYSE")
+        bars_by_instrument = {
+            stock.instrument_id: [
+                Bar(stock.instrument_id, datetime(2026, 3, 2, 16, 0, 0), Decimal("100"), Decimal("100"), Decimal("100"), Decimal("100"), 100, Decimal("1000")),
+                Bar(stock.instrument_id, datetime(2026, 3, 3, 16, 0, 0), Decimal("100"), Decimal("100"), Decimal("100"), Decimal("100"), 100, Decimal("1000")),
+            ],
+            benchmark.instrument_id: [
+                Bar(benchmark.instrument_id, datetime(2026, 3, 2, 16, 0, 0), Decimal("100"), Decimal("100"), Decimal("100"), Decimal("100"), 100, Decimal("1000")),
+                Bar(benchmark.instrument_id, datetime(2026, 3, 3, 16, 0, 0), Decimal("100"), Decimal("100"), Decimal("100"), Decimal("100"), 100, Decimal("1000")),
+            ],
+        }
+        provider = InMemoryMarketDataProvider([stock, benchmark], bars_by_instrument)
+        bundle = build_default_bundle(provider, Market.US, "SP500_PROXY", date(2026, 3, 2))
+        snapshot_1 = MarketSnapshot(
+            market=Market.US,
+            as_of=datetime(2026, 3, 2, 16, 0, 0),
+            data_provider=provider,
+            calendar_provider=InMemoryCalendarProvider({Market.US: [datetime(2026, 3, 2, 16, 0, 0)]}),
+            universe_provider=InMemoryUniverseProvider(provider),
+            research_data_bundle=ResearchDataBundle(
+                market_data_provider=provider,
+                fundamental_provider=bundle.fundamental_provider,
+                benchmark_provider=bundle.benchmark_provider,
+                corporate_action_provider=bundle.corporate_action_provider,
+                benchmark_ids_by_market=bundle.benchmark_ids_by_market,
+            ),
+            benchmark_instrument_id=benchmark.instrument_id,
+        )
+        snapshot_2 = MarketSnapshot(
+            market=Market.US,
+            as_of=datetime(2026, 3, 3, 16, 0, 0),
+            data_provider=provider,
+            calendar_provider=InMemoryCalendarProvider({Market.US: [datetime(2026, 3, 3, 16, 0, 0)]}),
+            universe_provider=InMemoryUniverseProvider(provider),
+            research_data_bundle=snapshot_1.research_data_bundle,
+            benchmark_instrument_id=benchmark.instrument_id,
+        )
+
+        def fake_build_snapshot(market, symbols, detail_limit, history_limit, as_of_date):
+            if as_of_date == date(2026, 3, 2):
+                return snapshot_1
+            return snapshot_2
+
+        preset = next(item for item in strategy_presets_for_market(Market.US) if item.preset_id == "us_momentum_core")
+        report = build_rolling_strategy_backtest_report(
+            market=Market.US,
+            preset=preset,
+            start_date=date(2026, 3, 2),
+            end_date=date(2026, 3, 3),
+            detail_limit=2,
+            history_limit=5,
+            build_snapshot_fn=fake_build_snapshot,
+        )
+
+        serialized = serialize_rolling_backtest_report(report)
+        self.assertEqual(serialized["summary"]["trend_exit_count"], 1)
+        self.assertEqual(serialized["summary"]["rank_exit_count"], 0)
+        self.assertEqual(serialized["summary"]["risk_exit_count"], 0)
+        self.assertEqual(serialized["summary"]["other_exit_count"], 0)
+        self.assertEqual(serialized["exit_events"][0]["instrument_id"], "US.AAPL")
+        self.assertEqual(serialized["exit_events"][0]["reason_label"], "趋势失效")

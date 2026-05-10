@@ -310,6 +310,95 @@ class LocalPaperLedger:
     def list_accounts(self) -> List[str]:
         return sorted(path.parent.name for path in self._base_dir.glob("*/account.json"))
 
+    def liquidate_unknown_positions(
+        self,
+        account_id: str,
+        valid_instrument_ids: Iterable[str],
+        as_of: datetime,
+        strategy_id: str = "system_unknown_position_cleanup",
+    ) -> Dict[str, Any]:
+        payload = read_json_artifact(self._base_dir, self._account_relative_path(account_id))
+        if payload is None:
+            return {"account": None, "trade_records": [], "liquidated_count": 0}
+        account_state = _deserialize_account_state(payload)
+        valid_ids = {str(instrument_id) for instrument_id in valid_instrument_ids}
+        stale_positions = [
+            position
+            for instrument_id, position in account_state.positions.items()
+            if instrument_id not in valid_ids and position.qty > 0
+        ]
+        if not stale_positions:
+            return {"account": self.account_overview(account_id), "trade_records": [], "liquidated_count": 0}
+
+        ledger = read_json_artifact(self._base_dir, self._ledger_relative_path(account_id)) or {
+            "account_id": account_id,
+            "market": account_state.market.value,
+            "starting_cash": None,
+            "trades": [],
+            "nav_history": [],
+        }
+        trade_records: List[Dict[str, Any]] = []
+        for position in stale_positions:
+            liquidation_price = position.avg_cost
+            cash_delta = (liquidation_price * Decimal(position.qty)).quantize(Decimal("0.0001"))
+            account_state.cash += cash_delta
+            account_state.buying_power += cash_delta
+            account_state.positions.pop(position.instrument_id, None)
+            trade_records.append(
+                {
+                    "executed_at": as_of.isoformat(),
+                    "trade_date": as_of.date().isoformat(),
+                    "account_id": account_id,
+                    "market": account_state.market.value,
+                    "strategy_id": strategy_id,
+                    "instrument_id": position.instrument_id,
+                    "name": position.instrument_id,
+                    "side": "SELL",
+                    "requested_qty": position.qty,
+                    "filled_qty": position.qty,
+                    "estimated_price": str(liquidation_price),
+                    "realized_price": str(liquidation_price),
+                    "cash_delta": str(cash_delta),
+                    "status": "FILLED",
+                    "note": "unknown_position_auto_liquidation",
+                }
+            )
+        account_state.last_sync_at = as_of
+        self._write_account(account_state)
+
+        ledger["trades"] = list(ledger.get("trades", [])) + trade_records
+        trades_all = list(ledger.get("trades", []))
+        starting_cash = self._resolve_starting_cash(account_state, ledger, trades_all)
+        ledger["starting_cash"] = str(starting_cash)
+        nav_history = list(ledger.get("nav_history", []))
+        if not nav_history:
+            nav_history.append(
+                {
+                    "as_of": as_of.isoformat(),
+                    "trade_date": as_of.date().isoformat(),
+                    "nav": str(starting_cash.quantize(Decimal("0.0001"))),
+                    "cash": str(starting_cash.quantize(Decimal("0.0001"))),
+                    "position_value": "0.0000",
+                    "cumulative_return": "0.0000",
+                }
+            )
+        nav_history.append(
+            self._nav_snapshot(
+                account_state=account_state,
+                as_of=as_of,
+                trade_date=as_of.date().isoformat(),
+                starting_cash=starting_cash,
+                price_map={},
+            )
+        )
+        ledger["nav_history"] = nav_history
+        self._write_ledger(account_id, ledger)
+        return {
+            "account": self.account_overview(account_id),
+            "trade_records": trade_records,
+            "liquidated_count": len(trade_records),
+        }
+
     def _account_relative_path(self, account_id: str) -> str:
         return f"{account_id}/account.json"
 

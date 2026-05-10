@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
+from pathlib import Path
 from typing import Dict, List, Mapping
 
 from .engine import AStockSelectionStrategy, USStockSelectionStrategy
 from .models import Market
 from .pipeline import build_cn_index_enhancement_blueprint, build_us_quality_momentum_blueprint
+from .strategy_registry import StrategyRegistryStore
 
 
 @dataclass(frozen=True)
@@ -47,7 +49,7 @@ def _weights(market: Market, mapping: Mapping[str, Decimal]) -> Dict[str, Decima
     return base
 
 
-def strategy_presets_for_market(market: Market) -> List[StrategyPreset]:
+def _builtin_strategy_presets_for_market(market: Market) -> List[StrategyPreset]:
     if market == Market.CN:
         return [
             StrategyPreset(
@@ -201,8 +203,27 @@ def strategy_presets_for_market(market: Market) -> List[StrategyPreset]:
     ]
 
 
-def lookup_strategy_preset(market: Market, preset_id: str) -> StrategyPreset:
-    for preset in strategy_presets_for_market(market):
+def strategy_presets_for_market(
+    market: Market,
+    *,
+    include_registered: bool = True,
+    base_dir: str | Path | None = None,
+) -> List[StrategyPreset]:
+    presets = list(_builtin_strategy_presets_for_market(market))
+    if include_registered:
+        root_dir = Path(base_dir) if base_dir is not None else Path(__file__).resolve().parents[2] / "artifacts"
+        presets.extend(StrategyRegistryStore(root_dir).list_market_presets(market))
+    return presets
+
+
+def lookup_strategy_preset(
+    market: Market,
+    preset_id: str,
+    *,
+    include_registered: bool = True,
+    base_dir: str | Path | None = None,
+) -> StrategyPreset:
+    for preset in strategy_presets_for_market(market, include_registered=include_registered, base_dir=base_dir):
         if preset.preset_id == preset_id:
             return preset
     raise KeyError(f"Unknown strategy preset for {market.value}: {preset_id}")

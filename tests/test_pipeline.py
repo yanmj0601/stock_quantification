@@ -154,6 +154,92 @@ class PipelineTests(TestCase):
         self.assertTrue(result.alpha_scores)
         self.assertTrue(result.portfolio.targets)
 
+    def test_research_pipeline_computes_technical_breakout_factors(self) -> None:
+        as_of = datetime(2026, 9, 17, 16, 0, 0)
+        start_dt = as_of - timedelta(days=259)
+        instruments = [
+            Instrument(
+                "US.STRONG",
+                Market.US,
+                "STRONG",
+                AssetType.COMMON_STOCK,
+                "USD",
+                "NASDAQ",
+                attributes={"listed_days": 600, "sector": "Technology", "profitability": "0.7", "quality": "0.6"},
+            ),
+            Instrument(
+                "US.WEAK",
+                Market.US,
+                "WEAK",
+                AssetType.COMMON_STOCK,
+                "USD",
+                "NASDAQ",
+                attributes={"listed_days": 600, "sector": "Technology", "profitability": "0.5", "quality": "0.5"},
+            ),
+        ]
+
+        def build_strong_bars() -> list[Bar]:
+            bars: list[Bar] = []
+            price = Decimal("100")
+            for index in range(260):
+                current_dt = start_dt + timedelta(days=index)
+                if index < 170:
+                    step = Decimal("0.22")
+                    turnover = Decimal("1200000000")
+                elif index < 220:
+                    step = Decimal("0.03")
+                    turnover = Decimal("1000000000")
+                elif index < 259:
+                    step = Decimal("0.45")
+                    turnover = Decimal("2100000000")
+                else:
+                    step = Decimal("1.40")
+                    turnover = Decimal("3600000000")
+                open_price = price
+                close_price = price + step
+                bars.append(
+                    Bar(
+                        "US.STRONG",
+                        current_dt,
+                        open=open_price,
+                        high=close_price + Decimal("0.35"),
+                        low=open_price - Decimal("0.15"),
+                        close=close_price,
+                        volume=1_000_000 + index * 1000,
+                        turnover=turnover,
+                    )
+                )
+                price = close_price
+            return bars
+
+        bars = {
+            "US.STRONG": build_strong_bars(),
+            "US.WEAK": _build_bars("US.WEAK", Decimal("100"), start_dt, 260, Decimal("0.05"), Decimal("1100000000")),
+        }
+        provider = InMemoryMarketDataProvider(instruments, bars)
+        blueprint = build_us_quality_momentum_blueprint(
+            allowed_instrument_ids=("US.STRONG", "US.WEAK"),
+        )
+
+        result = ResearchPipeline(provider).run(blueprint, as_of)
+        raw_map = {row.instrument_id: row.raw for row in result.features}
+        technical_keys = {
+            "ma_trend_alignment",
+            "breakout_strength",
+            "base_breakout_score",
+            "volume_expansion",
+            "price_volume_confirmation",
+            "momentum_acceleration",
+            "volatility_contraction",
+            "pullback_resilience",
+        }
+
+        self.assertTrue(technical_keys.issubset(raw_map["US.STRONG"].keys()))
+        self.assertGreater(raw_map["US.STRONG"]["ma_trend_alignment"], raw_map["US.WEAK"]["ma_trend_alignment"])
+        self.assertGreater(raw_map["US.STRONG"]["breakout_strength"], raw_map["US.WEAK"]["breakout_strength"])
+        self.assertGreater(raw_map["US.STRONG"]["volume_expansion"], raw_map["US.WEAK"]["volume_expansion"])
+        self.assertGreater(raw_map["US.STRONG"]["price_volume_confirmation"], raw_map["US.WEAK"]["price_volume_confirmation"])
+
     def test_portfolio_builder_applies_sector_and_turnover_controls(self) -> None:
         blueprint = build_us_quality_momentum_blueprint(
             allowed_instrument_ids=("US.AAPL", "US.MSFT", "US.JNJ"),

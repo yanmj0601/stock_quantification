@@ -252,6 +252,60 @@ class IntegrationFlowTests(unittest.TestCase):
         self.assertIn(("US.KEEP", "SELL", 25), actions)
         self.assertIn(("US.NEW", "BUY", 25), actions)
 
+    def test_execution_planner_ignores_unknown_positions_without_crashing(self) -> None:
+        as_of = datetime(2026, 4, 3, 16, 0, 0)
+        instruments = [
+            Instrument("US.KEEP", Market.US, "KEEP", AssetType.COMMON_STOCK, "USD", "NASDAQ"),
+            Instrument("US.NEW", Market.US, "NEW", AssetType.COMMON_STOCK, "USD", "NASDAQ"),
+        ]
+        bars = {
+            instrument.instrument_id: [
+                Bar(instrument.instrument_id, as_of, Decimal("10"), Decimal("10"), Decimal("10"), Decimal("10"), 1_000_000, Decimal("100000000"))
+            ]
+            for instrument in instruments
+        }
+        data_provider = InMemoryMarketDataProvider(instruments, bars)
+        calendar_provider = InMemoryCalendarProvider({Market.US: [as_of]})
+        universe_provider = InMemoryUniverseProvider(data_provider)
+        strategy_runner = StandardStrategyRunner(data_provider, universe_provider, calendar_provider)
+        execution_planner = StandardExecutionPlanner(data_provider)
+        risk_engine = StandardRiskEngine(data_provider, {Market.US: USMarketRules()})
+        state_store = InMemoryStateStore()
+        state_store.save_account_state(
+            AccountState(
+                account_id="acct",
+                market=Market.US,
+                broker_id="paper-us",
+                cash=Decimal("500"),
+                buying_power=Decimal("500"),
+                positions={
+                    "US.KEEP": Position("US.KEEP", 50, Decimal("10")),
+                    "US.STALE": Position("US.STALE", 40, Decimal("12")),
+                },
+                constraints=AccountConstraints(max_position_weight=Decimal("1.0"), max_single_order_value=Decimal("100000")),
+            )
+        )
+        strategy = FixedTargetsStrategy(
+            as_of,
+            targets=[
+                TargetPosition(as_of, "fixed_targets", "US", "US.KEEP", Decimal("0.50")),
+                TargetPosition(as_of, "fixed_targets", "US", "US.NEW", Decimal("0.50")),
+            ],
+            signal_ids=["US.KEEP", "US.NEW"],
+        )
+        orchestrator = Orchestrator(
+            research_agent=ResearchAgent(strategy_runner),
+            strategy_agent=StrategyAgent(strategy_runner, EqualWeightPortfolioConstructor(top_n=2), execution_planner, state_store),
+            review_agent=ReviewAgent(),
+            execution_planner=execution_planner,
+            risk_engine=risk_engine,
+            state_store=state_store,
+        )
+        result = orchestrator.run(PaperContext(as_of=as_of), strategy, ["acct"], ExecutionMode.ADVISORY)
+        actions = {(item.instrument_id, item.side.value, item.suggested_qty) for item in result.proposal.trade_suggestions}
+        self.assertIn(("US.NEW", "BUY", 50), actions)
+        self.assertNotIn(("US.STALE", "SELL", 40), actions)
+
     def test_risk_engine_updates_cash_and_rejects_second_buy_sequentially(self) -> None:
         as_of = datetime(2026, 4, 3, 16, 0, 0)
         instruments = [
