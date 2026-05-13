@@ -22,6 +22,7 @@ from .models import (
     SignalSnapshot,
     StrategyProposal,
 )
+from .serialization_utils import to_decimal
 
 
 @dataclass(frozen=True)
@@ -127,7 +128,7 @@ class ReviewAgent:
         scores = [signal.score for signal in proposal.signals]
         max_score = max(scores)
         min_score = min(scores)
-        avg_score = sum(scores, Decimal("0")) / Decimal(str(len(scores)))
+        avg_score = sum(scores, Decimal("0")) / to_decimal(len(scores))
         return [
             "signal_count=%s" % len(scores),
             "signal_spread=%s" % _format_decimal(max_score - min_score),
@@ -158,7 +159,7 @@ class ReviewAgent:
     def _execution_metrics(self, proposal: StrategyProposal) -> List[str]:
         total_trade_qty = sum(suggestion.suggested_qty for suggestion in proposal.trade_suggestions)
         total_target_qty = sum(max(suggestion.target_qty, 0) for suggestion in proposal.trade_suggestions)
-        drift_ratio = Decimal("0") if total_target_qty == 0 else Decimal(str(total_trade_qty)) / Decimal(str(total_target_qty))
+        drift_ratio = Decimal("0") if total_target_qty == 0 else to_decimal(total_trade_qty) / to_decimal(total_target_qty)
         return [
             "trade_suggestion_count=%s" % len(proposal.trade_suggestions),
             "rebalance_qty=%s" % total_trade_qty,

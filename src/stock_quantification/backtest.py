@@ -263,6 +263,7 @@ def build_rolling_strategy_backtest_report(
     initial_cash: Decimal = Decimal("100000"),
     build_snapshot_fn=build_market_snapshot,
     market_dataset: Optional[MarketDataset] = None,
+    max_exit_events: Optional[int] = 12,
 ) -> RollingBacktestReport:
     snapshots = _actual_sessions(
         market=market,
@@ -483,7 +484,11 @@ def build_rolling_strategy_backtest_report(
         risk_exit_count=risk_exit_count,
         other_exit_count=other_exit_count,
     )
-    return RollingBacktestReport(summary=summary, daily=daily, exit_events=exit_events[-12:])
+    return RollingBacktestReport(
+        summary=summary,
+        daily=daily,
+        exit_events=_trim_exit_events(exit_events, max_exit_events=max_exit_events),
+    )
 
 
 def _collect_exit_events(
@@ -545,6 +550,18 @@ def _collect_exit_events(
             )
         )
     return events
+
+
+def _trim_exit_events(
+    exit_events: Sequence[object],
+    *,
+    max_exit_events: Optional[int],
+) -> List[object]:
+    if max_exit_events is None:
+        return list(exit_events)
+    if max_exit_events <= 0:
+        return []
+    return list(exit_events[-max_exit_events:])
 
 
 def _classify_exit_reason(
@@ -650,7 +667,7 @@ def _build_summary(
         benchmark_return=benchmark_return,
         excess_return=equal_weight_return - benchmark_return,
         average_return=equal_weight_return,
-        median_return=Decimal(str(median([float(item) for item in returns]))),
+        median_return=to_decimal(median([float(item) for item in returns])),
         average_excess_return=sum(excess_returns, Decimal("0")) / Decimal(len(excess_returns)),
         best_instrument_id=best.instrument_id,
         best_name=best.name,

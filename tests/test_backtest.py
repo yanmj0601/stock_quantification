@@ -11,6 +11,7 @@ from stock_quantification.backtest import (
     _mark_nav,
     _benchmark_window,
     _instrument_window,
+    _trim_exit_events,
     build_forward_return_report,
     build_rolling_strategy_backtest_report,
     serialize_backtest_report,
@@ -41,6 +42,16 @@ class SnapshotBuilderSpy:
 
 
 class BacktestTests(TestCase):
+    def test_trim_exit_events_can_preserve_full_history(self) -> None:
+        events = [
+            SimpleNamespace(trade_date=f"2026-03-{day:02d}")
+            for day in range(1, 15)
+        ]
+
+        self.assertEqual(len(_trim_exit_events(events, max_exit_events=12)), 12)
+        self.assertEqual(len(_trim_exit_events(events, max_exit_events=None)), 14)
+        self.assertEqual(_trim_exit_events(events, max_exit_events=0), [])
+
     def test_research_agent_is_thin_wrapper_over_strategy_runner(self) -> None:
         as_of = datetime(2026, 3, 2, 16, 0, 0)
         strategy = Mock()
