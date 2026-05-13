@@ -29,8 +29,10 @@ from .backtest import (
 from .cli import run_market
 from .engine import AStockSelectionStrategy, StandardStrategyRunner, USStockSelectionStrategy
 from .experiment_evolution import (
+    compare_generation_metrics,
     derive_next_factor_backtest_payload,
     describe_factor_backtest_stop_reason,
+    summarize_generation_metrics,
 )
 from .local_paper import LocalPaperLedger
 from .models import ExecutionMode, Market, RuntimeMode
@@ -601,6 +603,7 @@ class DashboardApp:
                 "generation": 1,
                 "max_generations": max_generations,
                 "lineage_id": checkpoint_key,
+                "mutation_template": "manual_baseline",
             },
             payload={
                 "market": market.value,
@@ -620,6 +623,7 @@ class DashboardApp:
                 "lineage_id": checkpoint_key,
                 "parent_job_id": None,
                 "mutation_reason": "",
+                "mutation_template": "manual_baseline",
                 "iteration_summary": [],
             },
         )
@@ -635,6 +639,9 @@ class DashboardApp:
                 "status": "QUEUED",
                 "last_job_id": job_id,
                 "last_mutation_reason": "",
+                "last_mutation_template": "manual_baseline",
+                "stagnation_count": 0,
+                "generations": [],
                 "stop_reason": None,
                 "updated_at": datetime.utcnow().isoformat(timespec="seconds"),
             },
@@ -651,6 +658,7 @@ class DashboardApp:
                 "generation": 1,
                 "max_generations": max_generations,
                 "auto_iterate": auto_iterate,
+                "mutation_template": "manual_baseline",
             },
         )
         if existing_checkpoint and int(existing_checkpoint.get("processed_dates", 0) or 0) > 0:
@@ -691,6 +699,7 @@ class DashboardApp:
                 "max_generations": int(payload.get("max_generations", 1) or 1),
                 "lineage_id": str(payload.get("lineage_id") or resume_context["checkpoint_key"]),
                 "mutation_reason": str(payload.get("mutation_reason") or ""),
+                "mutation_template": str(payload.get("mutation_template") or "manual_baseline"),
             },
             payload=payload,
         )
@@ -706,6 +715,7 @@ class DashboardApp:
                 "status": "QUEUED",
                 "last_job_id": resumed_job_id,
                 "last_mutation_reason": str(payload.get("mutation_reason") or ""),
+                "last_mutation_template": str(payload.get("mutation_template") or "manual_baseline"),
                 "stop_reason": None,
                 "updated_at": datetime.utcnow().isoformat(timespec="seconds"),
             },
@@ -1108,6 +1118,7 @@ class DashboardApp:
                 "lineage_id": str(payload.get("lineage_id") or payload.get("checkpoint_key") or ""),
                 "parent_job_id": (str(payload.get("parent_job_id")).strip() or None) if payload.get("parent_job_id") is not None else None,
                 "mutation_reason": str(payload.get("mutation_reason") or ""),
+                "mutation_template": str(payload.get("mutation_template") or "manual_baseline"),
                 "iteration_summary": list(payload.get("iteration_summary", []) or []),
             },
         )
@@ -1276,6 +1287,14 @@ class DashboardApp:
             scorecard = attribution.get("scorecard", {}) if isinstance(attribution.get("scorecard"), dict) else {}
             artifacts = result.get("artifacts", {}) if isinstance(result.get("artifacts"), dict) else {}
             artifact_json = str(artifacts.get("json") or "").strip()
+            lineage_id = str(summary.get("lineage_id") or (evolution_context or {}).get("lineage_id") or checkpoint_key)
+            lineage_summary = self._load_factor_backtest_lineage_summary(lineage_id) or {}
+            current_metrics = summarize_generation_metrics(result)
+            previous_metrics = None
+            generations = list((lineage_summary or {}).get("generations", []) or [])
+            if generations:
+                previous_metrics = generations[-1]
+            comparison = compare_generation_metrics(current_metrics, previous_metrics)
             next_experiment = derive_next_factor_backtest_payload(
                 result=result,
                 current_payload={
@@ -1293,9 +1312,11 @@ class DashboardApp:
                     "auto_iterate": bool((evolution_context or {}).get("auto_iterate")),
                     "generation": int((evolution_context or {}).get("generation", 1) or 1),
                     "max_generations": int((evolution_context or {}).get("max_generations", 1) or 1),
-                    "lineage_id": str((evolution_context or {}).get("lineage_id") or checkpoint_key),
+                    "lineage_id": lineage_id,
+                    "mutation_template": str((evolution_context or {}).get("mutation_template") or "manual_baseline"),
                 },
                 current_job_id=job_id,
+                lineage_summary=lineage_summary,
             )
             stop_reason = None
             evolution_status = "MANUAL"
@@ -1314,6 +1335,12 @@ class DashboardApp:
                     )
             summary["evolution_status"] = evolution_status
             summary["stop_reason"] = stop_reason
+            summary["mutation_template"] = str((evolution_context or {}).get("mutation_template") or "manual_baseline")
+            summary["score_delta"] = comparison["score_delta"]
+            summary["excess_delta"] = comparison["excess_delta"]
+            summary["drawdown_delta"] = comparison["drawdown_delta"]
+            summary["up_excess_delta"] = comparison["up_excess_delta"]
+            summary["stagnation_count"] = int(next_experiment.get("stagnation_count", 0) if next_experiment is not None else (int((lineage_summary or {}).get("stagnation_count", 0) or 0) + (1 if comparison["is_stagnating"] else 0)))
             record_result(
                 ARTIFACT_ROOT,
                 {
@@ -1339,8 +1366,13 @@ class DashboardApp:
                         "max_generations": summary.get("max_generations"),
                         "lineage_id": summary.get("lineage_id"),
                         "mutation_reason": summary.get("mutation_reason"),
+                        "mutation_template": summary.get("mutation_template"),
                         "evolution_status": summary.get("evolution_status"),
                         "stop_reason": summary.get("stop_reason"),
+                        "score_delta": summary.get("score_delta"),
+                        "excess_delta": summary.get("excess_delta"),
+                        "drawdown_delta": summary.get("drawdown_delta"),
+                        "up_excess_delta": summary.get("up_excess_delta"),
                     },
                     "artifacts": {
                         "json": artifact_json,
@@ -1363,6 +1395,7 @@ class DashboardApp:
                     "max_generations": summary.get("max_generations"),
                     "lineage_id": summary.get("lineage_id"),
                     "mutation_reason": summary.get("mutation_reason"),
+                    "mutation_template": summary.get("mutation_template"),
                     "evolution_status": summary.get("evolution_status"),
                     "stop_reason": summary.get("stop_reason"),
                 },
@@ -1377,11 +1410,27 @@ class DashboardApp:
                     "max_generations": summary.get("max_generations"),
                     "lineage_id": summary.get("lineage_id"),
                     "mutation_reason": summary.get("mutation_reason"),
+                    "mutation_template": summary.get("mutation_template"),
                     "evolution_status": summary.get("evolution_status"),
                     "stop_reason": summary.get("stop_reason"),
                 },
             )
-            lineage_id = str(summary.get("lineage_id") or checkpoint_key)
+            lineage_generations = generations + [
+                {
+                    "generation": current_metrics.get("generation"),
+                    "score": str(current_metrics.get("score", "0")),
+                    "excess_return": str(current_metrics.get("excess_return", "0")),
+                    "max_drawdown": str(current_metrics.get("max_drawdown", "0")),
+                    "up_excess": str(current_metrics.get("up_excess", "0")),
+                    "decision": current_metrics.get("decision"),
+                    "mutation_template": summary.get("mutation_template"),
+                    "mutation_reason": summary.get("mutation_reason"),
+                    "score_delta": comparison.get("score_delta"),
+                    "excess_delta": comparison.get("excess_delta"),
+                    "drawdown_delta": comparison.get("drawdown_delta"),
+                    "up_excess_delta": comparison.get("up_excess_delta"),
+                }
+            ]
             if next_experiment is not None:
                 next_payload = dict(next_experiment["payload"])
                 next_payload["checkpoint_key"] = self._factor_backtest_checkpoint_key(
@@ -1408,6 +1457,7 @@ class DashboardApp:
                         "max_generations": int(next_payload.get("max_generations", 1) or 1),
                         "lineage_id": str(next_payload.get("lineage_id") or lineage_id),
                         "mutation_reason": str(next_experiment.get("mutation_reason") or ""),
+                        "mutation_template": str(next_experiment.get("mutation_template") or ""),
                         "parent_job_id": job_id,
                     },
                     payload=next_payload,
@@ -1427,6 +1477,9 @@ class DashboardApp:
                         "last_result_subject_id": summary.get("subject_id"),
                         "last_decision": scorecard.get("decision"),
                         "last_mutation_reason": str(next_experiment.get("mutation_reason") or ""),
+                        "last_mutation_template": str(next_experiment.get("mutation_template") or ""),
+                        "stagnation_count": int(next_experiment.get("stagnation_count", 0) or 0),
+                        "generations": lineage_generations,
                         "stop_reason": None,
                         "updated_at": datetime.utcnow().isoformat(timespec="seconds"),
                     },
@@ -1443,6 +1496,7 @@ class DashboardApp:
                         "max_generations": int(next_payload.get("max_generations", 1) or 1),
                         "lineage_id": str(next_payload.get("lineage_id") or checkpoint_key),
                         "mutation_reason": str(next_experiment.get("mutation_reason") or ""),
+                        "mutation_template": str(next_experiment.get("mutation_template") or ""),
                         "parent_job_id": job_id,
                     },
                 )
@@ -1467,6 +1521,9 @@ class DashboardApp:
                         "last_result_subject_id": summary.get("subject_id"),
                         "last_decision": scorecard.get("decision"),
                         "last_mutation_reason": summary.get("mutation_reason"),
+                        "last_mutation_template": summary.get("mutation_template"),
+                        "stagnation_count": summary.get("stagnation_count"),
+                        "generations": lineage_generations,
                         "stop_reason": summary.get("stop_reason"),
                         "updated_at": datetime.utcnow().isoformat(timespec="seconds"),
                     },
@@ -1486,6 +1543,7 @@ class DashboardApp:
                     "max_generations": int((evolution_context or {}).get("max_generations", 1) or 1),
                     "status": "FAILED",
                     "last_job_id": job_id,
+                    "last_mutation_template": str((evolution_context or {}).get("mutation_template") or "manual_baseline"),
                     "stop_reason": str(exc),
                     "updated_at": datetime.utcnow().isoformat(timespec="seconds"),
                 },
@@ -1501,6 +1559,7 @@ class DashboardApp:
                     "lineage_id": str((evolution_context or {}).get("lineage_id") or checkpoint_key),
                     "generation": int((evolution_context or {}).get("generation", 1) or 1),
                     "max_generations": int((evolution_context or {}).get("max_generations", 1) or 1),
+                    "mutation_template": str((evolution_context or {}).get("mutation_template") or "manual_baseline"),
                     "stop_reason": str(exc),
                 },
             )
@@ -3006,6 +3065,14 @@ class DashboardApp:
             {self._summary_tile("Mutation / 派生原因", summary.get("mutation_reason") or "手动基线实验", "驱动本轮参数变化的主要原因")}
           </div>
           <div class="summary-grid">
+            {self._summary_tile("Template / 派生模板", summary.get("mutation_template", "manual_baseline"), "本轮实验使用的局部搜索模板")}
+            {self._summary_tile("Score Delta / 评分变化", summary.get("score_delta", "0.0000"), "相对上一代实验的综合评分变化")}
+            {self._summary_tile("Excess Delta / 超额变化", summary.get("excess_delta", "0.0000"), "相对上一代实验的累计超额变化")}
+            {self._summary_tile("Drawdown Delta / 回撤改善", summary.get("drawdown_delta", "0.0000"), "相对上一代实验的最大回撤改善值")}
+            {self._summary_tile("UP Regime Delta / 上涨状态超额变化", summary.get("up_excess_delta", "0.0000"), "上涨状态平均超额相对上一代的变化")}
+            {self._summary_tile("Stagnation / 停滞计数", evolution_summary.get("stagnation_count", summary.get("stagnation_count", 0)), "连续多少代没有带来明显改进")}
+          </div>
+          <div class="summary-grid">
             {self._summary_tile("Evolution Status / 进化状态", evolution_summary.get("status", summary.get("evolution_status", "N/A")), "这条实验链当前是继续推进、已停止还是失败")}
             {self._summary_tile("Stop Reason / 停止原因", evolution_summary.get("stop_reason", summary.get("stop_reason", "N/A")) or "N/A", "如果没有继续自动派生，这里解释为什么停止")}
             {self._summary_tile("Last Decision / 最近结论", evolution_summary.get("last_decision", scorecard.get("decision", "N/A")), "这条实验链最近一次完成实验的结论")}
@@ -4035,6 +4102,22 @@ class DashboardApp:
         normalized_summary = payload.get("summary", {}) if isinstance(payload.get("summary"), dict) else {}
         if not normalized_summary and isinstance(payload.get("normalized_summary"), dict):
             normalized_summary = payload.get("normalized_summary", {})
+        record_summary = record.get("summary", {}) if isinstance(record.get("summary"), dict) else {}
+        for key in (
+            "generation",
+            "max_generations",
+            "lineage_id",
+            "mutation_reason",
+            "mutation_template",
+            "evolution_status",
+            "stop_reason",
+            "score_delta",
+            "excess_delta",
+            "drawdown_delta",
+            "up_excess_delta",
+        ):
+            if key not in normalized_summary and key in record_summary:
+                normalized_summary[key] = record_summary.get(key)
         lineage_summary = self._load_factor_backtest_lineage_summary(str(normalized_summary.get("lineage_id") or ""))
         return {
             "summary": normalized_summary or record.get("summary", {}),
@@ -6277,6 +6360,7 @@ class DashboardApp:
             "lineage_id": str((evolution_context or {}).get("lineage_id") or checkpoint_key),
             "parent_job_id": (str((evolution_context or {}).get("parent_job_id")).strip() or None) if (evolution_context or {}).get("parent_job_id") is not None else None,
             "mutation_reason": str((evolution_context or {}).get("mutation_reason") or ""),
+            "mutation_template": str((evolution_context or {}).get("mutation_template") or "manual_baseline"),
         }
         serialized_regimes = serialize_regime_summaries(regime_summary)
         serialized_alpha_mix = serialize_alpha_mix(alpha_mix)
@@ -6306,6 +6390,7 @@ class DashboardApp:
                 "lineage_id": summary["lineage_id"],
                 "parent_job_id": summary["parent_job_id"],
                 "mutation_reason": summary["mutation_reason"],
+                "mutation_template": summary["mutation_template"],
                 "iteration_summary": list((evolution_context or {}).get("iteration_summary", []) or []),
             },
         }
