@@ -11,6 +11,7 @@ from stock_quantification.models import AssetType, Bar, Instrument, Market
 from stock_quantification.research_data import DataAvailability, build_default_bundle
 from stock_quantification.real_data import (
     MarketSnapshot,
+    _cached_us_history_rows,
     build_market_snapshot,
     fetch_cn_benchmark_history,
     fetch_cn_daily_history,
@@ -216,6 +217,30 @@ class RealDataTests(TestCase):
             self.assertEqual(instrument.instrument_id, "US.AAPL")
             self.assertEqual(len(bars), 2)
             self.assertEqual(bars[-1].close, Decimal("207"))
+
+    @patch("stock_quantification.real_data._market_cache_store")
+    def test_cached_us_history_rows_rejects_stale_recent_cache(self, mock_market_cache_store) -> None:
+        latest_trade_date = date.today() - timedelta(days=3)
+        prior_trade_date = latest_trade_date - timedelta(days=1)
+        mock_market_cache_store.return_value.load_market_bars.return_value = [
+            {
+                "trade_date": prior_trade_date.isoformat(),
+                "fetched_at": (datetime.now() - timedelta(days=3)).isoformat(timespec="seconds"),
+            },
+            {
+                "trade_date": latest_trade_date.isoformat(),
+                "fetched_at": (datetime.now() - timedelta(days=3)).isoformat(timespec="seconds"),
+            },
+        ]
+
+        rows = _cached_us_history_rows(
+            "SPY",
+            assetclass="etf",
+            from_date=prior_trade_date,
+            to_date=date.today(),
+        )
+
+        self.assertEqual(rows, [])
 
     @patch("stock_quantification.real_data._http_get_json")
     def test_fetch_cn_benchmark_history_retries_after_param_error_payload(self, mock_http_get_json) -> None:

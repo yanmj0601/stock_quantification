@@ -108,9 +108,28 @@ def _cached_us_history_rows(
     latest_trade_date = date.fromisoformat(str(rows[-1]["trade_date"]))
     if first_trade_date > from_date:
         return []
+    if _requires_recent_us_refresh(to_date):
+        latest_fetched_at = _parse_cached_fetched_at(rows[-1].get("fetched_at"))
+        if latest_fetched_at is None:
+            return []
+        if datetime.now() - latest_fetched_at > timedelta(hours=_HTTP_CACHE_TTL_HOURS):
+            return []
     if latest_trade_date < (to_date - timedelta(days=7)):
         return []
     return rows
+
+
+def _requires_recent_us_refresh(to_date: date) -> bool:
+    return to_date >= (datetime.now().date() - timedelta(days=3))
+
+
+def _parse_cached_fetched_at(raw_value: object) -> Optional[datetime]:
+    if not raw_value:
+        return None
+    try:
+        return datetime.fromisoformat(str(raw_value))
+    except ValueError:
+        return None
 
 
 def _bars_from_cached_us_rows(rows: Sequence[Dict[str, object]], *, asset_type: AssetType) -> Tuple[Instrument, List[Bar]]:
