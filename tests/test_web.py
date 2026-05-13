@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import Mock
@@ -1582,6 +1583,8 @@ class WebTests(TestCase):
         self.assertIn('value="10"', body)
         self.assertIn('value="50"', body)
         self.assertIn('value="200"', body)
+        self.assertIn('name="factor_auto_iterate"', body)
+        self.assertIn('name="factor_max_generations"', body)
         self.assertIn("均线多头排列", body)
         self.assertIn("突破强度", body)
         self.assertIn("量价确认", body)
@@ -2581,9 +2584,21 @@ class WebTests(TestCase):
         self.assertIn("web-paper-us / us_quality_momentum", body)
         self.assertIn("Normalized Summary / 统一摘要", body)
 
+    @patch.object(DashboardApp, "_load_factor_backtest_lineage_summary")
     @patch.object(DashboardApp, "_symbol_catalog", return_value=[{"symbol": "AAPL", "name": "Apple Inc."}])
     @patch.object(DashboardApp, "_render_local_paper_panel", return_value="<section>模拟盘账户</section>")
-    def test_home_page_renders_strategy_lab_result_sections(self, _mock_paper_panel, _mock_symbol_catalog) -> None:
+    def test_home_page_renders_strategy_lab_result_sections(
+        self,
+        _mock_paper_panel,
+        _mock_symbol_catalog,
+        mock_load_lineage_summary,
+    ) -> None:
+        mock_load_lineage_summary.return_value = {
+            "status": "STOPPED",
+            "stop_reason": "已达到最大代次 3。",
+            "last_decision": "KEEP",
+            "last_job_id": "factor-job-3",
+        }
         self.app.state.last_factor_backtest_result = {
             "summary": {
                 "market": "US",
@@ -2599,6 +2614,11 @@ class WebTests(TestCase):
                 "average_excess_return": "0.0060",
                 "average_win_rate": "0.5800",
                 "observations": 15,
+                "auto_iterate": True,
+                "generation": 3,
+                "max_generations": 3,
+                "lineage_id": "lineage-us-1",
+                "mutation_reason": "上涨状态下跑输基准，转向突破确认与回调修复。",
                 "selected_factor_rows": [{"label": "20日相对强度", "effective_weight": "0.2200", "tilt": "1.2", "base_weight": "0.1500"}],
             },
             "signal_validation": {"daily": [{"trade_date": "2026-03-12", "equal_weight_return": "0.0120", "excess_return": "0.0050", "win_rate": "0.6000"}]},
@@ -2648,6 +2668,10 @@ class WebTests(TestCase):
         self.assertIn("Benchmark Return / 基准收益", body)
         self.assertIn("Excess Return / 超额收益", body)
         self.assertIn("Next Iteration / 下一轮迭代建议", body)
+        self.assertIn("Generation / 代次", body)
+        self.assertIn("Evolution Status / 进化状态", body)
+        self.assertIn("STOPPED", body)
+        self.assertIn("已达到最大代次 3。", body)
         self.assertNotIn('id="factor-backtest-form"', body)
 
     def test_chat_echo_and_path_safety(self) -> None:
@@ -3169,6 +3193,33 @@ class WebTests(TestCase):
         self.assertIn("已加入队列", self.app.state.flash_messages[-1]["message"])
         self.assertEqual(self.app.state.flash_messages[-1]["audience"], "optimize")
 
+    def test_factor_backtest_submission_persists_auto_iteration_controls(self) -> None:
+        response = self.app.handle_factor_backtest(
+            {
+                "view": ["optimize"],
+                "subview": ["create"],
+                "factor_market": ["CN"],
+                "factor": ["rel_ret_20", "trend"],
+                "factor_start_date": ["2026-01-02"],
+                "factor_end_date": ["2026-03-31"],
+                "factor_holding_sessions": ["5"],
+                "factor_detail_limit": ["50"],
+                "factor_history_limit": ["200"],
+                "factor_top_n": ["10"],
+                "factor_initial_cash": ["100000"],
+                "factor_auto_iterate": ["on"],
+                "factor_max_generations": ["4"],
+            }
+        )
+        self.assertEqual(response.status, 303)
+        begin_args, begin_kwargs = self.ops_store.begin_job.call_args
+        self.assertEqual(begin_args[0], "factor_backtest")
+        self.assertTrue(begin_kwargs["payload"]["auto_iterate"])
+        self.assertEqual(begin_kwargs["payload"]["generation"], 1)
+        self.assertEqual(begin_kwargs["payload"]["max_generations"], 4)
+        self.assertTrue(begin_kwargs["metadata"]["auto_iterate"])
+        self.assertEqual(begin_kwargs["metadata"]["generation"], 1)
+
     def test_factor_backtest_continue_requeues_checkpointed_job(self) -> None:
         self.ops_store.sqlite.get_job.return_value = {
             "job_id": "factor-job-1",
@@ -3208,6 +3259,103 @@ class WebTests(TestCase):
         self.assertEqual(begin_kwargs["metadata"]["resume_processed_dates"], 17)
         self.assertIn("从第 17 个样本后继续", self.app.state.flash_messages[-1]["message"])
         self.assertEqual(self.app.state.flash_messages[-1]["audience"], "optimize")
+
+    @patch.object(DashboardApp, "_run_factor_backtest")
+    def test_factor_backtest_job_success_auto_requeues_next_generation(self, mock_run_factor_backtest) -> None:
+        mock_run_factor_backtest.return_value = {
+            "summary": {
+                "subject_id": "cn_strategy_lab:2026-01-02:2026-03-31:auto1",
+                "subject_name": "CN 因子实验 / 20日相对强度、趋势强度",
+                "market": "CN",
+                "start_date": "2026-01-02",
+                "end_date": "2026-03-31",
+                "selected_factors": ["rel_ret_20", "trend"],
+                "total_return": "0.0120",
+                "rolling_excess_return": "-0.0310",
+                "max_drawdown": "-0.0900",
+                "average_excess_return": "-0.0100",
+                "top_n": 10,
+            },
+            "attribution": {
+                "scorecard": {"decision": "REVIEW", "score": "0.12", "rationale": "weak up market"},
+                "alpha_mix": [{"family": "momentum", "share_of_gross": "0.6800"}],
+                "regime_summary": [{"regime": "UP", "average_excess_period_return": "-0.0040"}],
+            },
+            "rolling_backtest": {"summary": {"risk_exit_count": 3, "trend_exit_count": 0}},
+            "artifacts": {"json": "/tmp/cn_factor.json", "markdown": "/tmp/cn_factor.md"},
+        }
+        self.ops_store.begin_job.return_value = {"accepted": True, "job": {"job_id": "factor-job-2", "kind": "factor_backtest"}}
+
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                with patch.object(self.app, "_ensure_job_worker_running"), patch.object(self.app._job_worker_wakeup_event, "set") as mock_wakeup:
+                    self.app._run_factor_backtest_job(
+                        "factor-job-1",
+                        web_module.Market.CN,
+                        ["rel_ret_20", "trend"],
+                        datetime.fromisoformat("2026-01-02T00:00:00").date(),
+                        datetime.fromisoformat("2026-03-31T00:00:00").date(),
+                        5,
+                        50,
+                        200,
+                        10,
+                        Decimal("100000"),
+                        {"rel_ret_20": Decimal("1.0"), "trend": Decimal("1.0")},
+                        checkpoint_key="ckpt-cn-1",
+                        evolution_context={
+                            "auto_iterate": True,
+                            "generation": 1,
+                            "max_generations": 3,
+                            "lineage_id": "lineage-cn-1",
+                            "parent_job_id": None,
+                            "mutation_reason": "",
+                        },
+                    )
+
+        begin_args, begin_kwargs = self.ops_store.begin_job.call_args
+        self.assertEqual(begin_args[0], "factor_backtest")
+        self.assertEqual(begin_kwargs["payload"]["generation"], 2)
+        self.assertEqual(begin_kwargs["payload"]["lineage_id"], "lineage-cn-1")
+        self.assertEqual(begin_kwargs["payload"]["parent_job_id"], "factor-job-1")
+        self.assertIn("mutation_reason", begin_kwargs["payload"])
+        self.assertTrue(begin_kwargs["payload"]["auto_iterate"])
+        self.assertIn("自动派生", self.app.state.flash_messages[-1]["message"])
+        mock_wakeup.assert_called()
+
+    @patch.object(DashboardApp, "_load_project_config", return_value=DEFAULT_PROJECT_CONFIG)
+    def test_optimize_history_view_shows_generation_and_mutation_reason(self, _mock_config) -> None:
+        self.ops_store.load_state.return_value = {
+            "active_job": None,
+            "queued_jobs": [
+                {
+                    "job_id": "factor-job-2",
+                    "kind": "factor_backtest",
+                    "status": "QUEUED",
+                    "stage": "QUEUED",
+                    "detail": "已加入队列：CN 因子回测自动派生任务",
+                    "metadata": {
+                        "market": "CN",
+                        "generation": 2,
+                        "max_generations": 4,
+                        "lineage_id": "lineage-cn-1",
+                        "mutation_reason": "上涨状态下跑输基准，转向突破确认与回调修复。",
+                    },
+                    "created_at": "2026-05-13T10:00:00",
+                    "progress_pct": 0,
+                }
+            ],
+            "job_history": [],
+            "audit_events": [],
+            "heartbeats": {},
+        }
+
+        response = self.app.render_home({"view": ["optimize"], "subview": ["history"]})
+
+        body = response.body.decode("utf-8")
+        self.assertEqual(response.status, 200)
+        self.assertIn("Generation / 代次: 2 / 4", body)
+        self.assertIn("Mutation / 派生原因: 上涨状态下跑输基准", body)
 
     def test_load_project_config_sanitizes_bad_persisted_values(self) -> None:
         broken_payload = {

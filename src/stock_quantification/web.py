@@ -28,6 +28,10 @@ from .backtest import (
 )
 from .cli import run_market
 from .engine import AStockSelectionStrategy, StandardStrategyRunner, USStockSelectionStrategy
+from .experiment_evolution import (
+    derive_next_factor_backtest_payload,
+    describe_factor_backtest_stop_reason,
+)
 from .local_paper import LocalPaperLedger
 from .models import ExecutionMode, Market, RuntimeMode
 from .ops import ProjectOpsStore
@@ -115,6 +119,8 @@ DEFAULT_PROJECT_CONFIG: Dict[str, Dict[str, Any]] = {
         "factor_detail_limit": "50",
         "factor_history_limit": "200",
         "factor_initial_cash": "100000",
+        "factor_auto_iterate": False,
+        "factor_max_generations": "3",
     },
     "ui_defaults": {
         "paper_account_id": "web-paper-us",
@@ -558,6 +564,8 @@ class DashboardApp:
             history_limit = self._parse_int_field(body.get("factor_history_limit", [str(defaults["factor_history_limit"])])[0], "Factor History Limit / 历史窗口", minimum=1)
             top_n = self._parse_int_field(body.get("factor_top_n", [str(defaults["factor_top_n"])])[0], "Factor Top N / 组合数量", minimum=1, maximum=10)
             initial_cash = self._parse_decimal_field(body.get("factor_initial_cash", [str(defaults["factor_initial_cash"])])[0], "Initial Cash / 回测资金", minimum=Decimal("0.0001"))
+            auto_iterate = body.get("factor_auto_iterate", ["on" if defaults.get("factor_auto_iterate") else ""])[0] in {"on", "1", "true", "TRUE"}
+            max_generations = self._parse_int_field(body.get("factor_max_generations", [str(defaults.get("factor_max_generations", "3"))])[0], "Max Generations / 最大代次", minimum=1)
             factor_tilts = {
                 factor_name: self._parse_decimal_field(
                     body.get(f"factor_tilt_{factor_name}", ["1.0"])[0] or "1.0",
@@ -589,6 +597,10 @@ class DashboardApp:
                 "factors": selected_factors,
                 "checkpoint_key": checkpoint_key,
                 "resume_processed_dates": int((existing_checkpoint or {}).get("processed_dates", 0) or 0),
+                "auto_iterate": auto_iterate,
+                "generation": 1,
+                "max_generations": max_generations,
+                "lineage_id": checkpoint_key,
             },
             payload={
                 "market": market.value,
@@ -602,15 +614,44 @@ class DashboardApp:
                 "initial_cash": self._stringify_decimal(initial_cash),
                 "factor_tilts": {name: self._stringify_decimal(value) for name, value in factor_tilts.items()},
                 "checkpoint_key": checkpoint_key,
+                "auto_iterate": auto_iterate,
+                "generation": 1,
+                "max_generations": max_generations,
+                "lineage_id": checkpoint_key,
+                "parent_job_id": None,
+                "mutation_reason": "",
+                "iteration_summary": [],
             },
         )
         job_id = str(reservation["job"]["job_id"])
+        self._save_factor_backtest_lineage_summary(
+            checkpoint_key,
+            {
+                "lineage_id": checkpoint_key,
+                "market": market.value,
+                "auto_iterate": auto_iterate,
+                "current_generation": 1,
+                "max_generations": max_generations,
+                "status": "QUEUED",
+                "last_job_id": job_id,
+                "last_mutation_reason": "",
+                "stop_reason": None,
+                "updated_at": datetime.utcnow().isoformat(timespec="seconds"),
+            },
+        )
         self._append_task_log(
             category="research",
             action="factor_backtest",
             status="QUEUED",
             detail=f"已加入队列：{market.value} 因子回测任务",
-            metadata={"job_id": job_id, "market": market.value, "factors": ",".join(selected_factors)},
+            metadata={
+                "job_id": job_id,
+                "market": market.value,
+                "factors": ",".join(selected_factors),
+                "generation": 1,
+                "max_generations": max_generations,
+                "auto_iterate": auto_iterate,
+            },
         )
         if existing_checkpoint and int(existing_checkpoint.get("processed_dates", 0) or 0) > 0:
             self.state.push_flash(
@@ -645,10 +686,30 @@ class DashboardApp:
                 "checkpoint_key": resume_context["checkpoint_key"],
                 "resume_processed_dates": resume_context["processed_dates"],
                 "resumed_from_job_id": job_id,
+                "auto_iterate": bool(payload.get("auto_iterate")),
+                "generation": int(payload.get("generation", 1) or 1),
+                "max_generations": int(payload.get("max_generations", 1) or 1),
+                "lineage_id": str(payload.get("lineage_id") or resume_context["checkpoint_key"]),
+                "mutation_reason": str(payload.get("mutation_reason") or ""),
             },
             payload=payload,
         )
         resumed_job_id = str(reservation["job"]["job_id"])
+        self._save_factor_backtest_lineage_summary(
+            str(payload.get("lineage_id") or resume_context["checkpoint_key"]),
+            {
+                "lineage_id": str(payload.get("lineage_id") or resume_context["checkpoint_key"]),
+                "market": resume_context["market"],
+                "auto_iterate": bool(payload.get("auto_iterate")),
+                "current_generation": int(payload.get("generation", 1) or 1),
+                "max_generations": int(payload.get("max_generations", 1) or 1),
+                "status": "QUEUED",
+                "last_job_id": resumed_job_id,
+                "last_mutation_reason": str(payload.get("mutation_reason") or ""),
+                "stop_reason": None,
+                "updated_at": datetime.utcnow().isoformat(timespec="seconds"),
+            },
+        )
         self._append_task_log(
             category="research",
             action="factor_backtest",
@@ -1040,6 +1101,15 @@ class DashboardApp:
                 for name, value in (payload.get("factor_tilts", {}) or {}).items()
             },
             checkpoint_key=str(payload.get("checkpoint_key") or ""),
+            evolution_context={
+                "auto_iterate": bool(payload.get("auto_iterate")),
+                "generation": int(payload.get("generation", 1) or 1),
+                "max_generations": int(payload.get("max_generations", 1) or 1),
+                "lineage_id": str(payload.get("lineage_id") or payload.get("checkpoint_key") or ""),
+                "parent_job_id": (str(payload.get("parent_job_id")).strip() or None) if payload.get("parent_job_id") is not None else None,
+                "mutation_reason": str(payload.get("mutation_reason") or ""),
+                "iteration_summary": list(payload.get("iteration_summary", []) or []),
+            },
         )
 
     def _run_strategy_job(
@@ -1170,6 +1240,7 @@ class DashboardApp:
         initial_cash: Decimal,
         factor_tilts: Dict[str, Decimal],
         checkpoint_key: str = "",
+        evolution_context: Optional[Dict[str, Any]] = None,
     ) -> None:
         try:
             result = self._run_factor_backtest(
@@ -1184,6 +1255,7 @@ class DashboardApp:
                 initial_cash=initial_cash,
                 factor_tilts=factor_tilts,
                 checkpoint_key=checkpoint_key,
+                evolution_context=evolution_context,
                 progress_callback=lambda progress_pct, stage, detail, metadata=None: self._ops_store().update_active_job(
                     job_id,
                     progress_pct=progress_pct,
@@ -1204,6 +1276,44 @@ class DashboardApp:
             scorecard = attribution.get("scorecard", {}) if isinstance(attribution.get("scorecard"), dict) else {}
             artifacts = result.get("artifacts", {}) if isinstance(result.get("artifacts"), dict) else {}
             artifact_json = str(artifacts.get("json") or "").strip()
+            next_experiment = derive_next_factor_backtest_payload(
+                result=result,
+                current_payload={
+                    "market": market.value,
+                    "selected_factors": selected_factors,
+                    "start_date": start_date.isoformat(),
+                    "end_date": end_date.isoformat(),
+                    "holding_sessions": holding_sessions,
+                    "detail_limit": detail_limit,
+                    "history_limit": history_limit,
+                    "top_n": top_n,
+                    "initial_cash": self._stringify_decimal(initial_cash),
+                    "factor_tilts": {name: self._stringify_decimal(value) for name, value in factor_tilts.items()},
+                    "checkpoint_key": checkpoint_key,
+                    "auto_iterate": bool((evolution_context or {}).get("auto_iterate")),
+                    "generation": int((evolution_context or {}).get("generation", 1) or 1),
+                    "max_generations": int((evolution_context or {}).get("max_generations", 1) or 1),
+                    "lineage_id": str((evolution_context or {}).get("lineage_id") or checkpoint_key),
+                },
+                current_job_id=job_id,
+            )
+            stop_reason = None
+            evolution_status = "MANUAL"
+            if bool((evolution_context or {}).get("auto_iterate")):
+                if next_experiment is not None:
+                    evolution_status = "CONTINUING"
+                else:
+                    evolution_status = "STOPPED"
+                    stop_reason = describe_factor_backtest_stop_reason(
+                        result=result,
+                        current_payload={
+                            "auto_iterate": bool((evolution_context or {}).get("auto_iterate")),
+                            "generation": int((evolution_context or {}).get("generation", 1) or 1),
+                            "max_generations": int((evolution_context or {}).get("max_generations", 1) or 1),
+                        },
+                    )
+            summary["evolution_status"] = evolution_status
+            summary["stop_reason"] = stop_reason
             record_result(
                 ARTIFACT_ROOT,
                 {
@@ -1225,6 +1335,12 @@ class DashboardApp:
                         "regime_summary": attribution.get("regime_summary", []),
                         "alpha_mix": attribution.get("alpha_mix", []),
                         "market": market.value,
+                        "generation": summary.get("generation"),
+                        "max_generations": summary.get("max_generations"),
+                        "lineage_id": summary.get("lineage_id"),
+                        "mutation_reason": summary.get("mutation_reason"),
+                        "evolution_status": summary.get("evolution_status"),
+                        "stop_reason": summary.get("stop_reason"),
                     },
                     "artifacts": {
                         "json": artifact_json,
@@ -1240,25 +1356,153 @@ class DashboardApp:
                 action="factor_backtest",
                 status="SUCCESS",
                 detail=f"{market.value} 策略实验完成：{factor_names}",
-                metadata={"market": market.value, "factors": ",".join(result["summary"]["selected_factors"])},
+                metadata={
+                    "market": market.value,
+                    "factors": ",".join(result["summary"]["selected_factors"]),
+                    "generation": summary.get("generation"),
+                    "max_generations": summary.get("max_generations"),
+                    "lineage_id": summary.get("lineage_id"),
+                    "mutation_reason": summary.get("mutation_reason"),
+                    "evolution_status": summary.get("evolution_status"),
+                    "stop_reason": summary.get("stop_reason"),
+                },
             )
             self._ops_store().finish_job(
                 job_id,
                 "SUCCESS",
                 detail=f"{market.value} 策略实验完成",
-                metadata={"observations": result["summary"].get("observations", 0)},
+                metadata={
+                    "observations": result["summary"].get("observations", 0),
+                    "generation": summary.get("generation"),
+                    "max_generations": summary.get("max_generations"),
+                    "lineage_id": summary.get("lineage_id"),
+                    "mutation_reason": summary.get("mutation_reason"),
+                    "evolution_status": summary.get("evolution_status"),
+                    "stop_reason": summary.get("stop_reason"),
+                },
             )
+            lineage_id = str(summary.get("lineage_id") or checkpoint_key)
+            if next_experiment is not None:
+                next_payload = dict(next_experiment["payload"])
+                next_payload["checkpoint_key"] = self._factor_backtest_checkpoint_key(
+                    market=market,
+                    selected_factors=[str(value) for value in next_payload.get("selected_factors", [])],
+                    start_date=date.fromisoformat(str(next_payload["start_date"])),
+                    end_date=date.fromisoformat(str(next_payload["end_date"])),
+                    holding_sessions=int(next_payload["holding_sessions"]),
+                    detail_limit=int(next_payload["detail_limit"]),
+                    history_limit=int(next_payload["history_limit"]),
+                    top_n=int(next_payload["top_n"]),
+                    initial_cash=Decimal(str(next_payload["initial_cash"])),
+                    factor_tilts={str(name): Decimal(str(value)) for name, value in (next_payload.get("factor_tilts", {}) or {}).items()},
+                )
+                reservation = self._ops_store().begin_job(
+                    "factor_backtest",
+                    metadata={
+                        "market": market.value,
+                        "factors": list(next_payload.get("selected_factors", [])),
+                        "checkpoint_key": next_payload["checkpoint_key"],
+                        "resume_processed_dates": 0,
+                        "auto_iterate": True,
+                        "generation": int(next_payload.get("generation", 1) or 1),
+                        "max_generations": int(next_payload.get("max_generations", 1) or 1),
+                        "lineage_id": str(next_payload.get("lineage_id") or lineage_id),
+                        "mutation_reason": str(next_experiment.get("mutation_reason") or ""),
+                        "parent_job_id": job_id,
+                    },
+                    payload=next_payload,
+                )
+                next_job_id = str(reservation["job"]["job_id"])
+                self._save_factor_backtest_lineage_summary(
+                    str(next_payload.get("lineage_id") or lineage_id),
+                    {
+                        "lineage_id": str(next_payload.get("lineage_id") or lineage_id),
+                        "market": market.value,
+                        "auto_iterate": True,
+                        "current_generation": int(next_payload.get("generation", 1) or 1),
+                        "max_generations": int(next_payload.get("max_generations", 1) or 1),
+                        "status": "QUEUED",
+                        "last_job_id": next_job_id,
+                        "last_completed_job_id": job_id,
+                        "last_result_subject_id": summary.get("subject_id"),
+                        "last_decision": scorecard.get("decision"),
+                        "last_mutation_reason": str(next_experiment.get("mutation_reason") or ""),
+                        "stop_reason": None,
+                        "updated_at": datetime.utcnow().isoformat(timespec="seconds"),
+                    },
+                )
+                self._append_task_log(
+                    category="research",
+                    action="factor_backtest",
+                    status="QUEUED",
+                    detail=f"已加入队列：{market.value} 因子回测自动派生任务",
+                    metadata={
+                        "job_id": next_job_id,
+                        "market": market.value,
+                        "generation": int(next_payload.get("generation", 1) or 1),
+                        "max_generations": int(next_payload.get("max_generations", 1) or 1),
+                        "lineage_id": str(next_payload.get("lineage_id") or checkpoint_key),
+                        "mutation_reason": str(next_experiment.get("mutation_reason") or ""),
+                        "parent_job_id": job_id,
+                    },
+                )
+                self.state.push_flash(
+                    f"{market.value} 策略实验已自动派生下一轮（第 {next_payload['generation']} / {next_payload['max_generations']} 代）。",
+                    audience="optimize",
+                )
+                self._ensure_job_worker_running()
+                self._job_worker_wakeup_event.set()
+            else:
+                self._save_factor_backtest_lineage_summary(
+                    lineage_id,
+                    {
+                        "lineage_id": lineage_id,
+                        "market": market.value,
+                        "auto_iterate": bool((evolution_context or {}).get("auto_iterate")),
+                        "current_generation": int(summary.get("generation", 1) or 1),
+                        "max_generations": int(summary.get("max_generations", 1) or 1),
+                        "status": summary.get("evolution_status", "COMPLETED"),
+                        "last_job_id": job_id,
+                        "last_completed_job_id": job_id,
+                        "last_result_subject_id": summary.get("subject_id"),
+                        "last_decision": scorecard.get("decision"),
+                        "last_mutation_reason": summary.get("mutation_reason"),
+                        "stop_reason": summary.get("stop_reason"),
+                        "updated_at": datetime.utcnow().isoformat(timespec="seconds"),
+                    },
+                )
             if checkpoint_key:
                 self._clear_factor_backtest_checkpoint(checkpoint_key)
         except Exception as exc:
             self._ops_store().finish_job(job_id, "FAILED", str(exc))
+            lineage_id = str((evolution_context or {}).get("lineage_id") or checkpoint_key)
+            self._save_factor_backtest_lineage_summary(
+                lineage_id,
+                {
+                    "lineage_id": lineage_id,
+                    "market": market.value,
+                    "auto_iterate": bool((evolution_context or {}).get("auto_iterate")),
+                    "current_generation": int((evolution_context or {}).get("generation", 1) or 1),
+                    "max_generations": int((evolution_context or {}).get("max_generations", 1) or 1),
+                    "status": "FAILED",
+                    "last_job_id": job_id,
+                    "stop_reason": str(exc),
+                    "updated_at": datetime.utcnow().isoformat(timespec="seconds"),
+                },
+            )
             self.state.push_flash(f"因子回测失败：{exc}", audience="optimize")
             self._append_task_log(
                 category="research",
                 action="factor_backtest",
                 status="FAILED",
                 detail=f"因子回测失败：{exc}",
-                metadata={"market": market.value},
+                metadata={
+                    "market": market.value,
+                    "lineage_id": str((evolution_context or {}).get("lineage_id") or checkpoint_key),
+                    "generation": int((evolution_context or {}).get("generation", 1) or 1),
+                    "max_generations": int((evolution_context or {}).get("max_generations", 1) or 1),
+                    "stop_reason": str(exc),
+                },
             )
 
     def _render_factor_backtest_artifact(self, artifact: ArtifactEntry, summary: Dict[str, Any]) -> str:
@@ -1361,6 +1605,8 @@ class DashboardApp:
               <label>Detail Limit / 细节样本<span class="field-note">每轮抓取详细历史的股票数</span><input type="number" min="1" step="1" name="factor_detail_limit" value="{escape(str(defaults['factor_detail_limit']))}" /></label>
               <label>History Limit / 历史窗口<span class="field-note">研究、beta 和趋势使用的 bars</span><input type="number" min="1" step="1" name="factor_history_limit" value="{escape(str(defaults['factor_history_limit']))}" /></label>
               <label>Initial Cash / 回测资金<span class="field-note">组合滚动回测的初始资金</span><input type="number" min="1" step="1" name="factor_initial_cash" value="{escape(str(defaults['factor_initial_cash']))}" /></label>
+              <label class="checkbox-field"><input type="checkbox" name="factor_auto_iterate"{' checked' if defaults.get('factor_auto_iterate') else ''} />Auto Iterate / 自动续跑实验</label>
+              <label>Max Generations / 最大代次<span class="field-note">包含本轮在内，最多自动推进多少轮实验</span><input type="number" min="1" step="1" name="factor_max_generations" value="{escape(str(defaults.get('factor_max_generations', '3')))}" /></label>
             </div>
             <div class="research-lab__hint">
               <strong>使用说明</strong>
@@ -2714,6 +2960,7 @@ class DashboardApp:
         regime_rows = attribution.get("regime_summary", [])
         scorecard = attribution.get("scorecard", {})
         iteration_notes = attribution.get("iteration_notes", [])
+        evolution_summary = payload.get("evolution_summary", {}) if isinstance(payload.get("evolution_summary"), dict) else {}
         nav_chart_html = self._render_strategy_lab_nav_chart(
             rolling_backtest.get("daily", []),
             rolling_backtest.get("summary", {}),
@@ -2751,6 +2998,18 @@ class DashboardApp:
             {self._summary_tile("Signal Win Rate / 选股胜率", summary.get("average_win_rate", "N/A"), "单期样本正超额占比")}
             {self._summary_tile("Observations / 样本数", summary.get("observations", "0"), "选股收益分析的有效样本数")}
             {self._summary_tile("Decision / 结论", scorecard.get("decision", "N/A"), "本轮实验的保留/复核/淘汰建议")}
+          </div>
+          <div class="summary-grid">
+            {self._summary_tile("Generation / 代次", f"{summary.get('generation', '1')} / {summary.get('max_generations', '1')}", "当前实验位于这条自动迭代链中的第几轮")}
+            {self._summary_tile("Auto Iterate / 自动续跑", "ON" if summary.get("auto_iterate") else "OFF", "是否允许本轮实验自动派生下一轮候选")}
+            {self._summary_tile("Lineage / 进化链", summary.get("lineage_id", "N/A"), "同一条实验进化链的稳定标识")}
+            {self._summary_tile("Mutation / 派生原因", summary.get("mutation_reason") or "手动基线实验", "驱动本轮参数变化的主要原因")}
+          </div>
+          <div class="summary-grid">
+            {self._summary_tile("Evolution Status / 进化状态", evolution_summary.get("status", summary.get("evolution_status", "N/A")), "这条实验链当前是继续推进、已停止还是失败")}
+            {self._summary_tile("Stop Reason / 停止原因", evolution_summary.get("stop_reason", summary.get("stop_reason", "N/A")) or "N/A", "如果没有继续自动派生，这里解释为什么停止")}
+            {self._summary_tile("Last Decision / 最近结论", evolution_summary.get("last_decision", scorecard.get("decision", "N/A")), "这条实验链最近一次完成实验的结论")}
+            {self._summary_tile("Last Job / 最近任务", evolution_summary.get("last_job_id", summary.get("parent_job_id", "N/A")) or "N/A", "最近一次推进这条实验链的任务 ID")}
           </div>
           {nav_chart_html}
           <div class="panel__split">
@@ -3533,6 +3792,10 @@ class DashboardApp:
                 "score": "事件",
                 "return": "未生成",
                 "market": market,
+                "generation": metadata.get("generation"),
+                "max_generations": metadata.get("max_generations"),
+                "lineage_id": metadata.get("lineage_id"),
+                "mutation_reason": metadata.get("mutation_reason"),
             },
             "artifact_path": None,
             "artifact_href": None,
@@ -3644,6 +3907,10 @@ class DashboardApp:
                 "score": "事件",
                 "return": "未生成",
                 "market": market,
+                "generation": metadata.get("generation"),
+                "max_generations": metadata.get("max_generations"),
+                "lineage_id": metadata.get("lineage_id"),
+                "mutation_reason": metadata.get("mutation_reason"),
             },
             "artifact_path": None,
             "artifact_href": None,
@@ -3768,6 +4035,7 @@ class DashboardApp:
         normalized_summary = payload.get("summary", {}) if isinstance(payload.get("summary"), dict) else {}
         if not normalized_summary and isinstance(payload.get("normalized_summary"), dict):
             normalized_summary = payload.get("normalized_summary", {})
+        lineage_summary = self._load_factor_backtest_lineage_summary(str(normalized_summary.get("lineage_id") or ""))
         return {
             "summary": normalized_summary or record.get("summary", {}),
             "attribution": payload.get("attribution", {}) if isinstance(payload.get("attribution"), dict) else {},
@@ -3775,6 +4043,7 @@ class DashboardApp:
             "signal_validation": payload.get("signal_validation", {}) if isinstance(payload.get("signal_validation"), dict) else {},
             "recommended_presets": payload.get("recommended_presets", []) if isinstance(payload.get("recommended_presets"), list) else [],
             "watchlist_presets": payload.get("watchlist_presets", []) if isinstance(payload.get("watchlist_presets"), list) else [],
+            "evolution_summary": lineage_summary or {},
         }
 
     def _optimize_candidate_presets(self, payload: Dict[str, Any], market: str) -> Dict[str, Any]:
@@ -3861,6 +4130,12 @@ class DashboardApp:
                     f"<p>Decision / 结论: {escape(str(summary.get('decision', 'N/A')))} | Score / 评分: {escape(str(summary.get('score', 'N/A')))}</p>",
                     f"<p>Return / 收益: {escape(str(summary.get('return', 'N/A')))} | Market / 市场: {escape(str(record.get('market', 'N/A')))}</p>",
                 ]
+                if summary.get("generation") not in {None, ""}:
+                    body_lines.append(
+                        f"<p>Generation / 代次: {escape(str(summary.get('generation')))} / {escape(str(summary.get('max_generations', 'N/A')))}</p>"
+                    )
+                if summary.get("mutation_reason") not in {None, ""}:
+                    body_lines.append(f"<p>Mutation / 派生原因: {escape(str(summary.get('mutation_reason')))}</p>")
                 if summary.get("excess_return") not in {None, ""}:
                     body_lines.append(f"<p>Excess / 超额: {escape(str(summary.get('excess_return', 'N/A')))}</p>")
                 if detail_href:
@@ -3886,6 +4161,12 @@ class DashboardApp:
                     f"<p>Decision / 结论: {escape(str(summary.get('decision', 'N/A')))} | Score / 评分: {escape(str(summary.get('score', 'N/A')))}</p>",
                     f"<p>Return / 收益: {escape(str(summary.get('return', 'N/A')))} | Market / 市场: {escape(str(record.get('market', summary.get('market', 'N/A'))))}</p>",
                 ]
+                if summary.get("generation") not in {None, ""}:
+                    body_lines.append(
+                        f"<p>Generation / 代次: {escape(str(summary.get('generation')))} / {escape(str(summary.get('max_generations', 'N/A')))}</p>"
+                    )
+                if summary.get("mutation_reason") not in {None, ""}:
+                    body_lines.append(f"<p>Mutation / 派生原因: {escape(str(summary.get('mutation_reason')))}</p>")
                 if summary.get("excess_return") not in {None, ""}:
                     body_lines.append(f"<p>Excess / 超额: {escape(str(summary.get('excess_return', 'N/A')))}</p>")
                 if detail_href:
@@ -5369,6 +5650,8 @@ class DashboardApp:
                 "factor_detail_limit": self._normalize_int_string(factor_source.get("factor_detail_limit"), DEFAULT_PROJECT_CONFIG["factor_defaults"]["factor_detail_limit"], minimum=1),
                 "factor_history_limit": self._normalize_int_string(factor_source.get("factor_history_limit"), DEFAULT_PROJECT_CONFIG["factor_defaults"]["factor_history_limit"], minimum=1),
                 "factor_initial_cash": self._normalize_decimal_string(factor_source.get("factor_initial_cash"), DEFAULT_PROJECT_CONFIG["factor_defaults"]["factor_initial_cash"], minimum=Decimal("0.0001")),
+                "factor_auto_iterate": self._normalize_bool_value(factor_source.get("factor_auto_iterate"), DEFAULT_PROJECT_CONFIG["factor_defaults"]["factor_auto_iterate"]),
+                "factor_max_generations": self._normalize_int_string(factor_source.get("factor_max_generations"), DEFAULT_PROJECT_CONFIG["factor_defaults"]["factor_max_generations"], minimum=1),
             }
         )
         if sanitized["factor_defaults"]["factor_start_date"] > sanitized["factor_defaults"]["factor_end_date"]:
@@ -5704,6 +5987,7 @@ class DashboardApp:
         initial_cash: Decimal,
         factor_tilts: Dict[str, Decimal],
         checkpoint_key: str = "",
+        evolution_context: Optional[Dict[str, Any]] = None,
         progress_callback: Optional[Any] = None,
     ) -> Dict[str, Any]:
         selected = [factor_name for factor_name in selected_factors if factor_name in self._baseline_alpha_weights(market)]
@@ -5987,6 +6271,12 @@ class DashboardApp:
             "other_exit_count": int(rolling_summary.get("other_exit_count", 0) or 0),
             "skipped_sample_count": len(skipped_samples),
             "resumed_from_processed_dates": resumed_processed_dates,
+            "auto_iterate": bool((evolution_context or {}).get("auto_iterate")),
+            "generation": int((evolution_context or {}).get("generation", 1) or 1),
+            "max_generations": int((evolution_context or {}).get("max_generations", 1) or 1),
+            "lineage_id": str((evolution_context or {}).get("lineage_id") or checkpoint_key),
+            "parent_job_id": (str((evolution_context or {}).get("parent_job_id")).strip() or None) if (evolution_context or {}).get("parent_job_id") is not None else None,
+            "mutation_reason": str((evolution_context or {}).get("mutation_reason") or ""),
         }
         serialized_regimes = serialize_regime_summaries(regime_summary)
         serialized_alpha_mix = serialize_alpha_mix(alpha_mix)
@@ -6009,6 +6299,15 @@ class DashboardApp:
                 "iteration_notes": self._build_iteration_notes(serialized_scorecard, serialized_regimes, summary),
             },
             "skipped_samples": skipped_samples[-20:],
+            "evolution": {
+                "auto_iterate": summary["auto_iterate"],
+                "generation": summary["generation"],
+                "max_generations": summary["max_generations"],
+                "lineage_id": summary["lineage_id"],
+                "parent_job_id": summary["parent_job_id"],
+                "mutation_reason": summary["mutation_reason"],
+                "iteration_summary": list((evolution_context or {}).get("iteration_summary", []) or []),
+            },
         }
         summary["decision"] = serialized_scorecard["decision"]
         relative_base = f"{end_date.isoformat()}/{market.value.lower()}_factor_backtest_{digest}"
@@ -6073,6 +6372,20 @@ class DashboardApp:
 
     def _clear_factor_backtest_checkpoint(self, checkpoint_key: str) -> None:
         self._ops_store().sqlite.delete_kv(checkpoint_key)
+
+    def _factor_backtest_lineage_key(self, lineage_id: str) -> str:
+        return f"factor_backtest_lineage:{lineage_id}"
+
+    def _load_factor_backtest_lineage_summary(self, lineage_id: str) -> Optional[Dict[str, Any]]:
+        if not str(lineage_id).strip():
+            return None
+        payload = self._ops_store().sqlite.get_kv(self._factor_backtest_lineage_key(lineage_id), None)
+        return payload if isinstance(payload, dict) else None
+
+    def _save_factor_backtest_lineage_summary(self, lineage_id: str, payload: Dict[str, Any]) -> None:
+        if not str(lineage_id).strip():
+            return
+        self._ops_store().sqlite.set_kv(self._factor_backtest_lineage_key(lineage_id), payload)
 
     def _factor_backtest_resume_context(self, job_id: str) -> Optional[Dict[str, Any]]:
         job = self._ops_store().sqlite.get_job(job_id)
