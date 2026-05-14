@@ -325,13 +325,14 @@ def _prune_redundant_factors(
     if mutation_template == "concentration_focus" or preferred_template == "breakout_rotation":
         prune_budget = 2
 
-    for factor_name in _REDUNDANT_MOMENTUM_PRUNE_ORDER:
+    candidates = _rank_prunable_factors(
+        selected_set=selected_set,
+        factor_tilts=factor_tilts,
+        mutation_template=mutation_template,
+    )
+    for factor_name in candidates:
         if prune_budget <= 0:
             break
-        if factor_name not in selected_set:
-            continue
-        if factor_name in {"breakout_strength", "price_volume_confirmation", "pullback_resilience"}:
-            continue
         selected_set.remove(factor_name)
         selected_factors[:] = [name for name in selected_factors if name != factor_name]
         factor_tilts.pop(factor_name, None)
@@ -340,6 +341,55 @@ def _prune_redundant_factors(
         if len(selected_factors) <= 6:
             break
     return removed
+
+
+def _rank_prunable_factors(
+    *,
+    selected_set: set[str],
+    factor_tilts: Dict[str, Decimal],
+    mutation_template: str,
+) -> List[str]:
+    bias_order = {
+        "breakout_rotation": (
+            "rel_ret_20",
+            "momentum_acceleration",
+            "trend",
+            "ma_trend_alignment",
+            "rel_ret_60",
+            "base_breakout_score",
+        ),
+        "defensive_balance": (
+            "trend",
+            "momentum_acceleration",
+            "rel_ret_20",
+            "ma_trend_alignment",
+            "rel_ret_60",
+            "base_breakout_score",
+        ),
+        "concentration_focus": (
+            "rel_ret_20",
+            "trend",
+            "momentum_acceleration",
+            "ma_trend_alignment",
+            "rel_ret_60",
+            "base_breakout_score",
+        ),
+        "liquidity_probe": _REDUNDANT_MOMENTUM_PRUNE_ORDER,
+    }.get(mutation_template, _REDUNDANT_MOMENTUM_PRUNE_ORDER)
+    priority = {name: index for index, name in enumerate(bias_order)}
+    candidates = [
+        name
+        for name in selected_set
+        if name in _REDUNDANT_MOMENTUM_PRUNE_ORDER
+        and name not in {"breakout_strength", "price_volume_confirmation", "pullback_resilience"}
+    ]
+    return sorted(
+        candidates,
+        key=lambda name: (
+            factor_tilts.get(name, Decimal("1.0")),
+            priority.get(name, len(priority)),
+        ),
+    )
 
 
 def _alpha_mix_share(rows: List[Dict[str, Any]], family: str) -> Decimal:

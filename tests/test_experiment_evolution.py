@@ -185,5 +185,74 @@ class ExperimentEvolutionTests(TestCase):
         self.assertEqual(proposal["stagnation_count"], 2)
         self.assertEqual(proposal["comparison"]["is_stagnating"], True)
         self.assertIn("切换到", proposal["mutation_reason"])
-        self.assertNotIn("rel_ret_20", proposal["payload"]["selected_factors"])
+        self.assertNotIn("trend", proposal["payload"]["selected_factors"])
         self.assertIn("剔除", proposal["mutation_reason"])
+
+    def test_stagnation_prunes_lowest_weighted_redundant_factor(self) -> None:
+        result = {
+            "summary": {
+                "market": "CN",
+                "selected_factors": ["rel_ret_20", "rel_ret_60", "trend", "momentum_acceleration", "ma_trend_alignment"],
+                "top_n": 8,
+                "max_drawdown": "-0.0600",
+                "rolling_excess_return": "-0.0200",
+            },
+            "attribution": {
+                "scorecard": {"decision": "REVIEW", "score": "2.5000"},
+                "alpha_mix": [{"family": "momentum", "share_of_gross": "0.6200"}],
+                "regime_summary": [
+                    {"regime": "UP", "average_excess_period_return": "-0.0010"},
+                ],
+            },
+            "rolling_backtest": {"summary": {"risk_exit_count": 4}},
+        }
+        current_payload = {
+            "market": "CN",
+            "selected_factors": ["rel_ret_20", "rel_ret_60", "trend", "momentum_acceleration", "ma_trend_alignment"],
+            "start_date": "2025-05-14",
+            "end_date": "2026-05-14",
+            "holding_sessions": 5,
+            "detail_limit": 50,
+            "history_limit": 200,
+            "top_n": 8,
+            "initial_cash": "100000",
+            "factor_tilts": {
+                "rel_ret_20": "1.2",
+                "rel_ret_60": "1.0",
+                "trend": "0.3",
+                "momentum_acceleration": "0.6",
+                "ma_trend_alignment": "0.9",
+                "breakout_strength": "1.2",
+                "price_volume_confirmation": "1.2",
+                "pullback_resilience": "1.2",
+            },
+            "auto_iterate": True,
+            "generation": 3,
+            "max_generations": 5,
+            "lineage_id": "lineage-3",
+            "mutation_template": "breakout_rotation",
+        }
+
+        proposal = derive_next_factor_backtest_payload(
+            result=result,
+            current_payload=current_payload,
+            current_job_id="job-3",
+            lineage_summary={
+                "last_mutation_template": "breakout_rotation",
+                "stagnation_count": 1,
+                "generations": [
+                    {
+                        "generation": 2,
+                        "score": "2.5100",
+                        "excess_return": "-0.0195",
+                        "max_drawdown": "0.0590",
+                        "up_excess": "-0.0008",
+                    }
+                ],
+            },
+        )
+
+        self.assertIsNotNone(proposal)
+        assert proposal is not None
+        self.assertNotIn("trend", proposal["payload"]["selected_factors"])
+        self.assertIn("rel_ret_20", proposal["payload"]["selected_factors"])
