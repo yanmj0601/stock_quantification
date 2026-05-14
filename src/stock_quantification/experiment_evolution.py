@@ -29,6 +29,14 @@ _TEMPLATE_LABELS = {
     "concentration_focus": "集中度提升",
     "liquidity_probe": "流动性量能探测",
 }
+_REDUNDANT_MOMENTUM_PRUNE_ORDER = (
+    "rel_ret_20",
+    "momentum_acceleration",
+    "trend",
+    "ma_trend_alignment",
+    "rel_ret_60",
+    "base_breakout_score",
+)
 
 
 def derive_next_factor_backtest_payload(
@@ -96,6 +104,16 @@ def derive_next_factor_backtest_payload(
         current_top_n=int(current_payload.get("top_n", current_metrics.get("top_n", 10)) or 10),
         mutation_steps=mutation_steps,
     )
+    if comparison["is_stagnating"] and stagnation_count >= 2:
+        removed_factors = _prune_redundant_factors(
+            selected_factors=selected_factors,
+            selected_set=selected_set,
+            factor_tilts=factor_tilts,
+            preferred_template=preferred_template,
+            mutation_template=mutation_template,
+        )
+        if removed_factors:
+            mutation_steps.append(f"连续停滞后，从拥挤家族中剔除冗余因子：{'、'.join(removed_factors)}。")
 
     next_top_n = _next_top_n(
         mutation_template=mutation_template,
@@ -289,6 +307,39 @@ def _ensure_factor(selected_factors: List[str], selected_set: set[str], factor_n
     if factor_name not in selected_set:
         selected_factors.append(factor_name)
         selected_set.add(factor_name)
+
+
+def _prune_redundant_factors(
+    *,
+    selected_factors: List[str],
+    selected_set: set[str],
+    factor_tilts: Dict[str, Decimal],
+    preferred_template: str,
+    mutation_template: str,
+) -> List[str]:
+    removed: List[str] = []
+    if len(selected_factors) <= 6:
+        return removed
+
+    prune_budget = 1
+    if mutation_template == "concentration_focus" or preferred_template == "breakout_rotation":
+        prune_budget = 2
+
+    for factor_name in _REDUNDANT_MOMENTUM_PRUNE_ORDER:
+        if prune_budget <= 0:
+            break
+        if factor_name not in selected_set:
+            continue
+        if factor_name in {"breakout_strength", "price_volume_confirmation", "pullback_resilience"}:
+            continue
+        selected_set.remove(factor_name)
+        selected_factors[:] = [name for name in selected_factors if name != factor_name]
+        factor_tilts.pop(factor_name, None)
+        removed.append(factor_name)
+        prune_budget -= 1
+        if len(selected_factors) <= 6:
+            break
+    return removed
 
 
 def _alpha_mix_share(rows: List[Dict[str, Any]], family: str) -> Decimal:

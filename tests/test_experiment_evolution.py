@@ -119,7 +119,7 @@ class ExperimentEvolutionTests(TestCase):
         result = {
             "summary": {
                 "market": "CN",
-                "selected_factors": ["rel_ret_20", "rel_ret_60", "trend", "momentum_acceleration"],
+                "selected_factors": ["rel_ret_20", "rel_ret_60", "trend", "momentum_acceleration", "ma_trend_alignment"],
                 "top_n": 8,
                 "max_drawdown": "-0.1100",
                 "rolling_excess_return": "-0.0900",
@@ -185,3 +185,5 @@ class ExperimentEvolutionTests(TestCase):
         self.assertEqual(proposal["stagnation_count"], 2)
         self.assertEqual(proposal["comparison"]["is_stagnating"], True)
         self.assertIn("切换到", proposal["mutation_reason"])
+        self.assertNotIn("rel_ret_20", proposal["payload"]["selected_factors"])
+        self.assertIn("剔除", proposal["mutation_reason"])
