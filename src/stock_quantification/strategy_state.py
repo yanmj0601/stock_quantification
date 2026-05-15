@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any, Dict
 
-from .artifacts import read_json_artifact, write_json_artifact
 from .models import Market
+from .sqlite_state import SQLiteStateStore
 
 DEFAULT_STRATEGY_STATE_RELATIVE_PATH = "web/strategy_state.json"
 _MARKETS = (Market.CN, Market.US)
@@ -58,12 +57,13 @@ class StrategyStateStore:
     ) -> None:
         self._base_dir = Path(base_dir)
         self._relative_path = relative_path
+        self._sqlite = SQLiteStateStore(self._base_dir)
 
     def load_state(self) -> Dict[str, Any]:
-        try:
-            raw_state = read_json_artifact(self._base_dir, self._relative_path)
-        except json.JSONDecodeError:
-            return _empty_state()
+        raw_state = self._sqlite.load_strategy_state()
+        if self._sqlite_strategy_state_is_empty(raw_state):
+            self._import_legacy_json_if_needed()
+            raw_state = self._sqlite.load_strategy_state()
         return _normalize_state(raw_state)
 
     def load_market_state(self, market: Market | str) -> Dict[str, None]:
@@ -83,14 +83,15 @@ class StrategyStateStore:
         current_execution_preset_id: str | None,
     ) -> Dict[str, Any]:
         market_enum = _normalize_market(market)
-        state = self.load_state()
-        state["markets"][market_enum.value] = {
-            "champion_preset_id": champion_preset_id,
-            "challenger_preset_id": challenger_preset_id,
-            "current_execution_preset_id": current_execution_preset_id,
-        }
-        write_json_artifact(self._base_dir, self._relative_path, state)
-        return state
+        self._sqlite.save_market_strategy_state(
+            market_enum.value,
+            {
+                "champion_preset_id": champion_preset_id,
+                "challenger_preset_id": challenger_preset_id,
+                "current_execution_preset_id": current_execution_preset_id,
+            },
+        )
+        return self.load_state()
 
     def set_current_execution_preset(self, market: Market | str, preset_id: str) -> Dict[str, Any]:
         market_enum = _normalize_market(market)
@@ -99,6 +100,16 @@ class StrategyStateStore:
         if not market_state.get("champion_preset_id"):
             market_state["champion_preset_id"] = preset_id
         market_state["current_execution_preset_id"] = preset_id
+        self._sqlite.save_market_strategy_state(market_enum.value, market_state)
         state["markets"][market_enum.value] = market_state
-        write_json_artifact(self._base_dir, self._relative_path, state)
         return state
+
+    def _sqlite_strategy_state_is_empty(self, state: Any) -> bool:
+        markets = state.get("markets") if isinstance(state, dict) else None
+        return not isinstance(markets, dict) or not markets
+
+    def _import_legacy_json_if_needed(self) -> None:
+        self._sqlite.import_legacy_strategy_state_json(
+            self._base_dir,
+            relative_path=self._relative_path,
+        )

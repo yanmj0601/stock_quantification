@@ -1012,8 +1012,13 @@ class SQLiteStateStore:
             for account_path in sorted(local_paper_root.glob("*/account.json")):
                 self.import_legacy_local_paper_account_json(local_paper_root, account_path.parent.name)
 
-    def import_legacy_strategy_state_json(self, base_dir: Path) -> None:
-        payload = self._read_legacy_json(base_dir, LEGACY_STRATEGY_STATE_RELATIVE_PATH)
+    def import_legacy_strategy_state_json(
+        self,
+        base_dir: Path,
+        *,
+        relative_path: str = LEGACY_STRATEGY_STATE_RELATIVE_PATH,
+    ) -> None:
+        payload = self._read_legacy_json(base_dir, relative_path)
         markets = payload.get("markets") if isinstance(payload, dict) else None
         if not isinstance(markets, dict):
             return

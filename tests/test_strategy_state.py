@@ -6,7 +6,7 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from stock_quantification import StrategyStateStore
-from stock_quantification.artifacts import write_json_artifact
+from stock_quantification.artifacts import read_json_artifact, write_json_artifact
 from stock_quantification.models import Market
 from tests.sqlite_seed_helpers import seed_strategy_state_sqlite
 
@@ -56,7 +56,8 @@ class StrategyStateStoreTests(TestCase):
                 {"champion_preset_id": None, "challenger_preset_id": None, "current_execution_preset_id": None},
             )
 
-            self.assertTrue(Path(tmpdir, "web", "strategy_state.json").exists())
+            self.assertTrue(Path(tmpdir, "web", "app_state.sqlite3").exists())
+            self.assertFalse(Path(tmpdir, "web", "strategy_state.json").exists())
 
     def test_set_market_state_requires_explicit_full_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -154,7 +155,7 @@ class StrategyStateStoreTests(TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             store = StrategyStateStore(tmpdir)
 
-            with patch("stock_quantification.strategy_state.read_json_artifact", side_effect=PermissionError("denied")):
+            with patch.object(store._sqlite, "load_strategy_state", side_effect=PermissionError("denied")):
                 with self.assertRaises(PermissionError):
                     store.load_state()
 
@@ -191,3 +192,182 @@ class StrategyStateStoreTests(TestCase):
                     "current_execution_preset_id": "us_sqlite_current",
                 },
             )
+
+    def test_load_state_imports_legacy_json_into_persistent_store_when_sqlite_is_empty(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            write_json_artifact(
+                tmpdir,
+                "web/strategy_state.json",
+                {
+                    "markets": {
+                        "CN": {
+                            "champion_preset_id": "cn_legacy_champion",
+                            "challenger_preset_id": "cn_legacy_challenger",
+                            "current_execution_preset_id": "cn_legacy_current",
+                        }
+                    }
+                },
+            )
+
+            store = StrategyStateStore(tmpdir)
+
+            self.assertEqual(
+                store.load_market_state(Market.CN),
+                {
+                    "champion_preset_id": "cn_legacy_champion",
+                    "challenger_preset_id": "cn_legacy_challenger",
+                    "current_execution_preset_id": "cn_legacy_current",
+                },
+            )
+            Path(tmpdir, "web", "strategy_state.json").unlink()
+            self.assertEqual(
+                StrategyStateStore(tmpdir).load_market_state(Market.CN),
+                {
+                    "champion_preset_id": "cn_legacy_champion",
+                    "challenger_preset_id": "cn_legacy_challenger",
+                    "current_execution_preset_id": "cn_legacy_current",
+                },
+            )
+
+    def test_write_operations_persist_to_sqlite_without_updating_legacy_json(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            write_json_artifact(
+                tmpdir,
+                "web/strategy_state.json",
+                {
+                    "markets": {
+                        "US": {
+                            "champion_preset_id": "us_legacy_champion",
+                            "challenger_preset_id": "us_legacy_challenger",
+                            "current_execution_preset_id": "us_legacy_current",
+                        }
+                    }
+                },
+            )
+
+            store = StrategyStateStore(tmpdir)
+            store.set_current_execution_preset(Market.US, "us_sqlite_current")
+
+            self.assertEqual(
+                StrategyStateStore(tmpdir).load_market_state(Market.US),
+                {
+                    "champion_preset_id": "us_legacy_champion",
+                    "challenger_preset_id": "us_legacy_challenger",
+                    "current_execution_preset_id": "us_sqlite_current",
+                },
+            )
+            self.assertEqual(
+                read_json_artifact(tmpdir, "web/strategy_state.json"),
+                {
+                    "markets": {
+                        "US": {
+                            "champion_preset_id": "us_legacy_champion",
+                            "challenger_preset_id": "us_legacy_challenger",
+                            "current_execution_preset_id": "us_legacy_current",
+                        }
+                    }
+                },
+            )
+
+    def test_set_market_state_imports_legacy_json_before_first_sqlite_write(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            write_json_artifact(
+                tmpdir,
+                "web/strategy_state.json",
+                {
+                    "markets": {
+                        "US": {
+                            "champion_preset_id": "us_legacy_champion",
+                            "challenger_preset_id": "us_legacy_challenger",
+                            "current_execution_preset_id": "us_legacy_current",
+                        }
+                    }
+                },
+            )
+
+            updated_state = StrategyStateStore(tmpdir).set_market_state(
+                Market.CN,
+                champion_preset_id="cn_sqlite_champion",
+                challenger_preset_id="cn_sqlite_challenger",
+                current_execution_preset_id="cn_sqlite_current",
+            )
+
+            self.assertEqual(
+                updated_state["markets"]["US"],
+                {
+                    "champion_preset_id": "us_legacy_champion",
+                    "challenger_preset_id": "us_legacy_challenger",
+                    "current_execution_preset_id": "us_legacy_current",
+                },
+            )
+            Path(tmpdir, "web", "strategy_state.json").unlink()
+            self.assertEqual(
+                StrategyStateStore(tmpdir).load_market_state(Market.US),
+                {
+                    "champion_preset_id": "us_legacy_champion",
+                    "challenger_preset_id": "us_legacy_challenger",
+                    "current_execution_preset_id": "us_legacy_current",
+                },
+            )
+
+    def test_relative_path_controls_legacy_import_source_when_sqlite_is_empty(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            write_json_artifact(
+                tmpdir,
+                "web/custom_strategy_state.json",
+                {
+                    "markets": {
+                        "US": {
+                            "champion_preset_id": "us_custom_champion",
+                            "challenger_preset_id": "us_custom_challenger",
+                            "current_execution_preset_id": "us_custom_current",
+                        }
+                    }
+                },
+            )
+
+            store = StrategyStateStore(tmpdir, relative_path="web/custom_strategy_state.json")
+
+            self.assertEqual(
+                store.load_market_state(Market.US),
+                {
+                    "champion_preset_id": "us_custom_champion",
+                    "challenger_preset_id": "us_custom_challenger",
+                    "current_execution_preset_id": "us_custom_current",
+                },
+            )
+            Path(tmpdir, "web", "custom_strategy_state.json").unlink()
+            self.assertEqual(
+                StrategyStateStore(tmpdir, relative_path="web/custom_strategy_state.json").load_market_state(Market.US),
+                {
+                    "champion_preset_id": "us_custom_champion",
+                    "challenger_preset_id": "us_custom_challenger",
+                    "current_execution_preset_id": "us_custom_current",
+                },
+            )
+
+    def test_legacy_import_does_not_depend_on_strategy_state_json_reader(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            write_json_artifact(
+                tmpdir,
+                "web/custom_strategy_state.json",
+                {
+                    "markets": {
+                        "CN": {
+                            "champion_preset_id": "cn_custom_champion",
+                            "challenger_preset_id": "cn_custom_challenger",
+                            "current_execution_preset_id": "cn_custom_current",
+                        }
+                    }
+                },
+            )
+
+            with patch("stock_quantification.strategy_state.read_json_artifact", side_effect=AssertionError("should not be used"), create=True):
+                self.assertEqual(
+                    StrategyStateStore(tmpdir, relative_path="web/custom_strategy_state.json").load_market_state(Market.CN),
+                    {
+                        "champion_preset_id": "cn_custom_champion",
+                        "challenger_preset_id": "cn_custom_challenger",
+                        "current_execution_preset_id": "cn_custom_current",
+                    },
+                )
