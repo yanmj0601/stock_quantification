@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import json
-import sqlite3
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
@@ -14,54 +12,7 @@ from stock_quantification.artifacts import write_json_artifact
 from stock_quantification.strategy_registry import StrategyRegistryStore
 from stock_quantification import web as web_module
 from stock_quantification.web import DashboardApp, DEFAULT_PROJECT_CONFIG
-
-
-def _seed_result_index_sqlite(base_dir: str | Path, records: list[dict]) -> None:
-    db_path = Path(base_dir) / "web" / "app_state.sqlite3"
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(db_path) as conn:
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS result_index_records (
-                result_id TEXT PRIMARY KEY,
-                artifact_kind TEXT NOT NULL,
-                market TEXT,
-                sort_date TEXT,
-                summary_json TEXT,
-                artifacts_json TEXT,
-                normalized_summary_json TEXT,
-                recorded_at TEXT,
-                record_json TEXT
-            )
-            """
-        )
-        for record in records:
-            conn.execute(
-                """
-                INSERT OR REPLACE INTO result_index_records (
-                    result_id,
-                    artifact_kind,
-                    market,
-                    sort_date,
-                    summary_json,
-                    artifacts_json,
-                    normalized_summary_json,
-                    recorded_at,
-                    record_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    str(record["result_id"]),
-                    str(record.get("artifact_kind") or ""),
-                    str(record.get("market") or ""),
-                    str(record.get("sort_date") or ""),
-                    json.dumps(record.get("summary") or {}, ensure_ascii=False, sort_keys=True),
-                    json.dumps(record.get("artifacts") or {}, ensure_ascii=False, sort_keys=True),
-                    json.dumps(record.get("normalized_summary") or {}, ensure_ascii=False, sort_keys=True),
-                    str(record.get("recorded_at") or record.get("sort_date") or ""),
-                    json.dumps(record, ensure_ascii=False, sort_keys=True),
-                ),
-            )
+from tests.sqlite_seed_helpers import seed_result_index_sqlite
 
 
 class WebTests(TestCase):
@@ -2421,7 +2372,7 @@ class WebTests(TestCase):
     def test_result_center_works_when_result_index_is_backed_by_sqlite(self) -> None:
         with TemporaryDirectory() as tmpdir:
             artifact_root = Path(tmpdir)
-            _seed_result_index_sqlite(
+            seed_result_index_sqlite(
                 artifact_root,
                 [
                     {
@@ -2459,8 +2410,10 @@ class WebTests(TestCase):
                 )
         body = response.body.decode("utf-8")
         self.assertEqual(response.status, 200)
-        self.assertIn("美股 SQLite 策略套件", body)
-        self.assertIn("artifact detail remains file-backed", body)
+        self.assertIn("Archive / 总归档", body)
+        self.assertIn("/?view=results&subview=archive&artifact=2026-04-19/us_sqlite_strategy_suite.json", body)
+        self.assertNotIn("当前分组没有匹配结果", body)
+        self.assertIn("/artifact-file?path=2026-04-19/us_sqlite_strategy_suite.json", body)
 
     def test_results_page_archive_subview_shows_late_record(self) -> None:
         records = []

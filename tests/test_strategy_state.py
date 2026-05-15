@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import json
-import sqlite3
 import tempfile
 from pathlib import Path
 from unittest import TestCase
@@ -10,53 +8,7 @@ from unittest.mock import patch
 from stock_quantification import StrategyStateStore
 from stock_quantification.artifacts import write_json_artifact
 from stock_quantification.models import Market
-
-
-def _seed_strategy_state_sqlite(
-    base_dir: str | Path,
-    market: str,
-    *,
-    champion_preset_id: str | None,
-    challenger_preset_id: str | None,
-    current_execution_preset_id: str | None,
-) -> None:
-    db_path = Path(base_dir) / "web" / "app_state.sqlite3"
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "champion_preset_id": champion_preset_id,
-        "challenger_preset_id": challenger_preset_id,
-        "current_execution_preset_id": current_execution_preset_id,
-    }
-    with sqlite3.connect(db_path) as conn:
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS strategy_market_state (
-                market TEXT PRIMARY KEY,
-                champion_preset_id TEXT,
-                challenger_preset_id TEXT,
-                current_execution_preset_id TEXT,
-                state_json TEXT
-            )
-            """
-        )
-        conn.execute(
-            """
-            INSERT OR REPLACE INTO strategy_market_state (
-                market,
-                champion_preset_id,
-                challenger_preset_id,
-                current_execution_preset_id,
-                state_json
-            ) VALUES (?, ?, ?, ?, ?)
-            """,
-            (
-                str(market),
-                champion_preset_id,
-                challenger_preset_id,
-                current_execution_preset_id,
-                json.dumps(payload, ensure_ascii=False, sort_keys=True),
-            ),
-        )
+from tests.sqlite_seed_helpers import seed_strategy_state_sqlite
 
 
 class StrategyStateStoreTests(TestCase):
@@ -208,7 +160,7 @@ class StrategyStateStoreTests(TestCase):
 
     def test_strategy_state_prefers_sqlite_over_legacy_json(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
-            _seed_strategy_state_sqlite(
+            seed_strategy_state_sqlite(
                 tmpdir,
                 "US",
                 champion_preset_id="us_sqlite_champion",

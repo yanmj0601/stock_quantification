@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-import json
-import sqlite3
 import tempfile
 from decimal import Decimal
-from pathlib import Path
 from unittest import TestCase
 
 from stock_quantification.models import Market
@@ -12,68 +9,7 @@ from stock_quantification.strategy_registry import (
     StrategyRegistryStore,
     build_candidate_record_from_factor_backtest,
 )
-
-
-def _seed_strategy_registry_sqlite(base_dir: str | Path, record: dict) -> None:
-    db_path = Path(base_dir) / "web" / "app_state.sqlite3"
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(db_path) as conn:
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS strategy_registry_records (
-                preset_id TEXT PRIMARY KEY,
-                market TEXT NOT NULL,
-                display_name TEXT,
-                family TEXT,
-                description TEXT,
-                top_n INTEGER,
-                alpha_weights_json TEXT,
-                policy_overrides_json TEXT,
-                source_artifact_path TEXT,
-                source_subject_id TEXT,
-                source_subject_name TEXT,
-                decision TEXT,
-                created_at TEXT,
-                record_json TEXT
-            )
-            """
-        )
-        conn.execute(
-            """
-            INSERT OR REPLACE INTO strategy_registry_records (
-                preset_id,
-                market,
-                display_name,
-                family,
-                description,
-                top_n,
-                alpha_weights_json,
-                policy_overrides_json,
-                source_artifact_path,
-                source_subject_id,
-                source_subject_name,
-                decision,
-                created_at,
-                record_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                str(record["preset_id"]),
-                str(record["market"]),
-                str(record.get("display_name") or ""),
-                str(record.get("family") or ""),
-                str(record.get("description") or ""),
-                int(record.get("top_n") or 0),
-                json.dumps(record.get("alpha_weights") or {}, ensure_ascii=False, sort_keys=True),
-                json.dumps(record.get("policy_overrides") or {}, ensure_ascii=False, sort_keys=True),
-                record.get("source_artifact_path"),
-                record.get("source_subject_id"),
-                record.get("source_subject_name"),
-                record.get("decision"),
-                record.get("created_at"),
-                json.dumps(record, ensure_ascii=False, sort_keys=True),
-            ),
-        )
+from tests.sqlite_seed_helpers import seed_strategy_registry_sqlite
 
 
 class StrategyRegistryStoreTests(TestCase):
@@ -151,7 +87,7 @@ class StrategyRegistryStoreTests(TestCase):
 
     def test_strategy_registry_reads_sqlite_records_without_json_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
-            _seed_strategy_registry_sqlite(
+            seed_strategy_registry_sqlite(
                 tmpdir,
                 {
                     "preset_id": "us_sqlite_candidate",
