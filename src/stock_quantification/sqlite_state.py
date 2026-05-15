@@ -15,6 +15,11 @@ SQLITE_STATE_RELATIVE_PATH = "web/app_state.sqlite3"
 LEGACY_OPS_STATE_RELATIVE_PATH = "web/ops_state.json"
 LEGACY_TASK_LOG_RELATIVE_PATH = "web/task_logs.json"
 LEGACY_RUN_HISTORY_RELATIVE_PATH = "web/run_history.json"
+LEGACY_STRATEGY_STATE_RELATIVE_PATH = "web/strategy_state.json"
+LEGACY_STRATEGY_REGISTRY_RELATIVE_PATH = "web/strategy_registry.json"
+LEGACY_RESULT_INDEX_RELATIVE_PATH = "web/result_index.json"
+LEGACY_PAPER_AUTOMATION_RELATIVE_PATH = "web/paper_automation_state.json"
+LEGACY_LOCAL_PAPER_ROOT_RELATIVE_PATH = "local_paper"
 
 
 def _utc_now() -> str:
@@ -386,6 +391,364 @@ class SQLiteStateStore:
             for row in rows
         ]
 
+    def load_strategy_state(self) -> Dict[str, Any]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT market, state_json FROM strategy_market_state ORDER BY market ASC"
+            ).fetchall()
+        markets: Dict[str, Any] = {}
+        for row in rows:
+            state = _json_loads(row["state_json"], {})
+            markets[str(row["market"])] = state if isinstance(state, dict) else {}
+        return {"markets": markets}
+
+    def save_market_strategy_state(self, market: str, payload: Dict[str, Any]) -> None:
+        normalized = payload if isinstance(payload, dict) else {}
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO strategy_market_state (
+                    market,
+                    champion_preset_id,
+                    challenger_preset_id,
+                    current_execution_preset_id,
+                    state_json
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    str(market),
+                    normalized.get("champion_preset_id"),
+                    normalized.get("challenger_preset_id"),
+                    normalized.get("current_execution_preset_id"),
+                    _json_dumps(normalized),
+                ),
+            )
+
+    def list_strategy_registry_records(self, market: Optional[str] = None) -> List[Dict[str, Any]]:
+        query = "SELECT * FROM strategy_registry_records"
+        params: List[Any] = []
+        if market is not None:
+            query += " WHERE market = ?"
+            params.append(str(market))
+        query += " ORDER BY COALESCE(created_at, ''), preset_id"
+        with self._connect() as conn:
+            rows = conn.execute(query, tuple(params)).fetchall()
+        return [self._row_to_strategy_registry_record(row) for row in reversed(rows)]
+
+    def upsert_strategy_registry_record(self, record: Dict[str, Any]) -> None:
+        normalized = dict(record) if isinstance(record, dict) else {}
+        if not normalized.get("preset_id"):
+            raise ValueError("record.preset_id is required")
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO strategy_registry_records (
+                    preset_id,
+                    market,
+                    display_name,
+                    family,
+                    description,
+                    top_n,
+                    alpha_weights_json,
+                    policy_overrides_json,
+                    source_artifact_path,
+                    source_subject_id,
+                    source_subject_name,
+                    decision,
+                    created_at,
+                    record_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    str(normalized["preset_id"]),
+                    str(normalized.get("market") or ""),
+                    str(normalized.get("display_name") or ""),
+                    str(normalized.get("family") or ""),
+                    str(normalized.get("description") or ""),
+                    int(normalized.get("top_n") or 0),
+                    _json_dumps(normalized.get("alpha_weights") or {}),
+                    _json_dumps(normalized.get("policy_overrides") or {}),
+                    normalized.get("source_artifact_path"),
+                    normalized.get("source_subject_id"),
+                    normalized.get("source_subject_name"),
+                    normalized.get("decision"),
+                    normalized.get("created_at"),
+                    _json_dumps(normalized),
+                ),
+            )
+
+    def list_result_index_records(
+        self,
+        *,
+        artifact_kind: Optional[str] = None,
+        market: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        clauses: List[str] = []
+        params: List[Any] = []
+        if artifact_kind is not None:
+            clauses.append("artifact_kind = ?")
+            params.append(str(artifact_kind))
+        if market is not None:
+            clauses.append("market = ?")
+            params.append(str(market))
+        query = "SELECT * FROM result_index_records"
+        if clauses:
+            query += " WHERE " + " AND ".join(clauses)
+        query += " ORDER BY COALESCE(sort_date, recorded_at, '') DESC, result_id DESC"
+        if limit is not None:
+            query += " LIMIT ?"
+            params.append(max(0, int(limit)))
+        with self._connect() as conn:
+            rows = conn.execute(query, tuple(params)).fetchall()
+        return [self._row_to_result_index_record(row) for row in rows]
+
+    def upsert_result_index_record(self, record: Dict[str, Any]) -> None:
+        normalized = dict(record) if isinstance(record, dict) else {}
+        if not normalized.get("result_id"):
+            raise ValueError("record.result_id is required")
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO result_index_records (
+                    result_id,
+                    artifact_kind,
+                    market,
+                    sort_date,
+                    summary_json,
+                    artifacts_json,
+                    normalized_summary_json,
+                    recorded_at,
+                    record_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    str(normalized["result_id"]),
+                    str(normalized.get("artifact_kind") or ""),
+                    str(normalized.get("market") or ""),
+                    str(normalized.get("sort_date") or ""),
+                    _json_dumps(normalized.get("summary") or {}),
+                    _json_dumps(normalized.get("artifacts") or {}),
+                    _json_dumps(normalized.get("normalized_summary") or {}),
+                    str(normalized.get("recorded_at") or normalized.get("sort_date") or ""),
+                    _json_dumps(normalized),
+                ),
+            )
+
+    def load_paper_automation_state(self) -> Dict[str, Any]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT account_id, state_json FROM paper_automation_state ORDER BY account_id ASC"
+            ).fetchall()
+        accounts: Dict[str, Any] = {}
+        for row in rows:
+            state = _json_loads(row["state_json"], {})
+            accounts[str(row["account_id"])] = state if isinstance(state, dict) else {}
+        return {"accounts": accounts}
+
+    def save_paper_automation_state(self, payload: Dict[str, Any]) -> None:
+        accounts = payload.get("accounts") if isinstance(payload, dict) else {}
+        normalized_accounts = accounts if isinstance(accounts, dict) else {}
+        with self._connect() as conn:
+            conn.execute("DELETE FROM paper_automation_state")
+            for account_id, state in normalized_accounts.items():
+                state_payload = state if isinstance(state, dict) else {}
+                conn.execute(
+                    """
+                    INSERT INTO paper_automation_state (
+                        account_id,
+                        last_trade_date,
+                        last_checked_at,
+                        last_status,
+                        last_error,
+                        state_json
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        str(account_id),
+                        state_payload.get("last_trade_date"),
+                        state_payload.get("last_checked_at"),
+                        state_payload.get("last_status"),
+                        state_payload.get("last_error"),
+                        _json_dumps(state_payload),
+                    ),
+                )
+
+    def load_local_paper_account(self, account_id: str) -> Optional[Dict[str, Any]]:
+        with self._connect() as conn:
+            account_row = conn.execute(
+                "SELECT * FROM local_paper_accounts WHERE account_id = ?",
+                (str(account_id),),
+            ).fetchone()
+            if account_row is None:
+                return None
+            position_rows = conn.execute(
+                """
+                SELECT position_json
+                FROM local_paper_positions
+                WHERE account_id = ?
+                ORDER BY instrument_id ASC
+                """,
+                (str(account_id),),
+            ).fetchall()
+        payload = _json_loads(account_row["account_json"], {})
+        if not isinstance(payload, dict):
+            payload = {}
+        payload["account_id"] = str(account_row["account_id"])
+        payload["market"] = str(account_row["market"])
+        payload["broker_id"] = str(account_row["broker_id"])
+        payload["cash"] = str(account_row["cash"])
+        payload["buying_power"] = str(account_row["buying_power"])
+        payload["starting_cash"] = account_row["starting_cash"]
+        payload["last_sync_at"] = account_row["last_sync_at"]
+        payload["positions"] = [
+            self._row_to_local_paper_position(row["position_json"])
+            for row in position_rows
+        ]
+        return payload
+
+    def save_local_paper_account(self, payload: Dict[str, Any]) -> None:
+        normalized = dict(payload) if isinstance(payload, dict) else {}
+        account_id = str(normalized.get("account_id") or "").strip()
+        if not account_id:
+            raise ValueError("payload.account_id is required")
+        positions = normalized.get("positions")
+        normalized_positions = list(positions) if isinstance(positions, list) else []
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO local_paper_accounts (
+                    account_id,
+                    market,
+                    broker_id,
+                    cash,
+                    buying_power,
+                    starting_cash,
+                    last_sync_at,
+                    account_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    account_id,
+                    str(normalized.get("market") or ""),
+                    str(normalized.get("broker_id") or ""),
+                    str(normalized.get("cash") or "0"),
+                    str(normalized.get("buying_power") or "0"),
+                    self._resolve_starting_cash_value(account_id, normalized),
+                    normalized.get("last_sync_at"),
+                    _json_dumps(normalized),
+                ),
+            )
+            conn.execute("DELETE FROM local_paper_positions WHERE account_id = ?", (account_id,))
+            for position in normalized_positions:
+                if not isinstance(position, dict) or not position.get("instrument_id"):
+                    continue
+                conn.execute(
+                    """
+                    INSERT OR REPLACE INTO local_paper_positions (
+                        account_id,
+                        instrument_id,
+                        qty,
+                        avg_cost,
+                        last_trade_date,
+                        position_json
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        account_id,
+                        str(position["instrument_id"]),
+                        int(position.get("qty") or 0),
+                        str(position.get("avg_cost") or "0"),
+                        position.get("last_trade_date"),
+                        _json_dumps(dict(position)),
+                    ),
+                )
+
+    def append_local_paper_ledger_entries(self, account_id: str, entries: Iterable[Dict[str, Any]]) -> None:
+        rows = [dict(entry) for entry in entries if isinstance(entry, dict)]
+        if not rows:
+            return
+        with self._connect() as conn:
+            for entry in rows:
+                conn.execute(
+                    """
+                    INSERT INTO local_paper_ledger_entries (
+                        account_id,
+                        trade_date,
+                        created_at,
+                        entry_json
+                    ) VALUES (?, ?, ?, ?)
+                    """,
+                    (
+                        str(account_id),
+                        entry.get("trade_date"),
+                        entry.get("created_at") or entry.get("trade_date") or _utc_now(),
+                        _json_dumps(entry),
+                    ),
+                )
+
+    def save_local_paper_nav_history(self, account_id: str, snapshots: Iterable[Dict[str, Any]]) -> None:
+        rows = [dict(snapshot) for snapshot in snapshots if isinstance(snapshot, dict)]
+        if not rows:
+            return
+        with self._connect() as conn:
+            for snapshot in rows:
+                if not snapshot.get("as_of"):
+                    continue
+                conn.execute(
+                    """
+                    INSERT OR REPLACE INTO local_paper_nav_history (
+                        account_id,
+                        as_of,
+                        trade_date,
+                        nav,
+                        cash,
+                        position_value,
+                        cumulative_return,
+                        nav_json
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        str(account_id),
+                        str(snapshot["as_of"]),
+                        snapshot.get("trade_date"),
+                        str(snapshot.get("nav") or "0"),
+                        str(snapshot.get("cash") or "0"),
+                        str(snapshot.get("position_value") or "0"),
+                        str(snapshot.get("cumulative_return") or "0"),
+                        _json_dumps(snapshot),
+                    ),
+                )
+
+    def load_local_paper_ledger(self, account_id: str) -> Dict[str, Any]:
+        account = self.load_local_paper_account(account_id)
+        with self._connect() as conn:
+            trade_rows = conn.execute(
+                """
+                SELECT entry_json
+                FROM local_paper_ledger_entries
+                WHERE account_id = ?
+                ORDER BY COALESCE(created_at, trade_date, '') ASC, entry_id ASC
+                """,
+                (str(account_id),),
+            ).fetchall()
+            nav_rows = conn.execute(
+                """
+                SELECT nav_json
+                FROM local_paper_nav_history
+                WHERE account_id = ?
+                ORDER BY as_of ASC
+                """,
+                (str(account_id),),
+            ).fetchall()
+        return {
+            "account_id": str(account_id),
+            "market": account.get("market") if isinstance(account, dict) else None,
+            "starting_cash": account.get("starting_cash") if isinstance(account, dict) else None,
+            "trades": [self._json_row_payload(row["entry_json"]) for row in trade_rows],
+            "nav_history": [self._json_row_payload(row["nav_json"]) for row in nav_rows],
+        }
+
     def get_job(self, job_id: str) -> Optional[Dict[str, Any]]:
         with self._connect() as conn:
             row = conn.execute("SELECT * FROM jobs WHERE job_id = ?", (job_id,)).fetchone()
@@ -507,8 +870,96 @@ class SQLiteStateStore:
                 );
                 CREATE INDEX IF NOT EXISTS idx_market_bars_lookup
                 ON market_bars (market, symbol, assetclass, trade_date);
+                CREATE TABLE IF NOT EXISTS strategy_market_state (
+                    market TEXT PRIMARY KEY,
+                    champion_preset_id TEXT,
+                    challenger_preset_id TEXT,
+                    current_execution_preset_id TEXT,
+                    state_json TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS strategy_registry_records (
+                    preset_id TEXT PRIMARY KEY,
+                    market TEXT NOT NULL,
+                    display_name TEXT,
+                    family TEXT,
+                    description TEXT,
+                    top_n INTEGER,
+                    alpha_weights_json TEXT,
+                    policy_overrides_json TEXT,
+                    source_artifact_path TEXT,
+                    source_subject_id TEXT,
+                    source_subject_name TEXT,
+                    decision TEXT,
+                    created_at TEXT,
+                    record_json TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_strategy_registry_market_created
+                ON strategy_registry_records (market, created_at);
+                CREATE TABLE IF NOT EXISTS result_index_records (
+                    result_id TEXT PRIMARY KEY,
+                    artifact_kind TEXT NOT NULL,
+                    market TEXT,
+                    sort_date TEXT,
+                    summary_json TEXT,
+                    artifacts_json TEXT,
+                    normalized_summary_json TEXT,
+                    recorded_at TEXT,
+                    record_json TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_result_index_lookup
+                ON result_index_records (market, artifact_kind, sort_date, recorded_at);
+                CREATE TABLE IF NOT EXISTS paper_automation_state (
+                    account_id TEXT PRIMARY KEY,
+                    last_trade_date TEXT,
+                    last_checked_at TEXT,
+                    last_status TEXT,
+                    last_error TEXT,
+                    state_json TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS local_paper_accounts (
+                    account_id TEXT PRIMARY KEY,
+                    market TEXT NOT NULL,
+                    broker_id TEXT NOT NULL,
+                    cash TEXT NOT NULL,
+                    buying_power TEXT NOT NULL,
+                    starting_cash TEXT,
+                    last_sync_at TEXT,
+                    account_json TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS local_paper_positions (
+                    account_id TEXT NOT NULL,
+                    instrument_id TEXT NOT NULL,
+                    qty INTEGER NOT NULL,
+                    avg_cost TEXT NOT NULL,
+                    last_trade_date TEXT,
+                    position_json TEXT NOT NULL,
+                    PRIMARY KEY (account_id, instrument_id)
+                );
+                CREATE TABLE IF NOT EXISTS local_paper_ledger_entries (
+                    entry_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    account_id TEXT NOT NULL,
+                    trade_date TEXT,
+                    created_at TEXT,
+                    entry_json TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_local_paper_ledger_account_created
+                ON local_paper_ledger_entries (account_id, created_at, trade_date, entry_id);
+                CREATE TABLE IF NOT EXISTS local_paper_nav_history (
+                    account_id TEXT NOT NULL,
+                    as_of TEXT NOT NULL,
+                    trade_date TEXT,
+                    nav TEXT NOT NULL,
+                    cash TEXT NOT NULL,
+                    position_value TEXT NOT NULL,
+                    cumulative_return TEXT NOT NULL,
+                    nav_json TEXT NOT NULL,
+                    PRIMARY KEY (account_id, as_of)
+                );
+                CREATE INDEX IF NOT EXISTS idx_local_paper_nav_account_asof
+                ON local_paper_nav_history (account_id, as_of);
                 """
             )
+            self._ensure_column(conn, "local_paper_accounts", "starting_cash", "TEXT")
         if self.get_kv("legacy_import_complete", False):
             return
         self._import_legacy_json_state()
@@ -552,6 +1003,94 @@ class SQLiteStateStore:
         run_payload = read_json_artifact(self._base_dir, LEGACY_RUN_HISTORY_RELATIVE_PATH)
         if isinstance(run_payload, dict):
             self.append_run_history(row for row in run_payload.get("records", []) if isinstance(row, dict))
+        self.import_legacy_strategy_state_json(self._base_dir)
+        self.import_legacy_strategy_registry_json(self._base_dir)
+        self.import_legacy_result_index_json(self._base_dir)
+        self.import_legacy_paper_automation_json(self._base_dir)
+        local_paper_root = self._base_dir / LEGACY_LOCAL_PAPER_ROOT_RELATIVE_PATH
+        if local_paper_root.exists():
+            for account_path in sorted(local_paper_root.glob("*/account.json")):
+                self.import_legacy_local_paper_account_json(local_paper_root, account_path.parent.name)
+
+    def import_legacy_strategy_state_json(self, base_dir: Path) -> None:
+        payload = self._read_legacy_json(base_dir, LEGACY_STRATEGY_STATE_RELATIVE_PATH)
+        markets = payload.get("markets") if isinstance(payload, dict) else None
+        if not isinstance(markets, dict):
+            return
+        for market, state in markets.items():
+            if isinstance(state, dict):
+                self.save_market_strategy_state(str(market), state)
+
+    def import_legacy_strategy_registry_json(self, base_dir: Path) -> None:
+        payload = self._read_legacy_json(base_dir, LEGACY_STRATEGY_REGISTRY_RELATIVE_PATH)
+        markets = payload.get("markets") if isinstance(payload, dict) else None
+        if not isinstance(markets, dict):
+            return
+        for rows in markets.values():
+            if not isinstance(rows, list):
+                continue
+            for row in rows:
+                if isinstance(row, dict) and row.get("preset_id"):
+                    self.upsert_strategy_registry_record(dict(row))
+
+    def import_legacy_result_index_json(self, base_dir: Path) -> None:
+        payload = self._read_legacy_json(base_dir, LEGACY_RESULT_INDEX_RELATIVE_PATH)
+        records = payload.get("records") if isinstance(payload, dict) else None
+        if not isinstance(records, list):
+            return
+        for row in records:
+            if isinstance(row, dict) and row.get("result_id"):
+                self.upsert_result_index_record(dict(row))
+
+    def import_legacy_paper_automation_json(self, base_dir: Path) -> None:
+        payload = self._read_legacy_json(base_dir, LEGACY_PAPER_AUTOMATION_RELATIVE_PATH)
+        accounts = payload.get("accounts") if isinstance(payload, dict) else None
+        if not isinstance(accounts, dict):
+            return
+        with self._connect() as conn:
+            for account_id, state in accounts.items():
+                state_payload = state if isinstance(state, dict) else {}
+                conn.execute(
+                    """
+                    INSERT OR REPLACE INTO paper_automation_state (
+                        account_id,
+                        last_trade_date,
+                        last_checked_at,
+                        last_status,
+                        last_error,
+                        state_json
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        str(account_id),
+                        state_payload.get("last_trade_date"),
+                        state_payload.get("last_checked_at"),
+                        state_payload.get("last_status"),
+                        state_payload.get("last_error"),
+                        _json_dumps(state_payload),
+                    ),
+                )
+
+    def import_legacy_local_paper_account_json(self, base_dir: Path, account_id: str) -> None:
+        account_payload = self._read_legacy_json(base_dir, f"{account_id}/account.json")
+        if not isinstance(account_payload, dict):
+            return
+        ledger_payload = self._read_legacy_json(base_dir, f"{account_id}/ledger.json")
+        if isinstance(ledger_payload, dict) and ledger_payload.get("starting_cash") not in (None, ""):
+            account_payload = dict(account_payload)
+            account_payload["starting_cash"] = str(ledger_payload.get("starting_cash"))
+        self.save_local_paper_account(account_payload)
+        if not isinstance(ledger_payload, dict):
+            return
+        with self._connect() as conn:
+            conn.execute("DELETE FROM local_paper_ledger_entries WHERE account_id = ?", (str(account_id),))
+            conn.execute("DELETE FROM local_paper_nav_history WHERE account_id = ?", (str(account_id),))
+        trades = ledger_payload.get("trades")
+        if isinstance(trades, list):
+            self.append_local_paper_ledger_entries(account_id, trades)
+        nav_history = ledger_payload.get("nav_history")
+        if isinstance(nav_history, list):
+            self.save_local_paper_nav_history(account_id, nav_history)
 
     def _import_job(self, payload: Dict[str, Any]) -> None:
         if not payload.get("job_id"):
@@ -642,6 +1181,70 @@ class SQLiteStateStore:
             "metadata": _json_loads(row["metadata_json"], {}),
             "created_at": row["created_at"],
         }
+
+    def _row_to_strategy_registry_record(self, row: sqlite3.Row) -> Dict[str, Any]:
+        payload = _json_loads(row["record_json"], {})
+        if isinstance(payload, dict) and payload.get("preset_id"):
+            return payload
+        return {
+            "preset_id": row["preset_id"],
+            "market": row["market"],
+            "display_name": row["display_name"],
+            "family": row["family"],
+            "description": row["description"],
+            "top_n": int(row["top_n"] or 0),
+            "alpha_weights": _json_loads(row["alpha_weights_json"], {}),
+            "policy_overrides": _json_loads(row["policy_overrides_json"], {}),
+            "source_artifact_path": row["source_artifact_path"],
+            "source_subject_id": row["source_subject_id"],
+            "source_subject_name": row["source_subject_name"],
+            "decision": row["decision"],
+            "created_at": row["created_at"],
+        }
+
+    def _row_to_result_index_record(self, row: sqlite3.Row) -> Dict[str, Any]:
+        payload = _json_loads(row["record_json"], {})
+        if isinstance(payload, dict) and payload.get("result_id"):
+            return payload
+        return {
+            "result_id": row["result_id"],
+            "artifact_kind": row["artifact_kind"],
+            "market": row["market"],
+            "sort_date": row["sort_date"],
+            "summary": _json_loads(row["summary_json"], {}),
+            "artifacts": _json_loads(row["artifacts_json"], {}),
+            "normalized_summary": _json_loads(row["normalized_summary_json"], {}),
+            "recorded_at": row["recorded_at"],
+        }
+
+    def _row_to_local_paper_position(self, raw_value: Any) -> Dict[str, Any]:
+        payload = _json_loads(raw_value, {})
+        return payload if isinstance(payload, dict) else {}
+
+    def _json_row_payload(self, raw_value: Any) -> Dict[str, Any]:
+        payload = _json_loads(raw_value, {})
+        return payload if isinstance(payload, dict) else {}
+
+    def _read_legacy_json(self, base_dir: Path, relative_path: str) -> Any:
+        try:
+            return read_json_artifact(base_dir, relative_path)
+        except json.JSONDecodeError:
+            return None
+
+    def _resolve_starting_cash_value(self, account_id: str, payload: Dict[str, Any]) -> str:
+        explicit = payload.get("starting_cash")
+        if explicit not in (None, ""):
+            return str(explicit)
+        existing = self.load_local_paper_account(account_id)
+        if isinstance(existing, dict) and existing.get("starting_cash") not in (None, ""):
+            return str(existing["starting_cash"])
+        return str(payload.get("cash") or "0")
+
+    def _ensure_column(self, conn: sqlite3.Connection, table_name: str, column_name: str, column_sql: str) -> None:
+        columns = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+        if any(str(row["name"]) == column_name for row in columns):
+            return
+        conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_sql}")
 
     def _job_id(
         self,
