@@ -111,6 +111,7 @@ def derive_next_factor_backtest_payload(
             factor_tilts=factor_tilts,
             preferred_template=preferred_template,
             mutation_template=mutation_template,
+            lineage_generations=generations,
         )
         if removed_factors:
             mutation_steps.append(f"连续停滞后，从拥挤家族中剔除冗余因子：{'、'.join(removed_factors)}。")
@@ -316,6 +317,7 @@ def _prune_redundant_factors(
     factor_tilts: Dict[str, Decimal],
     preferred_template: str,
     mutation_template: str,
+    lineage_generations: List[Dict[str, Any]],
 ) -> List[str]:
     removed: List[str] = []
     if len(selected_factors) <= 6:
@@ -329,6 +331,7 @@ def _prune_redundant_factors(
         selected_set=selected_set,
         factor_tilts=factor_tilts,
         mutation_template=mutation_template,
+        lineage_generations=lineage_generations,
     )
     for factor_name in candidates:
         if prune_budget <= 0:
@@ -348,6 +351,7 @@ def _rank_prunable_factors(
     selected_set: set[str],
     factor_tilts: Dict[str, Decimal],
     mutation_template: str,
+    lineage_generations: List[Dict[str, Any]],
 ) -> List[str]:
     bias_order = {
         "breakout_rotation": (
@@ -383,9 +387,27 @@ def _rank_prunable_factors(
         if name in _REDUNDANT_MOMENTUM_PRUNE_ORDER
         and name not in {"breakout_strength", "price_volume_confirmation", "pullback_resilience"}
     ]
+    history_window = lineage_generations[-3:] if lineage_generations else []
+
+    def _history_stats(name: str) -> tuple[int, Decimal]:
+        appearances = 0
+        avg_sources: List[Decimal] = []
+        for generation in history_window:
+            selected = [str(item) for item in generation.get("selected_factors", []) if str(item)]
+            if name not in selected:
+                continue
+            appearances += 1
+            factor_history = generation.get("factor_tilts", {}) if isinstance(generation.get("factor_tilts"), dict) else {}
+            avg_sources.append(_to_decimal(factor_history.get(name, factor_tilts.get(name, Decimal("1.0")))))
+        if not avg_sources:
+            return 0, factor_tilts.get(name, Decimal("1.0"))
+        return appearances, sum(avg_sources, Decimal("0")) / Decimal(len(avg_sources))
+
     return sorted(
         candidates,
         key=lambda name: (
+            -_history_stats(name)[0],
+            _history_stats(name)[1],
             factor_tilts.get(name, Decimal("1.0")),
             priority.get(name, len(priority)),
         ),

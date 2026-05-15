@@ -256,3 +256,81 @@ class ExperimentEvolutionTests(TestCase):
         assert proposal is not None
         self.assertNotIn("trend", proposal["payload"]["selected_factors"])
         self.assertIn("rel_ret_20", proposal["payload"]["selected_factors"])
+
+    def test_stagnation_prunes_factor_that_stayed_through_multiple_bad_generations(self) -> None:
+        result = {
+            "summary": {
+                "market": "CN",
+                "selected_factors": ["rel_ret_20", "rel_ret_60", "trend", "momentum_acceleration", "ma_trend_alignment"],
+                "top_n": 8,
+                "max_drawdown": "-0.0700",
+                "rolling_excess_return": "-0.0250",
+            },
+            "attribution": {
+                "scorecard": {"decision": "REVIEW", "score": "2.4800"},
+                "alpha_mix": [{"family": "momentum", "share_of_gross": "0.6200"}],
+                "regime_summary": [{"regime": "UP", "average_excess_period_return": "-0.0012"}],
+            },
+            "rolling_backtest": {"summary": {"risk_exit_count": 5}},
+        }
+        current_payload = {
+            "market": "CN",
+            "selected_factors": ["rel_ret_20", "rel_ret_60", "trend", "momentum_acceleration", "ma_trend_alignment"],
+            "start_date": "2025-05-14",
+            "end_date": "2026-05-14",
+            "holding_sessions": 5,
+            "detail_limit": 50,
+            "history_limit": 200,
+            "top_n": 8,
+            "initial_cash": "100000",
+            "factor_tilts": {
+                "rel_ret_20": "1.1",
+                "rel_ret_60": "0.9",
+                "trend": "0.3",
+                "momentum_acceleration": "0.8",
+                "ma_trend_alignment": "0.7",
+                "breakout_strength": "1.2",
+                "price_volume_confirmation": "1.2",
+                "pullback_resilience": "1.2",
+            },
+            "auto_iterate": True,
+            "generation": 4,
+            "max_generations": 6,
+            "lineage_id": "lineage-4",
+            "mutation_template": "breakout_rotation",
+        }
+
+        proposal = derive_next_factor_backtest_payload(
+            result=result,
+            current_payload=current_payload,
+            current_job_id="job-4",
+            lineage_summary={
+                "last_mutation_template": "breakout_rotation",
+                "stagnation_count": 1,
+                "generations": [
+                    {
+                        "generation": 2,
+                        "score": "2.5000",
+                        "excess_return": "-0.0220",
+                        "max_drawdown": "0.0680",
+                        "up_excess": "-0.0010",
+                        "selected_factors": ["rel_ret_20", "rel_ret_60", "trend", "ma_trend_alignment"],
+                        "factor_tilts": {"rel_ret_20": "1.0", "rel_ret_60": "0.9", "trend": "0.9", "ma_trend_alignment": "0.5"},
+                    },
+                    {
+                        "generation": 3,
+                        "score": "2.4900",
+                        "excess_return": "-0.0240",
+                        "max_drawdown": "0.0690",
+                        "up_excess": "-0.0011",
+                        "selected_factors": ["rel_ret_20", "trend", "ma_trend_alignment", "momentum_acceleration"],
+                        "factor_tilts": {"rel_ret_20": "1.1", "trend": "0.8", "ma_trend_alignment": "0.4", "momentum_acceleration": "0.7"},
+                    },
+                ],
+            },
+        )
+
+        self.assertIsNotNone(proposal)
+        assert proposal is not None
+        self.assertNotIn("ma_trend_alignment", proposal["payload"]["selected_factors"])
+        self.assertIn("rel_ret_20", proposal["payload"]["selected_factors"])

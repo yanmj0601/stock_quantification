@@ -1423,6 +1423,8 @@ class DashboardApp:
                     "max_drawdown": str(current_metrics.get("max_drawdown", "0")),
                     "up_excess": str(current_metrics.get("up_excess", "0")),
                     "decision": current_metrics.get("decision"),
+                    "selected_factors": list(summary.get("selected_factors", []) or []),
+                    "factor_tilts": {str(name): str(value) for name, value in (factor_tilts or {}).items()},
                     "mutation_template": summary.get("mutation_template"),
                     "mutation_reason": summary.get("mutation_reason"),
                     "score_delta": comparison.get("score_delta"),
