@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import json
+import sqlite3
 import tempfile
 from decimal import Decimal
+from pathlib import Path
 from unittest import TestCase
 
 from stock_quantification.models import Market
@@ -9,6 +12,68 @@ from stock_quantification.strategy_registry import (
     StrategyRegistryStore,
     build_candidate_record_from_factor_backtest,
 )
+
+
+def _seed_strategy_registry_sqlite(base_dir: str | Path, record: dict) -> None:
+    db_path = Path(base_dir) / "web" / "app_state.sqlite3"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS strategy_registry_records (
+                preset_id TEXT PRIMARY KEY,
+                market TEXT NOT NULL,
+                display_name TEXT,
+                family TEXT,
+                description TEXT,
+                top_n INTEGER,
+                alpha_weights_json TEXT,
+                policy_overrides_json TEXT,
+                source_artifact_path TEXT,
+                source_subject_id TEXT,
+                source_subject_name TEXT,
+                decision TEXT,
+                created_at TEXT,
+                record_json TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO strategy_registry_records (
+                preset_id,
+                market,
+                display_name,
+                family,
+                description,
+                top_n,
+                alpha_weights_json,
+                policy_overrides_json,
+                source_artifact_path,
+                source_subject_id,
+                source_subject_name,
+                decision,
+                created_at,
+                record_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                str(record["preset_id"]),
+                str(record["market"]),
+                str(record.get("display_name") or ""),
+                str(record.get("family") or ""),
+                str(record.get("description") or ""),
+                int(record.get("top_n") or 0),
+                json.dumps(record.get("alpha_weights") or {}, ensure_ascii=False, sort_keys=True),
+                json.dumps(record.get("policy_overrides") or {}, ensure_ascii=False, sort_keys=True),
+                record.get("source_artifact_path"),
+                record.get("source_subject_id"),
+                record.get("source_subject_name"),
+                record.get("decision"),
+                record.get("created_at"),
+                json.dumps(record, ensure_ascii=False, sort_keys=True),
+            ),
+        )
 
 
 class StrategyRegistryStoreTests(TestCase):
@@ -83,3 +148,33 @@ class StrategyRegistryStoreTests(TestCase):
             self.assertEqual(preset.top_n, 5)
             self.assertEqual(preset.policy_overrides, {})
             self.assertEqual(preset.alpha_weights["profitability"], Decimal("0.3200"))
+
+    def test_strategy_registry_reads_sqlite_records_without_json_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            _seed_strategy_registry_sqlite(
+                tmpdir,
+                {
+                    "preset_id": "us_sqlite_candidate",
+                    "market": "US",
+                    "display_name": "US SQLite Candidate",
+                    "family": "实验候选",
+                    "description": "Loaded from SQLite runtime state.",
+                    "top_n": 7,
+                    "alpha_weights": {
+                        "profitability": "0.3200",
+                        "quality": "0.2100",
+                    },
+                    "policy_overrides": {"volatility": "-0.0800"},
+                    "source_artifact_path": "2026-05-15/us_sqlite_candidate.json",
+                    "source_subject_id": "sqlite:us:candidate",
+                    "source_subject_name": "US SQLite Candidate",
+                    "decision": "REVIEW",
+                    "created_at": "2026-05-15T09:30:00",
+                },
+            )
+
+            records = StrategyRegistryStore(tmpdir).list_market_records(Market.US)
+
+            self.assertEqual(len(records), 1)
+            self.assertEqual(records[0]["preset_id"], "us_sqlite_candidate")
+            self.assertEqual(records[0]["display_name"], "US SQLite Candidate")

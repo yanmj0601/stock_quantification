@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import json
+import sqlite3
 import tempfile
 from datetime import datetime
 from decimal import Decimal
+from pathlib import Path
 from unittest import TestCase
 
 from stock_quantification.artifacts import read_json_artifact
@@ -18,6 +21,168 @@ from stock_quantification.models import (
     Position,
 )
 from stock_quantification.runtime import ExecutionFill, ExecutionResult, ExecutionStatus
+
+
+def _seed_local_paper_sqlite_account(
+    base_dir: str | Path,
+    *,
+    account_id: str,
+    market: str,
+    broker_id: str,
+    cash: str,
+    buying_power: str,
+    positions: list[dict],
+    trades: list[dict],
+    nav_history: list[dict],
+) -> None:
+    db_path = Path(base_dir) / "web" / "app_state.sqlite3"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS local_paper_accounts (
+                account_id TEXT PRIMARY KEY,
+                market TEXT NOT NULL,
+                broker_id TEXT NOT NULL,
+                cash TEXT NOT NULL,
+                buying_power TEXT NOT NULL,
+                last_sync_at TEXT,
+                account_json TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS local_paper_positions (
+                account_id TEXT NOT NULL,
+                instrument_id TEXT NOT NULL,
+                qty INTEGER NOT NULL,
+                avg_cost TEXT NOT NULL,
+                last_trade_date TEXT,
+                position_json TEXT NOT NULL,
+                PRIMARY KEY (account_id, instrument_id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS local_paper_ledger_entries (
+                entry_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id TEXT NOT NULL,
+                trade_date TEXT,
+                created_at TEXT,
+                entry_json TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS local_paper_nav_history (
+                account_id TEXT NOT NULL,
+                as_of TEXT NOT NULL,
+                trade_date TEXT,
+                nav TEXT NOT NULL,
+                cash TEXT NOT NULL,
+                position_value TEXT NOT NULL,
+                cumulative_return TEXT NOT NULL,
+                nav_json TEXT NOT NULL,
+                PRIMARY KEY (account_id, as_of)
+            )
+            """
+        )
+        account_payload = {
+            "account_id": account_id,
+            "market": market,
+            "broker_id": broker_id,
+            "cash": cash,
+            "buying_power": buying_power,
+            "positions": positions,
+        }
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO local_paper_accounts (
+                account_id,
+                market,
+                broker_id,
+                cash,
+                buying_power,
+                last_sync_at,
+                account_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                account_id,
+                market,
+                broker_id,
+                cash,
+                buying_power,
+                None,
+                json.dumps(account_payload, ensure_ascii=False, sort_keys=True),
+            ),
+        )
+        for position in positions:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO local_paper_positions (
+                    account_id,
+                    instrument_id,
+                    qty,
+                    avg_cost,
+                    last_trade_date,
+                    position_json
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    account_id,
+                    str(position["instrument_id"]),
+                    int(position["qty"]),
+                    str(position["avg_cost"]),
+                    position.get("last_trade_date"),
+                    json.dumps(position, ensure_ascii=False, sort_keys=True),
+                ),
+            )
+        for trade in trades:
+            conn.execute(
+                """
+                INSERT INTO local_paper_ledger_entries (
+                    account_id,
+                    trade_date,
+                    created_at,
+                    entry_json
+                ) VALUES (?, ?, ?, ?)
+                """,
+                (
+                    account_id,
+                    trade.get("trade_date"),
+                    trade.get("created_at") or trade.get("trade_date"),
+                    json.dumps(trade, ensure_ascii=False, sort_keys=True),
+                ),
+            )
+        for snapshot in nav_history:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO local_paper_nav_history (
+                    account_id,
+                    as_of,
+                    trade_date,
+                    nav,
+                    cash,
+                    position_value,
+                    cumulative_return,
+                    nav_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    account_id,
+                    str(snapshot["as_of"]),
+                    snapshot.get("trade_date"),
+                    str(snapshot["nav"]),
+                    str(snapshot["cash"]),
+                    str(snapshot["position_value"]),
+                    str(snapshot["cumulative_return"]),
+                    json.dumps(snapshot, ensure_ascii=False, sort_keys=True),
+                ),
+            )
 
 
 class LocalPaperLedgerTests(TestCase):
@@ -257,3 +422,51 @@ class LocalPaperLedgerTests(TestCase):
             ledger.sync_account_state("paper-shared", Market.US, Decimal("100000"))
             with self.assertRaisesRegex(ValueError, "belongs to US"):
                 ledger.sync_account_state("paper-shared", Market.CN, Decimal("100000"))
+
+    def test_local_paper_account_overview_works_without_account_json_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            _seed_local_paper_sqlite_account(
+                tmpdir,
+                account_id="paper-us",
+                market="US",
+                broker_id="local-paper",
+                cash="95500.0000",
+                buying_power="95500.0000",
+                positions=[
+                    {
+                        "instrument_id": "US.AAPL",
+                        "qty": 10,
+                        "avg_cost": "280.0000",
+                        "last_trade_date": "2026-04-18",
+                    }
+                ],
+                trades=[
+                    {
+                        "trade_date": "2026-04-18",
+                        "side": "BUY",
+                        "instrument_id": "US.AAPL",
+                        "filled_qty": 10,
+                        "realized_price": "280.0000",
+                        "cash_delta": "-2800.0000",
+                    }
+                ],
+                nav_history=[
+                    {
+                        "as_of": "2026-04-18T16:00:00",
+                        "trade_date": "2026-04-18",
+                        "nav": "100100.0000",
+                        "cash": "95500.0000",
+                        "position_value": "4600.0000",
+                        "cumulative_return": "0.0010",
+                    }
+                ],
+            )
+
+            overview = LocalPaperLedger(tmpdir).account_overview("paper-us")
+
+            self.assertIsNotNone(overview)
+            assert overview is not None
+            self.assertEqual(overview["account_id"], "paper-us")
+            self.assertEqual(overview["position_count"], 1)
+            self.assertEqual(overview["trade_count"], 1)
+            self.assertEqual(overview["latest_nav"], "100100.0000")
