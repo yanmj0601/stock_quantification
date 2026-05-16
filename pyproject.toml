@@ -1,18 +1,33 @@
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "stock-quantification"
-version = "0.1.0"
-description = "Dual-market quant platform skeleton with deterministic execution boundaries and minimal multi-agent orchestration."
-requires-python = ">=3.9"
+version = "0.2.0"
+description = "EvoQuant: multi-market self-evolving quant research platform."
+requires-python = ">=3.11"
 dependencies = [
-    "yfinance>=0.2.54",
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7",
 ]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2",
+    "httpx>=0.27",
+]
+
+[project.scripts]
+evoquant = "evoquant.cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

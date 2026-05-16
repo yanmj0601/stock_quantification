@@ -1,205 +1,25 @@
-# Stock Quantification
+# EvoQuant
 
-一个面向 A 股和美股的个人量化底座最小实现，包含：
+EvoQuant 是一个多市场通用的量化研究平台 MVP。第一版聚焦研究自进化闭环：数据集版本、策略候选生成、回测、稳健性验证、策略注册、模拟盘、风控门禁和后台管理台。
 
-- 双市场统一领域模型
-- A 股 / 美股策略与市场规则适配
-- `pipeline.py` 驱动的统一策略计算内核
-- 围绕 `Research Agent / Strategy Agent / Review Agent` 的薄执行编排层
-- 确定性的组合构建、风控校验、执行规划
-- 多账户隔离与重复刷新去重
-- `train / validate / test` 切分、`walk-forward` 验证、参数稳定性研究
-- 回测区间预加载数据集、共享账本原语和 SQLite 任务队列
+## 范围
 
-## 快速运行
+- 支持多市场抽象：`US`、`CN`、`CRYPTO`。
+- 支持策略状态流转：`research`、`candidate`、`paper`、`small-live-ready`、`production-ready`、`retired`。
+- 支持模拟盘账户、订单、成交、持仓和净值。
+- v1 禁用真实实盘下单。
+
+## 本地运行
 
 ```bash
-PYTHONPATH=src python3 -m unittest discover -s tests -v
-PYTHONPATH=src python3 -m stock_quantification.demo
-PYTHONPATH=src python3 -m stock_quantification.cli --market ALL
-PYTHONPATH=src python3 -m stock_quantification.cli --market ALL --detail-limit 20 --history-limit 60 --beta-window 20
-PYTHONPATH=src python3 -m stock_quantification.cli --market CN --symbols-cn 600000,600036,600519
-PYTHONPATH=src python3 -m stock_quantification.web
-PYTHONPATH=src python3 scripts/run_validation_study.py --market CN --start-date 2026-01-02 --end-date 2026-03-31
-PYTHONPATH=src python3 scripts/run_strategy_suite.py --market ALL --start-date 2026-01-02 --end-date 2026-03-31
+uv run --extra dev pytest -q
+uv run evoquant --host 127.0.0.1 --port 8000
 ```
 
-`cli` 会读取真实公开市场数据，并按各市场最近一个有效交易日运行策略。
-每次运行会在 `artifacts/` 下写出 JSON 和 Markdown 研究报告。
-`web` 会启动一个本地浏览器控制台，主工作流围绕：
-
-- `模拟盘`
-- `策略实验`
-- `策略任务`
-- `结果中心`
-
-当前还保留这些服务端接口：
-
-- 健康检查：`/healthz`
-- 就绪检查：`/readyz`
-- 状态 API：`/api/project/status`
-
-`web` 当前使用 SQLite 状态库和任务队列。`策略任务` / `策略实验` 会先入队，再由后台 worker 串行执行；历史页会展示 `QUEUED / RUNNING / SUCCESS / FAILED` 事件、进度和可恢复的实验 checkpoint。
-结果归档模块会优先读取结果索引，把策略实验、策略套件、滚动回测和本地 paper run 聚合到 `结果中心`；选中结果后优先展示统一摘要字段和详情入口。
-模拟盘页面会展示当前执行策略、账户状态、执行时间流、持仓和成交历史；自动模拟盘会按市场分别跟随当前执行策略。
-`run_validation_study.py` 会对指定市场和时间区间运行 `train / validate / test`、`walk-forward` 和参数稳定性分析，并把结果写到 `artifacts/<end-date>/`，同时登记到结果索引。
-`run_strategy_suite.py` 会批量运行当前工程里已经接入的主流 long-only 策略，输出收益和最大回撤对比，并把统一摘要登记到结果索引。
-
-## 当前范围
-
-- 研究、选股、评分、下单建议、订单意图规划
-- 回测 / 模拟 / 实盘上下文的统一语义
-- 默认全市场发现，也支持手动传入局部股票池做验证
-- alpha 排名、beta 估计、分层候选池输出
-- 本地 artifact、SQLite 状态库与行情缓存，便于后续替换为正式数据仓库和券商接口
-- 本地 `Local Paper` 账本和美股 `Alpaca Paper` 基础路由
-- 文件系统驱动的结果索引层和 Web 结果中心
-- 月度调仓回放脚本与净值曲线图输出
-- 验证工具链：样本内外切分、滚动窗口检验、参数稳定性比较
-- 共享 `BrokerLedger` 账本原语，统一回测与模拟盘的净值/成交约定
-
-## Alpaca Paper 接入
-
-当前工程已经支持美股 `Alpaca Paper` 的账户同步和订单路由。
-
-开通步骤：
-
-1. 到 Alpaca 创建 `Paper Only Account`
-2. 在 Alpaca 控制台生成 paper API key
-3. 在本机配置环境变量
+后台前端在 `frontend/`，完成后使用：
 
 ```bash
-export ALPACA_PAPER_KEY_ID="你的_key"
-export ALPACA_PAPER_SECRET_KEY="你的_secret"
+cd frontend
+npm install
+npm run dev
 ```
-
-先做连通性检查：
-
-```bash
-PYTHONPATH=src python3 scripts/check_alpaca_paper.py
-```
-
-只做研究和下单建议，不发单：
-
-```bash
-PYTHONPATH=src python3 -m stock_quantification.cli \
-  --market US \
-  --runtime-mode LIVE \
-  --execution-mode ADVISORY \
-  --broker ALPACA_PAPER \
-  --symbols-us AAPL,MSFT \
-  --top-n 2
-```
-
-把通过风控的订单发到 Alpaca paper：
-
-```bash
-PYTHONPATH=src python3 -m stock_quantification.cli \
-  --market US \
-  --runtime-mode LIVE \
-  --execution-mode AUTO \
-  --broker ALPACA_PAPER \
-  --route-orders \
-  --symbols-us AAPL,MSFT \
-  --top-n 2
-```
-
-注意：
-
-- 当前只接了美股 `Alpaca Paper`
-- `--route-orders` 只有在 `--execution-mode AUTO` 下才会真正提交订单
-- 当前版本会同步账户和提交订单，但还没有补 broker 回报轮询、撤单和成交回写
-
-## 验证研究
-
-验证入口脚本在 [scripts/run_validation_study.py](/Users/juxiantan/ai_agent_project/stock_quantification/scripts/run_validation_study.py)。
-
-它会做三件事：
-
-- `train / validate / test`：把一个历史区间切成研究段、验证段和最终测试段
-- `walk-forward`：用滚动窗口重复评估不同场景，避免只依赖单一时间切片
-- 参数稳定性：比较不同策略场景在验证段和测试段之间的收益、超额收益、胜率和稳定性分数
-
-示例：
-
-```bash
-PYTHONPATH=src python3 scripts/run_validation_study.py --market CN --start-date 2026-01-02 --end-date 2026-03-31
-PYTHONPATH=src python3 scripts/run_validation_study.py --market US --start-date 2026-01-02 --end-date 2026-03-31 --holding-sessions 5
-PYTHONPATH=src python3 scripts/run_validation_study.py --market CN --scenario-set ablation --start-date 2026-01-02 --end-date 2026-03-31
-PYTHONPATH=src python3 scripts/run_validation_study.py --market US --scenario-set ablation --start-date 2026-01-02 --end-date 2026-03-31
-```
-
-输出内容包括：
-
-- `artifacts/<end-date>/<market>_validation_study.json`
-- `artifacts/<end-date>/<market>_validation_study.md`
-
-JSON 会包含：
-
-- 切分区间
-- `walk-forward` 窗口定义
-- 每个场景的样本内外平均收益、超额收益和胜率
-- 参数稳定性评分与推荐场景
-
-`--scenario-set ablation` 会额外生成因子消融场景，包括：
-
-- `drop_<factor>`：去掉单个因子
-- `group_<name>_only`：只保留某一组因子
-
-为了避免重复跑同一个交易日和同一个场景，验证脚本现在会做进程内缓存；真实长区间研究仍然建议先控制 `start-date / end-date` 范围，再逐步放大。
-
-## 架构收敛说明
-
-当前回测与研究主链已经收敛到以下边界：
-
-- `pipeline.py` 是唯一策略计算内核，负责 universe、特征、评分和组合输出
-- `agents.py` / `engine.py` 负责薄编排，不再维护另一套独立计算逻辑
-- `backtest_dataset.py` 会按区间一次性预加载回测所需市场数据，再按交易日物化快照
-- `broker_ledger.py` 统一回测与本地模拟盘的净值快照、成交记录和未知持仓清理约定
-- `strategy_blueprints.json` + `strategy_blueprint_config.py` 承载内置策略 blueprint 的声明式配置
-- `serialization_utils.py` 统一 Decimal 转换和扁平化序列化输出
-
-## Web 与图表
-
-本地仪表盘入口在 [src/stock_quantification/web.py](/Users/juxiantan/ai_agent_project/stock_quantification/src/stock_quantification/web.py)，页面模板在 [templates/dashboard.html](/Users/juxiantan/ai_agent_project/stock_quantification/templates/dashboard.html)。
-
-`2026-03` 的双市场净值曲线图已输出到：
-
-- [march_2026_backtest_nav_curve.png](/Users/juxiantan/ai_agent_project/stock_quantification/artifacts/2026-03/march_2026_backtest_nav_curve.png)
-
-## 策略集与路线图
-
-当前工程里已经接入的策略目录见：
-
-- [strategy_map.md](/Users/juxiantan/ai_agent_project/stock_quantification/docs/strategy_map.md)
-
-批量回测入口是：
-
-```bash
-PYTHONPATH=src python3 scripts/run_strategy_suite.py --market ALL --start-date 2026-01-02 --end-date 2026-03-31
-```
-
-输出内容包括：
-
-- `artifacts/<end-date>/cn_strategy_suite.json`
-- `artifacts/<end-date>/us_strategy_suite.json`
-
-现在策略集输出里还会包含：
-
-- `recommended_presets / watchlist_presets / drop_presets`
-- 每个策略的 `annualized_return / sharpe_ratio / average_turnover / total_fees / fee_drag`
-- `regime_summary`：上涨、震荡、下跌状态下的平均收益和超额
-- `alpha_mix`：动量、质量、风控、流动性四类风格暴露
-- `scorecard`：`KEEP / REVIEW / DROP` 决策和对应理由
-
-验证研究输出里现在会附带：
-
-- 每个场景的 `decision`
-- 每个场景的 `rationale`
-- 更适合做样本外筛选和预设淘汰
-
-## 暂不包含
-
-- 正式多券商实盘闭环
-- 正式历史数据库
-- 分钟级撮合与高频执行
