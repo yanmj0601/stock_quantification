@@ -11,12 +11,21 @@ EvoQuant 是一个多市场通用的量化研究平台 MVP。第一版聚焦研�
 
 ## 本地运行
 
+当前骨架可验证：
+
+```bash
+uv run python -c "import evoquant; print(evoquant.__version__)"
+uv run evoquant --version
+```
+
+完整后端、测试和后台前端会在后续实施任务中接入。完成后使用：
+
 ```bash
 uv run --extra dev pytest -q
 uv run evoquant --host 127.0.0.1 --port 8000
 ```
 
-后台前端在 `frontend/`，完成后使用：
+后台前端会在 `frontend/`：
 
 ```bash
 cd frontend
