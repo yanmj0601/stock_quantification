@@ -56,6 +56,7 @@ from .real_data import (
 from .strategy_registry import StrategyRegistryStore
 from .strategy_catalog import StrategyPreset, lookup_strategy_preset, strategy_presets_for_market
 from .strategy_state import StrategyStateStore
+from .sqlite_state import SQLiteStateStore
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 ARTIFACT_ROOT = ROOT_DIR / "artifacts"
@@ -70,7 +71,6 @@ WEB_STATE_RELATIVE_ROOT = "web"
 PROJECT_CONFIG_RELATIVE_PATH = f"{WEB_STATE_RELATIVE_ROOT}/project_config.json"
 TASK_LOG_RELATIVE_PATH = f"{WEB_STATE_RELATIVE_ROOT}/task_logs.json"
 RUN_HISTORY_RELATIVE_PATH = f"{WEB_STATE_RELATIVE_ROOT}/run_history.json"
-PAPER_AUTOMATION_STATE_RELATIVE_PATH = f"{WEB_STATE_RELATIVE_ROOT}/paper_automation_state.json"
 MAX_RECENT_RUN_RESULTS = 48
 PAPER_SUBVIEW_ALIASES = {
     "account": "main",
@@ -972,14 +972,17 @@ class DashboardApp:
                 return
 
     def _load_paper_automation_state(self) -> Dict[str, Any]:
-        raw_state = read_json_artifact(ARTIFACT_ROOT, PAPER_AUTOMATION_STATE_RELATIVE_PATH)
-        if not isinstance(raw_state, dict):
-            return {"accounts": {}}
-        accounts = raw_state.get("accounts")
+        sqlite = SQLiteStateStore(ARTIFACT_ROOT)
+        raw_state = sqlite.load_paper_automation_state()
+        accounts = raw_state.get("accounts") if isinstance(raw_state, dict) else None
+        if not isinstance(accounts, dict) or not accounts:
+            sqlite.import_legacy_paper_automation_json(ARTIFACT_ROOT)
+            raw_state = sqlite.load_paper_automation_state()
+            accounts = raw_state.get("accounts") if isinstance(raw_state, dict) else None
         return {"accounts": accounts if isinstance(accounts, dict) else {}}
 
     def _save_paper_automation_state(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        write_json_artifact(ARTIFACT_ROOT, PAPER_AUTOMATION_STATE_RELATIVE_PATH, state)
+        SQLiteStateStore(ARTIFACT_ROOT).save_paper_automation_state(state)
         return state
 
     def _symbols_from_csv(self, raw_value: str) -> List[str]:

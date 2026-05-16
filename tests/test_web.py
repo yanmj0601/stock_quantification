@@ -3065,11 +3065,41 @@ class WebTests(TestCase):
                 with patch.object(self.app, "_effective_trade_date_for_market", return_value=datetime.fromisoformat("2026-05-04T00:00:00").date()):
                     self.app._run_paper_automation_cycle(now=datetime.fromisoformat("2026-05-04T09:30:00"))
                     self.app._run_paper_automation_cycle(now=datetime.fromisoformat("2026-05-04T15:30:00"))
-                    automation_state = web_module.read_json_artifact(artifact_root, "web/paper_automation_state.json")
+                    automation_state = web_module.SQLiteStateStore(artifact_root).load_paper_automation_state()
 
         self.assertEqual(mock_run_market.call_count, 2)
         self.assertEqual(automation_state["accounts"]["web-paper-cn"]["last_trade_date"], "2026-05-04")
         self.assertEqual(automation_state["accounts"]["web-paper-us"]["last_trade_date"], "2026-05-04")
+
+    def test_load_paper_automation_state_prefers_sqlite_over_legacy_json(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            artifact_root = Path(tmpdir)
+            web_module.SQLiteStateStore(artifact_root).save_paper_automation_state(
+                {
+                    "accounts": {
+                        "web-paper-us": {
+                            "last_trade_date": "2026-05-05",
+                            "last_checked_at": "2026-05-05T15:30:00",
+                            "last_status": "SUCCESS",
+                        }
+                    }
+                }
+            )
+            with patch.object(web_module, "ARTIFACT_ROOT", artifact_root):
+                state = self.app._load_paper_automation_state()
+
+        self.assertEqual(
+            state,
+            {
+                "accounts": {
+                    "web-paper-us": {
+                        "last_trade_date": "2026-05-05",
+                        "last_checked_at": "2026-05-05T15:30:00",
+                        "last_status": "SUCCESS",
+                    }
+                }
+            },
+        )
 
     @patch("stock_quantification.web.LocalPaperLedger")
     def test_local_paper_reset_redirects_and_flashes(self, mock_ledger_cls) -> None:
