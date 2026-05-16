@@ -669,14 +669,14 @@ class WebTests(TestCase):
                 registry = StrategyRegistryStore(artifact_root)
                 promoted = registry.lookup_strategy("CN", "cn_candidate_abcd1234")
                 strategy_state = self.app._strategy_state_store().load_market_state("CN")
-                result_index = web_module.read_json_artifact(artifact_root, "web/result_index.json")
+                result_index = web_module.list_results(artifact_root)
 
         self.assertEqual(response.status, 303)
         self.assertEqual(response.headers["Location"], "/?view=optimize&subview=detail&artifact=2026-03-31/cn_factor_backtest_abcd1234.json")
         self.assertEqual(promoted.preset_id, "cn_candidate_abcd1234")
         self.assertEqual(strategy_state["challenger_preset_id"], "cn_candidate_abcd1234")
-        self.assertEqual(result_index["records"][0]["artifact_kind"], "candidate_strategy")
-        self.assertEqual(result_index["records"][0]["summary"]["subject_id"], "cn_candidate_abcd1234")
+        self.assertEqual(result_index[0]["artifact_kind"], "candidate_strategy")
+        self.assertEqual(result_index[0]["summary"]["subject_id"], "cn_candidate_abcd1234")
 
     @patch("stock_quantification.web.StrategyStateStore")
     @patch("stock_quantification.web.LocalPaperLedger")
@@ -2788,12 +2788,12 @@ class WebTests(TestCase):
                             }
                         )
                         self.app._drain_job_queue_once()
-                recorded_index = web_module.read_json_artifact(artifact_root, "web/result_index.json")
+                recorded_index = web_module.list_results(artifact_root)
         self.assertEqual(response.status, 303)
         self.assertEqual(response.headers["Location"], "/?view=optimize&subview=create")
         self.assertEqual(self.app.state.last_factor_backtest_result["summary"]["market"], "CN")
-        self.assertEqual(recorded_index["records"][0]["artifact_kind"], "factor_backtest")
-        self.assertEqual(recorded_index["records"][0]["summary"]["subject_name"], "CN 因子实验 / 20日相对强度、60日相对强度")
+        self.assertEqual(recorded_index[0]["artifact_kind"], "factor_backtest")
+        self.assertEqual(recorded_index[0]["summary"]["subject_name"], "CN 因子实验 / 20日相对强度、60日相对强度")
 
     @patch.object(DashboardApp, "_run_factor_backtest")
     def test_factor_backtest_falls_back_to_hidden_factor_payload(self, mock_run_factor_backtest) -> None:

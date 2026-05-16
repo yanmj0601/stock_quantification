@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from .artifacts import read_json_artifact, write_json_artifact
+from .sqlite_state import SQLiteStateStore
 
 
 RESULT_INDEX_RELATIVE_PATH = "web/result_index.json"
@@ -25,19 +25,9 @@ def record_result(
     normalized = dict(record)
     normalized["result_id"] = result_id
     normalized["recorded_at"] = datetime.utcnow().isoformat(timespec="seconds")
-
-    payload = _load_index(base_dir, relative_path)
-    rows = payload["records"]
-    replaced = False
-    for index, existing in enumerate(rows):
-        if existing["result_id"] == result_id:
-            rows[index] = normalized
-            replaced = True
-            break
-    if not replaced:
-        rows.append(normalized)
-    rows.sort(key=_sort_key, reverse=True)
-    write_json_artifact(base_dir, relative_path, payload)
+    sqlite = SQLiteStateStore(base_dir)
+    _import_legacy_json_if_needed(sqlite, Path(base_dir), relative_path)
+    sqlite.upsert_result_index_record(normalized)
     return normalized
 
 
@@ -49,17 +39,16 @@ def list_results(
     limit: int | None = None,
     relative_path: str = RESULT_INDEX_RELATIVE_PATH,
 ) -> List[Dict[str, Any]]:
-    payload = _load_index(base_dir, relative_path)
-    rows = payload["records"]
+    sqlite = SQLiteStateStore(base_dir)
+    _import_legacy_json_if_needed(sqlite, Path(base_dir), relative_path)
+    rows = sqlite.list_result_index_records(
+        artifact_kind=artifact_kind,
+        market=market,
+        limit=limit,
+    )
     filtered: List[Dict[str, Any]] = []
     for row in rows:
-        if artifact_kind is not None and str(row.get("artifact_kind")) != artifact_kind:
-            continue
-        if market is not None and str(row.get("market")) != market:
-            continue
         filtered.append(dict(row))
-    if limit is not None:
-        return filtered[: max(0, int(limit))]
     return filtered
 
 
@@ -257,19 +246,10 @@ def _first_matching_row_by_decision(records: List[Dict[str, Any]], decision: str
     return None
 
 
-def _load_index(base_dir: str | Path, relative_path: str) -> Dict[str, List[Dict[str, Any]]]:
-    payload = read_json_artifact(base_dir, relative_path)
-    rows = payload.get("records", []) if isinstance(payload, dict) else []
-    valid_rows: List[Dict[str, Any]] = []
-    for row in rows:
-        if not isinstance(row, dict):
-            continue
-        result_id = str(row.get("result_id") or "").strip()
-        if not result_id:
-            continue
-        valid_rows.append(dict(row))
-    valid_rows.sort(key=_sort_key, reverse=True)
-    return {"records": valid_rows}
+def _import_legacy_json_if_needed(sqlite: SQLiteStateStore, base_dir: Path, relative_path: str) -> None:
+    if sqlite.list_result_index_records(limit=1):
+        return
+    sqlite.import_legacy_result_index_json(base_dir, relative_path=relative_path)
 
 
 def _sort_key(row: Dict[str, Any]) -> str:

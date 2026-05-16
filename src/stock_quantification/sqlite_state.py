@@ -1043,8 +1043,13 @@ class SQLiteStateStore:
                 if isinstance(row, dict) and row.get("preset_id"):
                     self.upsert_strategy_registry_record(dict(row))
 
-    def import_legacy_result_index_json(self, base_dir: Path) -> None:
-        payload = self._read_legacy_json(base_dir, LEGACY_RESULT_INDEX_RELATIVE_PATH)
+    def import_legacy_result_index_json(
+        self,
+        base_dir: Path,
+        *,
+        relative_path: str = LEGACY_RESULT_INDEX_RELATIVE_PATH,
+    ) -> None:
+        payload = self._read_legacy_json(base_dir, relative_path)
         records = payload.get("records") if isinstance(payload, dict) else None
         if not isinstance(records, list):
             return
