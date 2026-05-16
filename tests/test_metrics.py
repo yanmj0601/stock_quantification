@@ -1,0 +1,19 @@
+from evoquant.metrics import calculate_performance, paper_decay
+
+
+def test_calculate_performance_includes_return_risk_and_turnover():
+    equity = [100_000, 102_000, 101_000, 106_000]
+    turnovers = [0.2, 0.4, 0.1]
+
+    metrics = calculate_performance(equity, turnovers, periods_per_year=252)
+
+    assert round(metrics.total_return, 4) == 0.0600
+    assert metrics.cagr > 0
+    assert metrics.sharpe > 0
+    assert metrics.max_drawdown < 0
+    assert metrics.calmar > 0
+    assert round(metrics.turnover, 4) == 0.7
+
+
+def test_paper_decay_compares_paper_to_backtest_cagr():
+    assert paper_decay(backtest_cagr=0.20, paper_cagr=0.14) == -0.30
