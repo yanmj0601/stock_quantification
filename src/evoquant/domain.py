@@ -3,7 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from enum import Enum
-from typing import Any
+from types import MappingProxyType
+from typing import Any, Mapping
 from uuid import uuid4
 
 
@@ -76,7 +77,10 @@ class StrategyCandidate:
     market: Market
     asset_class: str
     template_id: str
-    parameters: dict[str, Any]
+    parameters: Mapping[str, Any]
     status: StrategyStatus = StrategyStatus.RESEARCH
     version: int = 1
     created_at: datetime = field(default_factory=utc_now)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "parameters", MappingProxyType(dict(self.parameters)))

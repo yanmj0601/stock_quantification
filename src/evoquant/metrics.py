@@ -23,6 +23,8 @@ def calculate_performance(
         raise ValueError("equity series must contain at least two points")
     if any(value <= 0 for value in equity):
         raise ValueError("equity values must be positive")
+    if periods_per_year <= 0:
+        raise ValueError("periods_per_year must be positive")
 
     returns = [(equity[i] / equity[i - 1]) - 1 for i in range(1, len(equity))]
     total_return = equity[-1] / equity[0] - 1

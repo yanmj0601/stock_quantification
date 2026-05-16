@@ -1,10 +1,13 @@
 from datetime import date
 
+import pytest
+
 from evoquant.domain import (
     Bar,
     Instrument,
     Market,
     RiskMode,
+    StrategyCandidate,
     StrategyStatus,
 )
 
@@ -47,3 +50,22 @@ def test_safety_enums_match_spec():
     assert StrategyStatus.PAPER.value == "paper"
     assert StrategyStatus.PRODUCTION_READY.value == "production-ready"
     assert RiskMode.RESEARCH_ONLY.value == "research-only"
+
+
+def test_strategy_candidate_parameters_are_immutable_and_copied():
+    parameters = {"lookback": 20}
+    candidate = StrategyCandidate(
+        id="strategy_123",
+        name="Breakout",
+        market=Market.US,
+        asset_class="equity",
+        template_id="breakout_v1",
+        parameters=parameters,
+    )
+
+    with pytest.raises(TypeError):
+        candidate.parameters["lookback"] = 30
+
+    parameters["lookback"] = 50
+
+    assert candidate.parameters["lookback"] == 20
