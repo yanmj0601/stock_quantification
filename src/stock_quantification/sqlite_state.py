@@ -1026,8 +1026,13 @@ class SQLiteStateStore:
             if isinstance(state, dict):
                 self.save_market_strategy_state(str(market), state)
 
-    def import_legacy_strategy_registry_json(self, base_dir: Path) -> None:
-        payload = self._read_legacy_json(base_dir, LEGACY_STRATEGY_REGISTRY_RELATIVE_PATH)
+    def import_legacy_strategy_registry_json(
+        self,
+        base_dir: Path,
+        *,
+        relative_path: str = LEGACY_STRATEGY_REGISTRY_RELATIVE_PATH,
+    ) -> None:
+        payload = self._read_legacy_json(base_dir, relative_path)
         markets = payload.get("markets") if isinstance(payload, dict) else None
         if not isinstance(markets, dict):
             return

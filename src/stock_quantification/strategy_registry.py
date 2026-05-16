@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-import json
 import re
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, Dict, List
 
-from .artifacts import read_json_artifact, write_json_artifact
 from .models import Market
 from .pipeline import build_cn_index_enhancement_blueprint, build_us_quality_momentum_blueprint
+from .sqlite_state import SQLiteStateStore
 
 
 DEFAULT_STRATEGY_REGISTRY_RELATIVE_PATH = "web/strategy_registry.json"
@@ -61,22 +60,6 @@ def _normalize_record(record: Any) -> Dict[str, Any]:
         "created_at": str(record.get("created_at") or "").strip() or None,
     }
 
-
-def _normalize_state(payload: Any) -> Dict[str, Any]:
-    normalized = _empty_state()
-    if not isinstance(payload, dict):
-        return normalized
-    raw_markets = payload.get("markets")
-    if not isinstance(raw_markets, dict):
-        return normalized
-    for market in _MARKETS:
-        rows = raw_markets.get(market.value, [])
-        if not isinstance(rows, list):
-            continue
-        normalized["markets"][market.value] = [row for row in (_normalize_record(item) for item in rows) if row.get("preset_id")]
-    return normalized
-
-
 def _candidate_digest(summary: Dict[str, Any]) -> str:
     subject_id = str(summary.get("subject_id") or "").strip()
     if ":" in subject_id:
@@ -127,13 +110,24 @@ class StrategyRegistryStore:
     def __init__(self, base_dir: str | Path, relative_path: str = DEFAULT_STRATEGY_REGISTRY_RELATIVE_PATH) -> None:
         self._base_dir = Path(base_dir)
         self._relative_path = relative_path
+        self._sqlite = SQLiteStateStore(self._base_dir)
 
     def load_state(self) -> Dict[str, Any]:
-        try:
-            raw_state = read_json_artifact(self._base_dir, self._relative_path)
-        except json.JSONDecodeError:
-            return _empty_state()
-        return _normalize_state(raw_state)
+        records = self._sqlite.list_strategy_registry_records()
+        if not records:
+            self._import_legacy_json_if_needed()
+            records = self._sqlite.list_strategy_registry_records()
+        state = _empty_state()
+        for row in records:
+            normalized_row = _normalize_record(row)
+            preset_id = normalized_row.get("preset_id")
+            market = normalized_row.get("market")
+            if not preset_id or market not in state["markets"]:
+                continue
+            state["markets"][market].append(normalized_row)
+        for market in state["markets"]:
+            state["markets"][market].sort(key=lambda row: str(row.get("created_at") or ""), reverse=True)
+        return state
 
     def list_market_records(self, market: Market | str) -> List[Dict[str, Any]]:
         market_enum = _normalize_market(market)
@@ -154,20 +148,14 @@ class StrategyRegistryStore:
 
     def promote_factor_backtest_candidate(self, payload: Dict[str, Any], *, artifact_path: str | None = None) -> Dict[str, Any]:
         candidate = build_candidate_record_from_factor_backtest(payload, artifact_path=artifact_path)
-        state = self.load_state()
-        market_rows = list(state["markets"].get(candidate["market"], []))
-        replaced = False
-        for index, row in enumerate(market_rows):
-            if str(row.get("preset_id")) == candidate["preset_id"]:
-                market_rows[index] = candidate
-                replaced = True
-                break
-        if not replaced:
-            market_rows.append(candidate)
-        market_rows.sort(key=lambda row: str(row.get("created_at") or ""), reverse=True)
-        state["markets"][candidate["market"]] = market_rows
-        write_json_artifact(self._base_dir, self._relative_path, state)
+        self._sqlite.upsert_strategy_registry_record(candidate)
         return candidate
+
+    def _import_legacy_json_if_needed(self) -> None:
+        self._sqlite.import_legacy_strategy_registry_json(
+            self._base_dir,
+            relative_path=self._relative_path,
+        )
 
     def _strategy_preset_from_record(self, record: Dict[str, Any]) -> Any:
         from .strategy_catalog import StrategyPreset
