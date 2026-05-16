@@ -1,23 +1,22 @@
 .DS_Store
-__pycache__/
-*.py[cod]
+.env
+.venv/
+venv/
+env/
+.cache/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 .coverage
 htmlcov/
-.venv/
-venv/
-env/
-.env
+__pycache__/
+*.py[cod]
+*.egg-info/
+uv.lock
 
-# Local caches and generated files
-.cache/
+# Local brainstorming mockups and browser companion state.
+.superpowers/
 
-# Runtime state and generated local ledgers
-artifacts/web/*.json
-artifacts/web/*.sqlite3
-artifacts/web/*.sqlite3-shm
-artifacts/web/*.sqlite3-wal
-artifacts/local_paper/
-artifacts/[0-9]*/
+# Runtime state and generated research artifacts.
+var/
+artifacts/
