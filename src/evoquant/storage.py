@@ -47,10 +47,18 @@ class SQLiteStore:
 
 
 def dumps(value: Any) -> str:
-    if isinstance(value, Mapping):
-        value = dict(value)
-    return json.dumps(value, ensure_ascii=False, sort_keys=True)
+    return json.dumps(_thaw(value), ensure_ascii=False, sort_keys=True)
 
 
 def loads(value: str) -> Any:
     return json.loads(value)
+
+
+def _thaw(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return {key: _thaw(nested) for key, nested in value.items()}
+    if isinstance(value, tuple):
+        return [_thaw(nested) for nested in value]
+    if isinstance(value, list):
+        return [_thaw(nested) for nested in value]
+    return value

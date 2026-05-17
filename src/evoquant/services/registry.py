@@ -18,7 +18,7 @@ class AuditEvent:
     created_at: datetime
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "payload", MappingProxyType(dict(self.payload)))
+        object.__setattr__(self, "payload", _deep_freeze(self.payload))
 
 
 @dataclass(frozen=True)
@@ -31,11 +31,11 @@ class RegisteredStrategy:
     parameters: Mapping[str, Any]
     status: StrategyStatus
     version: int
-    metrics: Mapping[str, float] = field(default_factory=dict)
+    metrics: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "parameters", MappingProxyType(dict(self.parameters)))
-        object.__setattr__(self, "metrics", MappingProxyType(dict(self.metrics)))
+        object.__setattr__(self, "parameters", _deep_freeze(self.parameters))
+        object.__setattr__(self, "metrics", _deep_freeze(self.metrics))
 
 
 class StrategyRegistry:
@@ -98,7 +98,7 @@ class StrategyRegistry:
             metrics=loads(row["metrics"]),
         )
 
-    def record_metrics(self, strategy_id: str, metrics: dict[str, float]) -> None:
+    def record_metrics(self, strategy_id: str, metrics: dict[str, Any]) -> None:
         with self.store.connect() as conn:
             result = conn.execute(
                 "UPDATE strategies SET metrics = ?, updated_at = ? WHERE id = ?",
@@ -114,8 +114,13 @@ class StrategyRegistry:
         status: StrategyStatus,
         reason: str,
     ) -> RegisteredStrategy:
-        current = self.get_strategy(strategy_id)
         with self.store.connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM strategies WHERE id = ?", (strategy_id,)
+            ).fetchone()
+            if row is None:
+                raise KeyError(strategy_id)
+            current_status = StrategyStatus(row["status"])
             result = conn.execute(
                 "UPDATE strategies SET status = ?, updated_at = ? WHERE id = ?",
                 (status.value, utc_now().isoformat(), strategy_id),
@@ -126,7 +131,7 @@ class StrategyRegistry:
                 conn,
                 strategy_id,
                 "strategy.status_changed",
-                {"from": current.status.value, "to": status.value, "reason": reason},
+                {"from": current_status.value, "to": status.value, "reason": reason},
             )
         return self.get_strategy(strategy_id)
 
@@ -164,3 +169,13 @@ class StrategyRegistry:
                 utc_now().isoformat(),
             ),
         )
+
+
+def _deep_freeze(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return MappingProxyType(
+            {key: _deep_freeze(nested) for key, nested in value.items()}
+        )
+    if isinstance(value, list | tuple):
+        return tuple(_deep_freeze(nested) for nested in value)
+    return value

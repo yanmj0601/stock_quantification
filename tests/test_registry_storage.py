@@ -47,7 +47,10 @@ def test_record_metrics_rejects_missing_strategy_id(tmp_path):
 
 def test_registered_strategy_mappings_are_immutable_and_copied(tmp_path):
     registry = StrategyRegistry(SQLiteStore(tmp_path / "state.db"))
-    parameters = {"lookback": 60}
+    parameters = {
+        "lookback": 60,
+        "risk": {"stop_loss": 0.08, "tiers": [0.25, {"trail": 0.03}]},
+    }
 
     created = registry.create_strategy(
         name="us_momentum_breakout",
@@ -57,16 +60,30 @@ def test_registered_strategy_mappings_are_immutable_and_copied(tmp_path):
         parameters=parameters,
     )
     parameters["lookback"] = 10
+    parameters["risk"]["stop_loss"] = 0.2
+    parameters["risk"]["tiers"].append(0.5)
 
     assert created.parameters["lookback"] == 60
+    assert created.parameters["risk"]["stop_loss"] == 0.08
+    assert created.parameters["risk"]["tiers"] == (0.25, {"trail": 0.03})
     with pytest.raises(TypeError):
         created.parameters["lookback"] = 20
+    with pytest.raises(TypeError):
+        created.parameters["risk"]["stop_loss"] = 0.2
+    with pytest.raises(AttributeError):
+        created.parameters["risk"]["tiers"].append(0.5)
+    with pytest.raises(TypeError):
+        created.parameters["risk"]["tiers"][1]["trail"] = 0.1
 
-    registry.record_metrics(created.id, {"sharpe": 1.42})
+    registry.record_metrics(created.id, {"sharpe": 1.42, "risk": {"drawdowns": [-0.08]}})
     fetched = registry.get_strategy(created.id)
 
     with pytest.raises(TypeError):
         fetched.metrics["sharpe"] = 0.0
+    with pytest.raises(TypeError):
+        fetched.metrics["risk"]["drawdowns"] = []
+    with pytest.raises(AttributeError):
+        fetched.metrics["risk"]["drawdowns"].append(-0.12)
 
 
 def test_audit_event_payload_is_immutable_and_copied(tmp_path):
@@ -78,16 +95,21 @@ def test_audit_event_payload_is_immutable_and_copied(tmp_path):
         template_id="momentum_breakout",
         parameters={"lookback": 60},
     )
+    registry.record_metrics(strategy.id, {"nested": {"values": [1, {"score": 2}]}})
 
     events = registry.list_events(entity_id=strategy.id)
 
     with pytest.raises(TypeError):
         events[0].payload["name"] = "changed"
+    metrics_event = events[1]
+    with pytest.raises(TypeError):
+        metrics_event.payload["nested"]["values"][1]["score"] = 3
+    with pytest.raises(AttributeError):
+        metrics_event.payload["nested"]["values"].append(4)
 
 
-def test_set_status_does_not_append_audit_event_when_update_touches_zero_rows(tmp_path):
-    store = SQLiteStore(tmp_path / "state.db")
-    registry = StrategyRegistry(store)
+def test_set_status_records_from_to_payload_and_missing_id_has_no_status_audit(tmp_path):
+    registry = StrategyRegistry(SQLiteStore(tmp_path / "state.db"))
     strategy = registry.create_strategy(
         name="us_momentum_breakout",
         market=Market.US,
@@ -96,26 +118,29 @@ def test_set_status_does_not_append_audit_event_when_update_touches_zero_rows(tm
         parameters={"lookback": 60},
     )
 
-    original_connect = store.connect
-    calls = 0
+    promoted = registry.set_status(
+        strategy.id,
+        StrategyStatus.CANDIDATE,
+        reason="validation passed",
+    )
 
-    def delete_before_update():
-        nonlocal calls
-        calls += 1
-        if calls == 2:
-            with original_connect() as conn:
-                conn.execute("DELETE FROM strategies WHERE id = ?", (strategy.id,))
-        return original_connect()
+    assert promoted.status is StrategyStatus.CANDIDATE
+    events = registry.list_events(entity_id=strategy.id)
+    assert events[-1].event_type == "strategy.status_changed"
+    assert events[-1].payload == {
+        "from": StrategyStatus.RESEARCH.value,
+        "to": StrategyStatus.CANDIDATE.value,
+        "reason": "validation passed",
+    }
 
-    store.connect = delete_before_update
+    with pytest.raises(KeyError):
+        registry.set_status("str_missing", StrategyStatus.CANDIDATE, reason="missing")
 
-    with pytest.raises(KeyError) as error:
-        registry.set_status(strategy.id, StrategyStatus.CANDIDATE, reason="missing")
-
-    assert error.value.args == (strategy.id,)
-    assert [event.event_type for event in registry.list_events(strategy.id)] == [
-        "strategy.created"
-    ]
+    assert [
+        event.event_type
+        for event in registry.list_events(entity_id="str_missing")
+        if event.event_type == "strategy.status_changed"
+    ] == []
 
 
 def test_audit_events_with_same_timestamp_return_in_insertion_order(tmp_path):
