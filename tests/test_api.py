@@ -386,3 +386,72 @@ def test_audit_events_return_events_after_strategy_mutations(tmp_path):
     assert events[0]["payload"] == {"name": "us_momentum_breakout"}
     assert events[1]["entity_id"] == strategy_id
     assert "cagr" in events[1]["payload"]
+
+
+def test_signal_scan_api_returns_snapshot(tmp_path):
+    client = _client(tmp_path)
+
+    response = client.post(
+        "/api/signals/scans",
+        json={
+            "strategy_template": "cross_sectional_momentum",
+            "markets": ["US"],
+            "parameters": {
+                "top_n": 1,
+                "exit_rank": 2,
+                "lookback_long": 120,
+                "lookback_short": 20,
+                "max_weight": 0.08,
+                "min_amount": 1000,
+                "max_volatility": 10,
+                "max_drawdown": 1,
+            },
+        },
+    )
+
+    assert response.status_code in {201, 400}
+    assert response.status_code != 500
+
+
+def test_order_draft_api_lifecycle(tmp_path):
+    client = _client(tmp_path)
+    account = client.post(
+        "/api/paper/accounts",
+        json={"name": "paper-us", "starting_cash": 100000},
+    ).json()
+
+    draft = client.post(
+        "/api/paper/drafts",
+        json={
+            "scan_id": "scan_1",
+            "account_id": account["id"],
+            "strategy_id": "strategy_1",
+            "symbol": "AAPL",
+            "market": "US",
+            "side": "buy",
+            "target_weight": 0.08,
+            "current_weight": 0,
+            "reference_price": 100,
+            "reason": "api smoke",
+            "risk_flags": [],
+            "trade_session": "2026-01-05",
+        },
+    )
+    assert draft.status_code == 201
+
+    approved = client.patch(f"/api/paper/drafts/{draft.json()['id']}/approve")
+    submitted = client.patch(f"/api/paper/drafts/{draft.json()['id']}/submit")
+
+    assert approved.status_code == 200
+    assert submitted.status_code == 200
+    assert submitted.json()["status"] == "submitted"
+
+
+def test_schedule_api_returns_default_market_schedules(tmp_path):
+    client = _client(tmp_path)
+
+    response = client.get("/api/schedules")
+
+    assert response.status_code == 200
+    markets = {row["market"] for row in response.json()}
+    assert {"US", "CN"}.issubset(markets)

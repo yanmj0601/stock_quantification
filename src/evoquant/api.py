@@ -10,13 +10,17 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from evoquant.domain import Market, RiskMode, StrategyStatus
+from evoquant.domain import Market, RiskMode, SignalSide, StrategyStatus
 from evoquant.services.backtest import BacktestRunner
 from evoquant.services.data_hub import DataHub
+from evoquant.services.drafts import PaperOrderDraftService
 from evoquant.services.evolution import EvolutionService, StrategyTemplate
+from evoquant.services.market_data import MarketDataService
 from evoquant.services.paper import PaperTradingService
 from evoquant.services.registry import StrategyRegistry
 from evoquant.services.risk import RiskService
+from evoquant.services.scheduler import SchedulerService
+from evoquant.services.signals import SignalScanner
 from evoquant.storage import SQLiteStore, loads
 
 
@@ -47,6 +51,13 @@ class BacktestCreate(BaseModel):
     turnovers: list[float] = Field(default_factory=list)
 
 
+class RealBacktestCreate(BaseModel):
+    market: Market
+    universe: list[str]
+    parameters: dict[str, Any]
+    starting_cash: float = 100000.0
+
+
 class EvolutionCreate(BaseModel):
     template_id: str
     parameter_space: dict[str, list[Any]]
@@ -66,10 +77,35 @@ class PaperOrderCreate(BaseModel):
     limit_price: float
 
 
+class PaperDraftCreate(BaseModel):
+    scan_id: str
+    account_id: str
+    strategy_id: str
+    symbol: str
+    market: Market
+    side: SignalSide
+    target_weight: float
+    current_weight: float
+    reference_price: float
+    reason: str
+    risk_flags: list[str] = Field(default_factory=list)
+    trade_session: date
+
+
 class RiskUpdate(BaseModel):
     mode: RiskMode
     reason: str
     live_enabled: bool | None = None
+
+
+class SignalScanCreate(BaseModel):
+    strategy_template: str
+    markets: list[Market]
+    parameters: dict[str, Any]
+
+
+class ScheduleUpdate(BaseModel):
+    enabled: bool
 
 
 def create_app(store: SQLiteStore | None = None) -> FastAPI:
@@ -190,6 +226,26 @@ def register_routes(app: FastAPI) -> None:
         metrics = dict(result.metrics)
         registry.record_metrics(strategy.id, metrics)
         return {"strategy_id": strategy.id, "metrics": _jsonable(metrics)}
+
+    @app.post("/api/backtests/signal", status_code=201)
+    def run_signal_backtest(payload: RealBacktestCreate) -> dict[str, Any]:
+        store = _store(app)
+        bars = MarketDataService(store).list_bars(
+            payload.market, payload.universe, date(1900, 1, 1), date.today()
+        )
+        if not bars:
+            raise HTTPException(status_code=400, detail="no cached bars for signal backtest")
+        try:
+            result = BacktestRunner().run_signal_backtest(
+                market=payload.market,
+                universe=payload.universe,
+                bars=bars,
+                parameters=payload.parameters,
+                starting_cash=payload.starting_cash,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return _jsonable(result)
 
     @app.post("/api/evolution", status_code=201)
     def generate_candidates(payload: EvolutionCreate) -> dict[str, Any]:
@@ -313,6 +369,58 @@ def register_routes(app: FastAPI) -> None:
             raise HTTPException(status_code=404, detail="account not found") from exc
         return _jsonable(positions)
 
+    @app.post("/api/paper/drafts", status_code=201)
+    def create_paper_draft(payload: PaperDraftCreate) -> dict[str, Any]:
+        try:
+            draft = PaperOrderDraftService(_store(app)).create_draft(
+                scan_id=payload.scan_id,
+                account_id=payload.account_id,
+                strategy_id=payload.strategy_id,
+                symbol=payload.symbol,
+                market=payload.market,
+                side=payload.side,
+                target_weight=payload.target_weight,
+                current_weight=payload.current_weight,
+                reference_price=payload.reference_price,
+                reason=payload.reason,
+                risk_flags=payload.risk_flags,
+                trade_session=payload.trade_session,
+            )
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="account not found") from exc
+        return _jsonable(draft)
+
+    @app.get("/api/paper/drafts")
+    def list_paper_drafts() -> list[dict[str, Any]]:
+        return _jsonable(PaperOrderDraftService(_store(app)).list_drafts())
+
+    @app.patch("/api/paper/drafts/{draft_id}/approve")
+    def approve_paper_draft(draft_id: str) -> dict[str, Any]:
+        try:
+            return _jsonable(PaperOrderDraftService(_store(app)).approve(draft_id))
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="draft not found") from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.patch("/api/paper/drafts/{draft_id}/cancel")
+    def cancel_paper_draft(draft_id: str) -> dict[str, Any]:
+        try:
+            return _jsonable(PaperOrderDraftService(_store(app)).cancel(draft_id))
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="draft not found") from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.patch("/api/paper/drafts/{draft_id}/submit")
+    def submit_paper_draft(draft_id: str) -> dict[str, Any]:
+        try:
+            return _jsonable(PaperOrderDraftService(_store(app)).submit(draft_id))
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="draft not found") from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     @app.get("/api/data-health")
     def data_health() -> dict[str, Any]:
         DataHub(_store(app))
@@ -324,6 +432,69 @@ def register_routes(app: FastAPI) -> None:
                 """
             ).fetchone()
         return {"dataset_count": int(row["dataset_count"])}
+
+    @app.get("/api/data-sync/jobs")
+    def list_data_sync_jobs() -> list[dict[str, Any]]:
+        return _jsonable(MarketDataService(_store(app)).list_sync_jobs())
+
+    @app.post("/api/data-sync/{market}", status_code=201)
+    def start_data_sync(market: Market) -> dict[str, Any]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{market.value} provider sync is not configured in this local API session",
+        )
+
+    @app.post("/api/signals/scans", status_code=201)
+    def create_signal_scan(payload: SignalScanCreate) -> dict[str, Any]:
+        store = _store(app)
+        market_data = MarketDataService(store)
+        universe: dict[Market, list[str]] = {}
+        bars = []
+        coverage: dict[Market, float] = {}
+        for market in payload.markets:
+            with store.connection() as conn:
+                symbol_rows = conn.execute(
+                    """
+                    SELECT DISTINCT symbol
+                    FROM market_bars
+                    WHERE market = ?
+                    ORDER BY symbol ASC
+                    """,
+                    (market.value,),
+                ).fetchall()
+            symbols = [row["symbol"] for row in symbol_rows]
+            universe[market] = symbols
+            coverage[market] = 1.0 if symbols else 0.0
+            if symbols:
+                bars.extend(market_data.list_bars(market, symbols, date(1900, 1, 1), date.today()))
+
+        scan = SignalScanner(store).run_scan(
+            strategy_template=payload.strategy_template,
+            parameters=payload.parameters,
+            market_scope=payload.markets,
+            universe=universe,
+            bars=bars,
+            coverage=coverage,
+            current_positions={},
+        )
+        if scan.status == "failed":
+            raise HTTPException(status_code=400, detail=scan.error_message)
+        return _jsonable(scan)
+
+    @app.get("/api/signals/scans")
+    def list_signal_scans() -> list[dict[str, Any]]:
+        return _jsonable(SignalScanner(_store(app)).list_scans())
+
+    @app.get("/api/signals/scans/{scan_id}")
+    def get_signal_scan(scan_id: str) -> dict[str, Any]:
+        for scan in SignalScanner(_store(app)).list_scans():
+            if scan.id == scan_id:
+                return _jsonable(scan)
+        raise HTTPException(status_code=404, detail="scan not found")
+
+    @app.get("/api/signals/scans/{scan_id}/results")
+    def list_signal_results(scan_id: str) -> list[dict[str, Any]]:
+        return _jsonable(SignalScanner(_store(app)).list_results(scan_id))
 
     @app.get("/api/risk")
     def get_risk() -> dict[str, Any]:
@@ -338,6 +509,14 @@ def register_routes(app: FastAPI) -> None:
             )
         state = RiskService(_store(app)).set_mode(payload.mode, payload.reason)
         return _jsonable(state)
+
+    @app.get("/api/schedules")
+    def list_schedules() -> list[dict[str, Any]]:
+        return _jsonable(SchedulerService(_store(app)).list_configs())
+
+    @app.patch("/api/schedules/{market}")
+    def update_schedule(market: Market, payload: ScheduleUpdate) -> dict[str, Any]:
+        return _jsonable(SchedulerService(_store(app)).set_enabled(market, payload.enabled))
 
     @app.get("/api/audit-events")
     def list_audit_events() -> list[dict[str, Any]]:
