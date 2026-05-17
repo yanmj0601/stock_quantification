@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -46,6 +47,8 @@ class SQLiteStore:
 
 
 def dumps(value: Any) -> str:
+    if isinstance(value, Mapping):
+        value = dict(value)
     return json.dumps(value, ensure_ascii=False, sort_keys=True)
 
 

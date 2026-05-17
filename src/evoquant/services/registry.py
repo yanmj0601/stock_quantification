@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
+from types import MappingProxyType
+from typing import Any, Mapping
 
 from evoquant.domain import Market, StrategyStatus, new_id, utc_now
 from evoquant.storage import SQLiteStore, dumps, loads
@@ -13,8 +14,11 @@ class AuditEvent:
     id: str
     entity_id: str
     event_type: str
-    payload: dict[str, Any]
+    payload: Mapping[str, Any]
     created_at: datetime
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "payload", MappingProxyType(dict(self.payload)))
 
 
 @dataclass(frozen=True)
@@ -24,10 +28,14 @@ class RegisteredStrategy:
     market: Market
     asset_class: str
     template_id: str
-    parameters: dict[str, Any]
+    parameters: Mapping[str, Any]
     status: StrategyStatus
     version: int
-    metrics: dict[str, float] = field(default_factory=dict)
+    metrics: Mapping[str, float] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "parameters", MappingProxyType(dict(self.parameters)))
+        object.__setattr__(self, "metrics", MappingProxyType(dict(self.metrics)))
 
 
 class StrategyRegistry:
@@ -108,10 +116,12 @@ class StrategyRegistry:
     ) -> RegisteredStrategy:
         current = self.get_strategy(strategy_id)
         with self.store.connect() as conn:
-            conn.execute(
+            result = conn.execute(
                 "UPDATE strategies SET status = ?, updated_at = ? WHERE id = ?",
                 (status.value, utc_now().isoformat(), strategy_id),
             )
+            if result.rowcount == 0:
+                raise KeyError(strategy_id)
             self._append_event(
                 conn,
                 strategy_id,
@@ -123,7 +133,7 @@ class StrategyRegistry:
     def list_events(self, entity_id: str) -> list[AuditEvent]:
         with self.store.connect() as conn:
             rows = conn.execute(
-                "SELECT * FROM audit_events WHERE entity_id = ? ORDER BY created_at ASC",
+                "SELECT * FROM audit_events WHERE entity_id = ? ORDER BY created_at ASC, rowid ASC",
                 (entity_id,),
             ).fetchall()
         return [
