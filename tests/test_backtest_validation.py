@@ -1,7 +1,7 @@
 import pytest
 
-from evoquant.services.backtest import BacktestRunner
-from evoquant.services.validation import RobustnessGate
+from evoquant.services.backtest import BacktestResult, BacktestRunner
+from evoquant.services.validation import GateResult, RobustnessGate
 
 
 def test_backtest_runner_returns_required_metrics():
@@ -26,6 +26,17 @@ def test_backtest_result_metrics_are_immutable():
 
     with pytest.raises(TypeError):
         result.metrics["cagr"] = 0.0
+
+
+def test_backtest_result_direct_metrics_are_snapshotted_and_immutable():
+    metrics = {"cagr": 0.12}
+
+    result = BacktestResult(metrics)
+    metrics["cagr"] = 0.0
+
+    assert result.metrics["cagr"] == 0.12
+    with pytest.raises(TypeError):
+        result.metrics["cagr"] = 0.5
 
 
 def test_robustness_gate_blocks_weak_or_fragile_strategy():
@@ -78,3 +89,12 @@ def test_gate_result_reasons_are_immutable():
 
     with pytest.raises(AttributeError):
         result.reasons.append("extra reason")
+
+
+def test_gate_result_direct_reasons_are_coerced_to_tuple():
+    reasons = ["sharpe below threshold"]
+
+    result = GateResult(passed=False, reasons=reasons)
+    reasons.append("cagr below threshold")
+
+    assert result.reasons == ("sharpe below threshold",)

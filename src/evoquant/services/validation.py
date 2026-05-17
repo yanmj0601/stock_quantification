@@ -9,6 +9,9 @@ class GateResult:
     passed: bool
     reasons: tuple[str, ...]
 
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "reasons", tuple(self.reasons))
+
 
 class RobustnessGate:
     def __init__(self, min_sharpe: float, max_drawdown_floor: float, min_cagr: float):

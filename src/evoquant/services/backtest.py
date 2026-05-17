@@ -11,6 +11,9 @@ from evoquant.metrics import calculate_performance
 class BacktestResult:
     metrics: Mapping[str, float]
 
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "metrics", MappingProxyType(dict(self.metrics)))
+
 
 class BacktestRunner:
     def run(self, equity: list[float], turnovers: list[float]) -> BacktestResult:
