@@ -303,6 +303,7 @@ small {
 }
 
 .badge.paper,
+.badge.filled,
 .badge.pass,
 .pill.ok,
 .badge.fresh,
@@ -328,6 +329,7 @@ small {
 }
 
 .badge.empty,
+.badge.retired,
 .badge.paused {
   border-color: #e4b5b0;
   background: #fff1f0;
@@ -352,6 +354,11 @@ small {
 
 .strategy-table {
   min-width: 1120px;
+}
+
+.evolution-table,
+.paper-table {
+  min-width: 980px;
 }
 
 .data-table th,
@@ -392,6 +399,7 @@ code {
 
 .icon-button,
 .primary-button,
+.small-button,
 .segmented button {
   min-height: 32px;
   border-radius: 6px;
@@ -417,6 +425,31 @@ code {
   white-space: nowrap;
 }
 
+.small-button {
+  min-height: 28px;
+  padding: 0 9px;
+  font-size: 12px;
+  background: var(--surface);
+}
+
+.small-button.danger {
+  border-color: #e4b5b0;
+  color: var(--danger);
+}
+
+.icon-button:disabled,
+.primary-button:disabled,
+.small-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .form-grid,
 .evolution-controls,
 .risk-layout {
@@ -426,7 +459,8 @@ code {
   gap: 12px;
 }
 
-.form-grid label {
+.form-grid label,
+.evolution-controls label {
   display: grid;
   gap: 6px;
   color: var(--muted);
@@ -474,6 +508,33 @@ input {
   font-size: 18px;
 }
 
+.inline-message {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.empty-state {
+  min-height: 160px;
+  display: grid;
+  place-content: center;
+  gap: 6px;
+  text-align: center;
+  color: var(--muted);
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-2);
+  padding: 18px;
+}
+
+.empty-state.compact {
+  min-height: 74px;
+}
+
+.empty-state strong {
+  color: var(--text);
+}
+
 .evolution-controls > div {
   min-height: 52px;
   display: grid;
@@ -504,6 +565,31 @@ input {
 
 .account-row small {
   grid-column: 1 / -1;
+}
+
+.compact-table {
+  display: grid;
+  gap: 8px;
+}
+
+.compact-table > div {
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) 80px minmax(140px, 1fr);
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+
+.compact-table > div:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.compact-table span {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .ticket {
@@ -617,7 +703,8 @@ input {
   }
 
   .status-row,
-  .health-row {
+  .health-row,
+  .compact-table > div {
     grid-template-columns: 1fr;
   }
 }

@@ -4,6 +4,13 @@ import { apiGet } from "../api";
 
 type DataHealthPayload = { dataset_count: number };
 
+const offlineFeeds = [
+  ["bars.us.daily", "fresh", "offline example"],
+  ["bars.cn.daily", "watch", "offline example"],
+  ["crypto.ohlcv.1h", "fresh", "offline example"],
+  ["corporate.actions", "empty", "offline example"],
+];
+
 function DataHealth() {
   const [payload, setPayload] = useState<DataHealthPayload>({ dataset_count: 0 });
   const [state, setState] = useState("loading");
@@ -30,22 +37,26 @@ function DataHealth() {
       <section className="panel">
         <div className="panel-header">
           <h2>Feed Checks</h2>
-          <span>{state}</span>
+          <span>{state === "fallback" ? "offline examples" : state}</span>
         </div>
-        <div className="health-grid">
-          {[
-            ["bars.us.daily", "fresh", "T+0 adjusted close"],
-            ["bars.cn.daily", "watch", "awaiting next sync"],
-            ["crypto.ohlcv.1h", "fresh", "continuous ingest"],
-            ["corporate.actions", "empty", "not loaded"],
-          ].map(([feed, status, note]) => (
-            <div className="health-row" key={feed}>
-              <span>{feed}</span>
-              <span className={`badge ${status}`}>{status}</span>
-              <small>{note}</small>
-            </div>
-          ))}
-        </div>
+        {state !== "fallback" ? (
+          <div className="empty-state">
+            <strong>
+              {payload.dataset_count === 0 ? "No datasets registered" : `${payload.dataset_count} datasets registered`}
+            </strong>
+            <span>Detailed freshness, missing bar, duplicate, and anomaly reports are not loaded in this API summary yet.</span>
+          </div>
+        ) : (
+          <div className="health-grid">
+            {offlineFeeds.map(([feed, status, note]) => (
+              <div className="health-row" key={feed}>
+                <span>{feed}</span>
+                <span className={`badge ${status}`}>{status}</span>
+                <small>{note}</small>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

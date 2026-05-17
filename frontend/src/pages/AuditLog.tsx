@@ -28,22 +28,27 @@ const fallbackEvents: AuditEvent[] = [
 ];
 
 function AuditLog() {
-  const [events, setEvents] = useState<AuditEvent[]>(fallbackEvents);
+  const [events, setEvents] = useState<AuditEvent[]>([]);
   const [state, setState] = useState("loading");
 
   useEffect(() => {
     apiGet<AuditEvent[]>("/api/audit-events")
       .then((rows) => {
-        setEvents(rows.length ? rows : fallbackEvents);
+        setEvents(rows);
         setState("ready");
       })
-      .catch(() => setState("fallback"));
+      .catch(() => {
+        setEvents(fallbackEvents);
+        setState("fallback");
+      });
   }, []);
 
   return (
     <div className="page-stack">
       <div className="toolbar">
-        <span className={`pill ${state === "fallback" ? "warning" : "ok"}`}>{state}</span>
+        <span className={`pill ${state === "fallback" ? "warning" : "ok"}`}>
+          {state === "fallback" ? "offline example events" : state}
+        </span>
         <span>{events.length} events</span>
       </div>
       <div className="table-wrap">
@@ -58,13 +63,22 @@ function AuditLog() {
             </tr>
           </thead>
           <tbody>
-            {events.map((event) => (
+            {events.length === 0 ? (
+              <tr>
+                <td colSpan={5}>
+                  <div className="empty-state compact">
+                    <strong>No audit events</strong>
+                    <span>Strategy, risk, and paper trading actions will be recorded here.</span>
+                  </div>
+                </td>
+              </tr>
+            ) : events.map((event) => (
               <tr key={event.id}>
                 <td>{new Date(event.created_at).toLocaleString()}</td>
                 <td><ScrollText size={15} /> {event.event_type}</td>
                 <td>{event.entity_id}</td>
                 <td><code>{JSON.stringify(event.payload)}</code></td>
-                <td><span className="badge pass">api</span></td>
+                <td><span className={`badge ${state === "fallback" ? "watch" : "pass"}`}>{state === "fallback" ? "offline" : "api"}</span></td>
               </tr>
             ))}
           </tbody>

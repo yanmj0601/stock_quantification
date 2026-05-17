@@ -245,11 +245,73 @@ def register_routes(app: FastAPI) -> None:
                 payload.quantity,
                 payload.limit_price,
             )
+            service.fill_order(order.id, payload.limit_price, fee=0.0)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="account not found") from exc
         except RuntimeError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        return _jsonable(order)
+        return {**_jsonable(order), "status": "filled"}
+
+    @app.get("/api/paper/orders")
+    def list_paper_orders() -> list[dict[str, Any]]:
+        PaperTradingService(_store(app))
+        with _store(app).connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, account_id, symbol, market, quantity, limit_price,
+                       status, created_at
+                FROM paper_orders
+                ORDER BY created_at ASC, rowid ASC
+                """
+            ).fetchall()
+        return [
+            {
+                "id": row["id"],
+                "account_id": row["account_id"],
+                "symbol": row["symbol"],
+                "market": row["market"],
+                "quantity": float(row["quantity"]),
+                "limit_price": float(row["limit_price"]),
+                "status": row["status"],
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ]
+
+    @app.get("/api/paper/fills")
+    def list_paper_fills() -> list[dict[str, Any]]:
+        PaperTradingService(_store(app))
+        with _store(app).connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, order_id, account_id, symbol, market, quantity,
+                       fill_price, fee, created_at
+                FROM paper_fills
+                ORDER BY created_at ASC, rowid ASC
+                """
+            ).fetchall()
+        return [
+            {
+                "id": row["id"],
+                "order_id": row["order_id"],
+                "account_id": row["account_id"],
+                "symbol": row["symbol"],
+                "market": row["market"],
+                "quantity": float(row["quantity"]),
+                "fill_price": float(row["fill_price"]),
+                "fee": float(row["fee"]),
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ]
+
+    @app.get("/api/paper/accounts/{account_id}/positions")
+    def list_paper_positions(account_id: str) -> list[dict[str, Any]]:
+        try:
+            positions = PaperTradingService(_store(app)).list_positions(account_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="account not found") from exc
+        return _jsonable(positions)
 
     @app.get("/api/data-health")
     def data_health() -> dict[str, Any]:

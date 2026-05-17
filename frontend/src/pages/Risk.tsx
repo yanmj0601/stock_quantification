@@ -87,7 +87,7 @@ function Risk() {
           </div>
           <div className="guard-list">
             <div><span className="badge pass">locked</span><strong>Live order path</strong><small>Hard disabled by API risk service</small></div>
-            <div><span className="badge pass">active</span><strong>Paper gate</strong><small>Blocked when mode is research-only or paused</small></div>
+            <div><span className="badge pass">active</span><strong>Paper gate</strong><small>Blocked when global mode is paused</small></div>
             <div><span className="badge pass">active</span><strong>Audit reason</strong><small>Mode changes include reason payloads</small></div>
           </div>
         </section>

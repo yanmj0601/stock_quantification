@@ -1,6 +1,6 @@
 import { Play, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
-import { apiGet } from "../api";
+import { apiGet, apiPatch } from "../api";
 
 type Strategy = {
   id: string;
@@ -12,6 +12,8 @@ type Strategy = {
   version: number;
   metrics: Record<string, number>;
 };
+
+type StrategyStatus = "research" | "candidate" | "paper" | "retired";
 
 const fallbackStrategies: Strategy[] = [
   {
@@ -50,28 +52,57 @@ const percent = (value?: number) => (value == null ? "-" : `${(value * 100).toFi
 const number = (value?: number) => (value == null ? "-" : value.toFixed(2));
 
 function Strategies() {
-  const [strategies, setStrategies] = useState<Strategy[]>(fallbackStrategies);
-  const [state, setState] = useState<"loading" | "ready" | "fallback">("loading");
+  const [strategies, setStrategies] = useState<Strategy[]>([]);
+  const [state, setState] = useState<"loading" | "ready" | "fallback" | "updating">("loading");
+  const [message, setMessage] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = () => {
+    setState("loading");
     apiGet<Strategy[]>("/api/strategies")
       .then((rows) => {
-        setStrategies(rows.length ? rows : fallbackStrategies);
+        setStrategies(rows);
+        setMessage(null);
         setState("ready");
       })
-      .catch(() => setState("fallback"));
+      .catch(() => {
+        setStrategies(fallbackStrategies);
+        setMessage("API unavailable. Showing offline example rows.");
+        setState("fallback");
+      });
+  };
+
+  useEffect(() => {
+    load();
   }, []);
+
+  const setStatus = (strategy: Strategy, status: StrategyStatus) => {
+    setState("updating");
+    setMessage(null);
+    apiPatch<Strategy>(`/api/strategies/${strategy.id}/status`, {
+      status,
+      reason: `admin console set ${status}`,
+    })
+      .then((updated) => {
+        setStrategies((rows) => rows.map((row) => (row.id === updated.id ? updated : row)));
+        setState("ready");
+      })
+      .catch((error: Error) => {
+        setMessage(error.message);
+        setState("ready");
+      });
+  };
 
   return (
     <div className="page-stack">
       <div className="toolbar">
         <span className={`pill ${state === "fallback" ? "warning" : "ok"}`}>
-          {state === "loading" ? "Loading" : state === "fallback" ? "Fallback rows" : "Synced"}
+          {state === "loading" ? "Loading" : state === "fallback" ? "Offline example rows" : state}
         </span>
-        <button className="icon-button" type="button" title="Refresh">
+        <button className="icon-button" type="button" title="Refresh" onClick={load}>
           <RefreshCw size={16} />
         </button>
       </div>
+      {message && <p className="inline-message" role="status">{message}</p>}
       <div className="table-wrap">
         <table className="data-table strategy-table">
           <thead>
@@ -90,7 +121,16 @@ function Strategies() {
             </tr>
           </thead>
           <tbody>
-            {strategies.map((strategy) => {
+            {strategies.length === 0 ? (
+              <tr>
+                <td colSpan={11}>
+                  <div className="empty-state compact">
+                    <strong>No strategies registered</strong>
+                    <span>Approve generated candidates to create research strategies.</span>
+                  </div>
+                </td>
+              </tr>
+            ) : strategies.map((strategy) => {
               const validation = (strategy.metrics.sharpe ?? 0) >= 1 ? "pass" : "watch";
               const decay = strategy.status === "paper" ? "-2.4%" : "n/a";
               return (
@@ -109,9 +149,38 @@ function Strategies() {
                   <td><span className={`badge ${validation}`}>{validation}</span></td>
                   <td>{decay}</td>
                   <td>
-                    <button className="icon-button" type="button" title="Queue action">
-                      <Play size={15} />
-                    </button>
+                    <div className="action-row">
+                      {strategy.status !== "paper" && strategy.status !== "retired" && (
+                        <button
+                          className="small-button"
+                          disabled={state === "fallback" || state === "updating"}
+                          onClick={() => setStatus(strategy, "paper")}
+                          type="button"
+                        >
+                          <Play size={14} /> Paper
+                        </button>
+                      )}
+                      {strategy.status === "paper" && (
+                        <button
+                          className="small-button"
+                          disabled={state === "fallback" || state === "updating"}
+                          onClick={() => setStatus(strategy, "research")}
+                          type="button"
+                        >
+                          Pause
+                        </button>
+                      )}
+                      {strategy.status !== "retired" && (
+                        <button
+                          className="small-button danger"
+                          disabled={state === "fallback" || state === "updating"}
+                          onClick={() => setStatus(strategy, "retired")}
+                          type="button"
+                        >
+                          Retire
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );

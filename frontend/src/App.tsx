@@ -9,7 +9,7 @@ import {
   ScrollText,
   ShieldCheck,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactElement } from "react";
 import AuditLog from "./pages/AuditLog";
 import Backtests from "./pages/Backtests";
 import DataHealth from "./pages/DataHealth";
@@ -54,7 +54,7 @@ const pageTitle: Record<PageKey, string> = {
 function App() {
   const [active, setActive] = useState<PageKey>("overview");
   const ActivePage = useMemo(() => {
-    const pages: Record<PageKey, JSX.Element> = {
+    const pages: Record<PageKey, ReactElement> = {
       overview: <Overview />,
       strategies: <Strategies />,
       backtests: <Backtests />,

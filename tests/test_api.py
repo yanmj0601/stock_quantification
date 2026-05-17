@@ -202,10 +202,67 @@ def test_evolution_returns_json_safe_candidate_parameters(tmp_path):
     candidates = response.json()["candidates"]
     assert len(candidates) == 1
     assert candidates[0]["template_id"] == "momentum"
+    assert set(candidates[0]) == {"id", "template_id", "parameters"}
     assert candidates[0]["parameters"] == {
         "lookback": 20,
         "risk": {"stop": 0.08},
         "markets": ["US", "CN"],
+    }
+
+
+def test_empty_collection_endpoints_return_empty_contracts(tmp_path):
+    client = _client(tmp_path)
+
+    assert client.get("/api/strategies").json() == []
+    assert client.get("/api/audit-events").json() == []
+    assert client.get("/api/paper/accounts").json() == []
+
+    dashboard = client.get("/api/dashboard")
+    assert dashboard.status_code == 200
+    assert dashboard.json()["strategy_count"] == 0
+    assert dashboard.json()["strategies_by_status"] == {}
+    assert dashboard.json()["paper_account_count"] == 0
+    assert dashboard.json()["paper_total_nav"] == 0.0
+
+
+def test_evolution_candidate_can_be_registered_as_research_strategy(tmp_path):
+    client = _client(tmp_path)
+
+    generated = client.post(
+        "/api/evolution",
+        json={
+            "template_id": "momentum",
+            "parameter_space": {
+                "market": ["CN"],
+                "lookback": [40],
+                "stop": [0.06],
+            },
+            "max_candidates": 1,
+        },
+    )
+    assert generated.status_code == 201
+    candidate = generated.json()["candidates"][0]
+
+    registered = client.post(
+        "/api/strategies",
+        json={
+            "name": f"{candidate['template_id']}_{candidate['id']}",
+            "market": candidate["parameters"]["market"],
+            "asset_class": "equity",
+            "template_id": candidate["template_id"],
+            "parameters": candidate["parameters"],
+        },
+    )
+
+    assert registered.status_code == 201
+    strategy = registered.json()
+    assert strategy["status"] == "research"
+    assert strategy["template_id"] == "momentum"
+    assert strategy["market"] == "CN"
+    assert strategy["parameters"] == {
+        "market": "CN",
+        "lookback": 40,
+        "stop": 0.06,
     }
 
 
@@ -228,6 +285,68 @@ def test_paper_accounts_can_be_created_and_listed(tmp_path):
             "name": "paper-us",
             "cash": 50000.0,
             "nav": 50000.0,
+        }
+    ]
+
+
+def test_paper_orders_fills_and_positions_can_be_listed(tmp_path):
+    client = _client(tmp_path)
+    account = client.post(
+        "/api/paper/accounts",
+        json={"name": "paper-us", "starting_cash": 50000},
+    ).json()
+
+    created = client.post(
+        "/api/paper/orders",
+        json={
+            "account_id": account["id"],
+            "symbol": "AAPL",
+            "market": "US",
+            "quantity": 10,
+            "limit_price": 185,
+        },
+    )
+
+    assert created.status_code == 201
+    assert created.json()["status"] == "filled"
+
+    orders = client.get("/api/paper/orders")
+    fills = client.get("/api/paper/fills")
+    positions = client.get(f"/api/paper/accounts/{account['id']}/positions")
+
+    assert orders.status_code == 200
+    assert fills.status_code == 200
+    assert positions.status_code == 200
+    assert orders.json() == [
+        {
+            "id": created.json()["id"],
+            "account_id": account["id"],
+            "symbol": "AAPL",
+            "market": "US",
+            "quantity": 10.0,
+            "limit_price": 185.0,
+            "status": "filled",
+            "created_at": created.json()["created_at"],
+        }
+    ]
+    assert fills.json()[0] == {
+        "id": fills.json()[0]["id"],
+        "order_id": created.json()["id"],
+        "account_id": account["id"],
+        "symbol": "AAPL",
+        "market": "US",
+        "quantity": 10.0,
+        "fill_price": 185.0,
+        "fee": 0.0,
+        "created_at": fills.json()[0]["created_at"],
+    }
+    assert positions.json() == [
+        {
+            "account_id": account["id"],
+            "symbol": "AAPL",
+            "market": "US",
+            "quantity": 10.0,
+            "average_cost": 185.0,
         }
     ]
 

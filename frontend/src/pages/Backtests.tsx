@@ -21,20 +21,25 @@ const fallbackStrategies: Strategy[] = [
 const equity = [100000, 100480, 101020, 100760, 102300, 103120, 104050, 103780];
 
 function Backtests() {
-  const [strategies, setStrategies] = useState<Strategy[]>(fallbackStrategies);
-  const [selected, setSelected] = useState(fallbackStrategies[0].id);
+  const [strategies, setStrategies] = useState<Strategy[]>([]);
+  const [selected, setSelected] = useState("");
   const [result, setResult] = useState<BacktestResult | null>(null);
   const [status, setStatus] = useState("idle");
+  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     apiGet<Strategy[]>("/api/strategies")
       .then((rows) => {
-        if (rows.length) {
-          setStrategies(rows);
-          setSelected(rows[0].id);
-        }
+        setStrategies(rows);
+        setSelected(rows[0]?.id ?? "");
+        setMessage(null);
       })
-      .catch(() => undefined);
+      .catch(() => {
+        setStrategies(fallbackStrategies);
+        setSelected(fallbackStrategies[0].id);
+        setMessage("API unavailable. Showing offline example strategies.");
+        setStatus("fallback");
+      });
   }, []);
 
   const chartData = useMemo(
@@ -43,7 +48,12 @@ function Backtests() {
   );
 
   const run = () => {
+    if (!selected) {
+      setMessage("Register a strategy before running a backtest.");
+      return;
+    }
     setStatus("running");
+    setMessage(null);
     apiPost<BacktestResult>("/api/backtests", {
       strategy_id: selected,
       equity,
@@ -53,12 +63,17 @@ function Backtests() {
         setResult(payload);
         setStatus("complete");
       })
-      .catch(() => {
-        setResult({
-          strategy_id: selected,
-          metrics: { cagr: 0.139, sharpe: 1.18, max_drawdown: -0.031, calmar: 4.48, turnover: 0.14 },
-        });
-        setStatus("fallback result");
+      .catch((error: Error) => {
+        if (status === "fallback") {
+          setResult({
+            strategy_id: selected,
+            metrics: { cagr: 0.139, sharpe: 1.18, max_drawdown: -0.031, calmar: 4.48, turnover: 0.14 },
+          });
+          setStatus("fallback result");
+          return;
+        }
+        setMessage(error.message);
+        setStatus("idle");
       });
   };
 
@@ -69,6 +84,7 @@ function Backtests() {
           <h2>Backtest Run</h2>
           <span>{status}</span>
         </div>
+        {message && <p className="inline-message" role="status">{message}</p>}
         <div className="form-grid">
           <label>
             Strategy
@@ -85,10 +101,16 @@ function Backtests() {
               <option value="stress">liquidity stress sample</option>
             </select>
           </label>
-          <button className="primary-button" type="button" onClick={run}>
+          <button className="primary-button" disabled={!selected || status === "running"} type="button" onClick={run}>
             <Play size={16} /> Run
           </button>
         </div>
+        {strategies.length === 0 && (
+          <div className="empty-state compact">
+            <strong>No strategies available</strong>
+            <span>Register an evolution candidate before submitting a backtest.</span>
+          </div>
+        )}
       </section>
 
       <div className="panel-grid two">
