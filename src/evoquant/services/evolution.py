@@ -9,6 +9,16 @@ from evoquant.domain import new_id
 from evoquant.storage import SQLiteStore
 
 
+def _freeze_parameter_value(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return MappingProxyType(
+            {key: _freeze_parameter_value(item) for key, item in value.items()}
+        )
+    if isinstance(value, list | tuple):
+        return tuple(_freeze_parameter_value(item) for item in value)
+    return value
+
+
 @dataclass(frozen=True)
 class StrategyTemplate:
     template_id: str
@@ -22,7 +32,7 @@ class GeneratedCandidate:
     parameters: Mapping[str, Any]
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "parameters", MappingProxyType(dict(self.parameters)))
+        object.__setattr__(self, "parameters", _freeze_parameter_value(self.parameters))
 
 
 class EvolutionService:

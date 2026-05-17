@@ -1,7 +1,7 @@
 import pytest
 
 from evoquant.domain import RiskMode
-from evoquant.services.evolution import EvolutionService, StrategyTemplate
+from evoquant.services.evolution import EvolutionService, GeneratedCandidate, StrategyTemplate
 from evoquant.services.risk import RiskService
 from evoquant.storage import SQLiteStore, loads
 
@@ -92,3 +92,36 @@ def test_generated_candidate_parameters_are_deterministic_and_immutable(tmp_path
     ]
     with pytest.raises(TypeError):
         candidates[0].parameters["lookback"] = 120
+
+
+def test_generated_candidate_nested_parameters_are_immutable():
+    candidate = GeneratedCandidate(
+        "cand_test",
+        "momentum",
+        {
+            "filters": {"windows": [20, 60], "enabled": True},
+            "weights": [0.4, {"risk": 0.6}],
+        },
+    )
+
+    with pytest.raises(TypeError):
+        candidate.parameters["filters"]["windows"] += (120,)
+    with pytest.raises(TypeError):
+        candidate.parameters["filters"]["enabled"] = False
+    with pytest.raises(TypeError):
+        candidate.parameters["weights"][1]["risk"] = 0.7
+
+
+def test_generated_candidate_copies_nested_template_values(tmp_path):
+    service = EvolutionService(SQLiteStore(tmp_path / "state.db"))
+    filter_config = {"windows": [20, 60], "enabled": True}
+    template = StrategyTemplate("momentum", {"filters": [filter_config]})
+
+    candidate = service.generate_candidates(template, max_candidates=1)[0]
+    filter_config["windows"].append(120)
+    filter_config["enabled"] = False
+
+    assert candidate.parameters["filters"] == {
+        "windows": (20, 60),
+        "enabled": True,
+    }
