@@ -130,7 +130,11 @@ class PaperTradingService:
         created_at = utc_now()
         with self.store.connection() as conn:
             order_row = conn.execute(
-                "SELECT * FROM paper_orders WHERE id = ?",
+                """
+                SELECT id, account_id, symbol, market, quantity
+                FROM paper_orders
+                WHERE id = ?
+                """,
                 (order_id,),
             ).fetchone()
             if order_row is None:

@@ -41,7 +41,12 @@ def test_order_and_fill_write_audit_events(tmp_path):
 
     with store.connection() as conn:
         rows = conn.execute(
-            "SELECT * FROM audit_events WHERE entity_id IN (?, ?) ORDER BY created_at ASC, rowid ASC",
+            """
+            SELECT event_type, payload
+            FROM audit_events
+            WHERE entity_id IN (?, ?)
+            ORDER BY created_at ASC, rowid ASC
+            """,
             (order.id, fill.id),
         ).fetchall()
 
