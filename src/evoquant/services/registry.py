@@ -61,9 +61,15 @@ class StrategyRegistry:
             status=StrategyStatus.RESEARCH,
             version=1,
         )
-        with self.store.connect() as conn:
+        with self.store.connection() as conn:
             conn.execute(
-                "INSERT INTO strategies VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                """
+                INSERT INTO strategies (
+                    id, name, market, asset_class, template_id, parameters, status,
+                    version, metrics, created_at, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
                 (
                     strategy.id,
                     strategy.name,
@@ -82,7 +88,7 @@ class StrategyRegistry:
         return strategy
 
     def get_strategy(self, strategy_id: str) -> RegisteredStrategy:
-        with self.store.connect() as conn:
+        with self.store.connection() as conn:
             row = conn.execute("SELECT * FROM strategies WHERE id = ?", (strategy_id,)).fetchone()
         if row is None:
             raise KeyError(strategy_id)
@@ -99,7 +105,7 @@ class StrategyRegistry:
         )
 
     def record_metrics(self, strategy_id: str, metrics: dict[str, Any]) -> None:
-        with self.store.connect() as conn:
+        with self.store.connection() as conn:
             result = conn.execute(
                 "UPDATE strategies SET metrics = ?, updated_at = ? WHERE id = ?",
                 (dumps(metrics), utc_now().isoformat(), strategy_id),
@@ -114,7 +120,7 @@ class StrategyRegistry:
         status: StrategyStatus,
         reason: str,
     ) -> RegisteredStrategy:
-        with self.store.connect() as conn:
+        with self.store.connection() as conn:
             row = conn.execute(
                 "SELECT * FROM strategies WHERE id = ?", (strategy_id,)
             ).fetchone()
@@ -136,7 +142,7 @@ class StrategyRegistry:
         return self.get_strategy(strategy_id)
 
     def list_events(self, entity_id: str) -> list[AuditEvent]:
-        with self.store.connect() as conn:
+        with self.store.connection() as conn:
             rows = conn.execute(
                 "SELECT * FROM audit_events WHERE entity_id = ? ORDER BY created_at ASC, rowid ASC",
                 (entity_id,),
@@ -160,7 +166,10 @@ class StrategyRegistry:
         payload: dict[str, Any],
     ) -> None:
         conn.execute(
-            "INSERT INTO audit_events VALUES (?, ?, ?, ?, ?)",
+            """
+            INSERT INTO audit_events (id, entity_id, event_type, payload, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
             (
                 new_id("evt"),
                 entity_id,

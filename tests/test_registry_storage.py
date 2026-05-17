@@ -1,3 +1,5 @@
+import sqlite3
+
 import pytest
 
 from evoquant.domain import Market, StrategyStatus
@@ -147,16 +149,47 @@ def test_audit_events_with_same_timestamp_return_in_insertion_order(tmp_path):
     store = SQLiteStore(tmp_path / "state.db")
     entity_id = "str_same_timestamp"
     timestamp = "2026-05-17T00:00:00+00:00"
-    with store.connect() as conn:
+    with store.connection() as conn:
         conn.execute(
-            "INSERT INTO audit_events VALUES (?, ?, ?, ?, ?)",
+            """
+            INSERT INTO audit_events (id, entity_id, event_type, payload, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
             ("evt_1", entity_id, "first", dumps({}), timestamp),
         )
         conn.execute(
-            "INSERT INTO audit_events VALUES (?, ?, ?, ?, ?)",
+            """
+            INSERT INTO audit_events (id, entity_id, event_type, payload, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
             ("evt_2", entity_id, "second", dumps({}), timestamp),
         )
 
     events = StrategyRegistry(store).list_events(entity_id=entity_id)
 
     assert [event.event_type for event in events] == ["first", "second"]
+
+
+def test_store_connection_commits_and_closes(tmp_path):
+    store = SQLiteStore(tmp_path / "state.db")
+
+    with store.connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO audit_events (id, entity_id, event_type, payload, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                "evt_closed",
+                "str_closed",
+                "closed",
+                dumps({}),
+                "2026-05-17T00:00:00+00:00",
+            ),
+        )
+
+    with pytest.raises(sqlite3.ProgrammingError):
+        conn.execute("SELECT 1")
+
+    events = StrategyRegistry(store).list_events(entity_id="str_closed")
+    assert [event.event_type for event in events] == ["closed"]
