@@ -554,6 +554,17 @@ input {
   color: #0c5b53;
 }
 
+.segmented button:disabled {
+  color: var(--muted);
+  cursor: wait;
+}
+
+.risk-error {
+  margin: 10px 0 0;
+  color: var(--danger);
+  font-size: 13px;
+}
+
 .health-row {
   grid-template-columns: minmax(160px, 1fr) 90px minmax(160px, 1fr);
   border-bottom: 1px solid var(--border);

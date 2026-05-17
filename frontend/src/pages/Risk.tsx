@@ -12,27 +12,33 @@ const fallbackRisk: RiskState = { mode: "research-only", live_enabled: false };
 
 function Risk() {
   const [risk, setRisk] = useState<RiskState>(fallbackRisk);
-  const [state, setState] = useState("loading");
+  const [state, setState] = useState<"loading" | "ready" | "updating" | "fallback" | "error">("loading");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     apiGet<RiskState>("/api/risk")
       .then((payload) => {
         setRisk({ ...payload, live_enabled: false });
+        setError(null);
         setState("ready");
       })
-      .catch(() => setState("fallback"));
+      .catch(() => {
+        setError("API unavailable. Showing the local research-only fallback.");
+        setState("fallback");
+      });
   }, []);
 
   const setMode = (mode: RiskState["mode"]) => {
     setState("updating");
+    setError(null);
     apiPatch<RiskState>("/api/risk", { mode, reason: `admin console set ${mode}`, live_enabled: false })
       .then((payload) => {
         setRisk({ ...payload, live_enabled: false });
         setState("ready");
       })
       .catch(() => {
-        setRisk({ mode, live_enabled: false });
-        setState("fallback");
+        setError("Mode update failed. The last confirmed server mode is still shown.");
+        setState("error");
       });
   };
 
@@ -54,10 +60,12 @@ function Risk() {
             <Lock size={16} />
             <span>Live disabled</span>
           </label>
-          <div className="segmented">
+          <div className="segmented" role="group" aria-label="Risk mode">
             {(["research-only", "paper-only", "paused"] as const).map((mode) => (
               <button
+                aria-pressed={risk.mode === mode}
                 className={risk.mode === mode ? "active" : ""}
+                disabled={state === "updating"}
                 key={mode}
                 onClick={() => setMode(mode)}
                 type="button"
@@ -68,6 +76,7 @@ function Risk() {
             ))}
           </div>
         </div>
+        {error && <p className="risk-error" role="status">{error}</p>}
       </section>
 
       <div className="panel-grid two">

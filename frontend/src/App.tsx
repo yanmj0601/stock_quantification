@@ -83,6 +83,7 @@ function App() {
             return (
               <button
                 key={item.key}
+                aria-current={active === item.key ? "page" : undefined}
                 className={`nav-item ${active === item.key ? "active" : ""}`}
                 onClick={() => setActive(item.key)}
                 type="button"

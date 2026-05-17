@@ -7,6 +7,7 @@ from types import MappingProxyType
 from typing import Any, Mapping
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from evoquant.domain import Market, RiskMode, StrategyStatus
@@ -17,6 +18,14 @@ from evoquant.services.paper import PaperTradingService
 from evoquant.services.registry import StrategyRegistry
 from evoquant.services.risk import RiskService
 from evoquant.storage import SQLiteStore, loads
+
+
+ADMIN_CONSOLE_ORIGINS = (
+    "http://127.0.0.1:5173",
+    "http://localhost:5173",
+    "http://127.0.0.1:4173",
+    "http://localhost:4173",
+)
 
 
 class StrategyCreate(BaseModel):
@@ -65,6 +74,12 @@ class RiskUpdate(BaseModel):
 
 def create_app(store: SQLiteStore | None = None) -> FastAPI:
     app = FastAPI(title="EvoQuant API")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=list(ADMIN_CONSOLE_ORIGINS),
+        allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
+        allow_headers=["Content-Type"],
+    )
     app.state.store = store or SQLiteStore("var/evoquant.db")
     register_routes(app)
     return app

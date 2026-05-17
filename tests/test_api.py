@@ -64,6 +64,34 @@ def test_healthz(tmp_path):
     assert response.json() == {"status": "ok"}
 
 
+def test_browser_origins_receive_cors_headers(tmp_path):
+    client = _client(tmp_path)
+
+    for origin in (
+        "http://127.0.0.1:5173",
+        "http://localhost:5173",
+        "http://127.0.0.1:4173",
+        "http://localhost:4173",
+    ):
+        response = client.get("/api/risk", headers={"Origin": origin})
+
+        assert response.status_code == 200
+        assert response.headers["access-control-allow-origin"] == origin
+
+        preflight = client.options(
+            "/api/risk",
+            headers={
+                "Origin": origin,
+                "Access-Control-Request-Method": "PATCH",
+                "Access-Control-Request-Headers": "content-type",
+            },
+        )
+
+        assert preflight.status_code == 200
+        assert preflight.headers["access-control-allow-origin"] == origin
+        assert "PATCH" in preflight.headers["access-control-allow-methods"]
+
+
 def test_missing_strategy_and_account_ids_return_404(tmp_path):
     client = _client(tmp_path)
 
