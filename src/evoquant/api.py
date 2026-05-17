@@ -168,17 +168,23 @@ def register_routes(app: FastAPI) -> None:
             strategy = registry.get_strategy(payload.strategy_id)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="strategy not found") from exc
-        result = BacktestRunner().run(payload.equity, payload.turnovers)
+        try:
+            result = BacktestRunner().run(payload.equity, payload.turnovers)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         metrics = dict(result.metrics)
         registry.record_metrics(strategy.id, metrics)
         return {"strategy_id": strategy.id, "metrics": _jsonable(metrics)}
 
     @app.post("/api/evolution", status_code=201)
     def generate_candidates(payload: EvolutionCreate) -> dict[str, Any]:
-        candidates = EvolutionService(_store(app)).generate_candidates(
-            StrategyTemplate(payload.template_id, payload.parameter_space),
-            payload.max_candidates,
-        )
+        try:
+            candidates = EvolutionService(_store(app)).generate_candidates(
+                StrategyTemplate(payload.template_id, payload.parameter_space),
+                payload.max_candidates,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"candidates": _jsonable(candidates)}
 
     @app.get("/api/paper/accounts")
