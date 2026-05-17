@@ -1,0 +1,60 @@
+from datetime import date
+
+from evoquant.domain import Market
+from evoquant.providers.csv import CsvMarketDataProvider
+from evoquant.services.instruments import InstrumentMaster, InstrumentRecord
+from evoquant.storage import SQLiteStore
+
+
+def test_instrument_master_upserts_and_prefers_chinese_name(tmp_path):
+    store = SQLiteStore(tmp_path / "state.db")
+    master = InstrumentMaster(store)
+
+    master.upsert_many(
+        [
+            InstrumentRecord(
+                symbol="AAPL",
+                market=Market.US,
+                name="Apple Inc.",
+                name_zh="苹果公司",
+                exchange="NASDAQ",
+                currency="USD",
+                sector="Technology",
+                index_membership="SP500",
+                tradable=True,
+                lot_size=1,
+            )
+        ]
+    )
+
+    listed = master.list_by_market(Market.US)
+
+    assert len(listed) == 1
+    assert listed[0].symbol == "AAPL"
+    assert listed[0].name_zh == "苹果公司"
+
+
+def test_csv_market_data_provider_reads_instruments_and_bars(tmp_path):
+    instruments = tmp_path / "instruments.csv"
+    bars = tmp_path / "bars.csv"
+    instruments.write_text(
+        "symbol,market,name,name_zh,exchange,currency,sector,index_membership,tradable,lot_size\n"
+        "AAPL,US,Apple Inc.,苹果公司,NASDAQ,USD,Technology,SP500,true,1\n",
+        encoding="utf-8",
+    )
+    bars.write_text(
+        "symbol,market,date,open,high,low,close,volume,amount,adjusted,suspended,limit_up,limit_down\n"
+        "AAPL,US,2026-01-02,100,105,99,104,1000000,104000000,true,false,false,false\n",
+        encoding="utf-8",
+    )
+
+    provider = CsvMarketDataProvider(instruments_path=instruments, bars_path=bars)
+
+    loaded_instruments = provider.sync_instruments("SP500")
+    loaded_bars = provider.sync_bars(
+        ["AAPL"], Market.US, date(2026, 1, 1), date(2026, 1, 31)
+    )
+
+    assert loaded_instruments[0].name_zh == "苹果公司"
+    assert loaded_bars[0].close == 104.0
+    assert loaded_bars[0].amount == 104000000.0
