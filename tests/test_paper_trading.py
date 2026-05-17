@@ -1,0 +1,65 @@
+import pytest
+
+from evoquant.domain import Market
+from evoquant.services.paper import PaperTradingService
+from evoquant.storage import SQLiteStore, loads
+
+
+def test_paper_trading_records_order_fill_position_and_nav(tmp_path):
+    service = PaperTradingService(SQLiteStore(tmp_path / "state.db"))
+    account = service.create_account("default", starting_cash=100_000)
+
+    order = service.submit_order(account.id, "AAPL", Market.US, quantity=10, limit_price=100)
+    fill = service.fill_order(order.id, fill_price=99.5, fee=1.0)
+    account_after = service.mark_to_market(account.id, {"AAPL": 101.0})
+
+    assert fill.quantity == 10
+    assert service.list_positions(account.id)[0].quantity == 10
+    assert account_after.cash == 99_004.0
+    assert account_after.nav == 100_014.0
+
+
+def test_paper_trading_raises_for_unknown_account_and_order(tmp_path):
+    service = PaperTradingService(SQLiteStore(tmp_path / "state.db"))
+
+    with pytest.raises(KeyError) as account_error:
+        service.submit_order("acct_missing", "AAPL", Market.US, quantity=10, limit_price=100)
+    with pytest.raises(KeyError) as order_error:
+        service.fill_order("ord_missing", fill_price=100, fee=1)
+
+    assert account_error.value.args == ("acct_missing",)
+    assert order_error.value.args == ("ord_missing",)
+
+
+def test_order_and_fill_write_audit_events(tmp_path):
+    store = SQLiteStore(tmp_path / "state.db")
+    service = PaperTradingService(store)
+    account = service.create_account("default", starting_cash=100_000)
+
+    order = service.submit_order(account.id, "AAPL", Market.US, quantity=10, limit_price=100)
+    fill = service.fill_order(order.id, fill_price=99.5, fee=1.0)
+
+    with store.connection() as conn:
+        rows = conn.execute(
+            "SELECT * FROM audit_events WHERE entity_id IN (?, ?) ORDER BY created_at ASC, rowid ASC",
+            (order.id, fill.id),
+        ).fetchall()
+
+    assert [row["event_type"] for row in rows] == ["paper.order_submitted", "paper.order_filled"]
+    assert loads(rows[0]["payload"])["account_id"] == account.id
+    assert loads(rows[1]["payload"])["order_id"] == order.id
+
+
+def test_multiple_fills_update_weighted_average_cost(tmp_path):
+    service = PaperTradingService(SQLiteStore(tmp_path / "state.db"))
+    account = service.create_account("default", starting_cash=100_000)
+
+    first = service.submit_order(account.id, "AAPL", Market.US, quantity=10, limit_price=100)
+    second = service.submit_order(account.id, "AAPL", Market.US, quantity=20, limit_price=110)
+    service.fill_order(first.id, fill_price=100, fee=0)
+    service.fill_order(second.id, fill_price=110, fee=0)
+
+    position = service.list_positions(account.id)[0]
+
+    assert position.quantity == 30
+    assert position.average_cost == pytest.approx(106.6666666667)
