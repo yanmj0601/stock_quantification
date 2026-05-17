@@ -56,6 +56,116 @@ class SQLiteStore:
                     payload TEXT NOT NULL,
                     created_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS instruments (
+                    symbol TEXT NOT NULL,
+                    market TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    name_zh TEXT NOT NULL,
+                    exchange TEXT NOT NULL,
+                    currency TEXT NOT NULL,
+                    sector TEXT NOT NULL,
+                    index_membership TEXT NOT NULL,
+                    tradable INTEGER NOT NULL,
+                    lot_size INTEGER NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY (symbol, market)
+                );
+                CREATE TABLE IF NOT EXISTS market_bars (
+                    symbol TEXT NOT NULL,
+                    market TEXT NOT NULL,
+                    session TEXT NOT NULL,
+                    open REAL NOT NULL,
+                    high REAL NOT NULL,
+                    low REAL NOT NULL,
+                    close REAL NOT NULL,
+                    volume REAL NOT NULL,
+                    amount REAL NOT NULL,
+                    adjusted INTEGER NOT NULL,
+                    suspended INTEGER NOT NULL,
+                    limit_up INTEGER NOT NULL,
+                    limit_down INTEGER NOT NULL,
+                    source TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY (symbol, market, session)
+                );
+                CREATE TABLE IF NOT EXISTS market_sync_jobs (
+                    id TEXT PRIMARY KEY,
+                    market TEXT NOT NULL,
+                    provider TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    finished_at TEXT,
+                    total_symbols INTEGER NOT NULL,
+                    success_symbols INTEGER NOT NULL,
+                    failed_symbols INTEGER NOT NULL,
+                    coverage REAL NOT NULL,
+                    failures TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS market_quality_reports (
+                    id TEXT PRIMARY KEY,
+                    sync_job_id TEXT NOT NULL,
+                    market TEXT NOT NULL,
+                    missing_bars INTEGER NOT NULL,
+                    duplicate_bars INTEGER NOT NULL,
+                    price_anomalies INTEGER NOT NULL,
+                    suspended_count INTEGER NOT NULL,
+                    limit_up_count INTEGER NOT NULL,
+                    limit_down_count INTEGER NOT NULL,
+                    created_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS signal_scans (
+                    id TEXT PRIMARY KEY,
+                    strategy_template TEXT NOT NULL,
+                    parameters TEXT NOT NULL,
+                    market_scope TEXT NOT NULL,
+                    as_of_date TEXT NOT NULL,
+                    coverage TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    error_message TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS signal_results (
+                    scan_id TEXT NOT NULL,
+                    symbol TEXT NOT NULL,
+                    market TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    name_zh TEXT NOT NULL,
+                    close REAL NOT NULL,
+                    signal TEXT NOT NULL,
+                    score REAL NOT NULL,
+                    target_weight REAL NOT NULL,
+                    reason TEXT NOT NULL,
+                    risk_flags TEXT NOT NULL,
+                    as_of_date TEXT NOT NULL,
+                    rank INTEGER NOT NULL,
+                    PRIMARY KEY (scan_id, symbol, market)
+                );
+                CREATE TABLE IF NOT EXISTS paper_order_drafts (
+                    id TEXT PRIMARY KEY,
+                    scan_id TEXT NOT NULL,
+                    account_id TEXT NOT NULL,
+                    strategy_id TEXT NOT NULL,
+                    symbol TEXT NOT NULL,
+                    market TEXT NOT NULL,
+                    side TEXT NOT NULL,
+                    target_weight REAL NOT NULL,
+                    current_weight REAL NOT NULL,
+                    estimated_quantity REAL NOT NULL,
+                    reference_price REAL NOT NULL,
+                    reason TEXT NOT NULL,
+                    risk_flags TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS schedule_configs (
+                    id TEXT PRIMARY KEY,
+                    market TEXT NOT NULL,
+                    enabled INTEGER NOT NULL,
+                    timezone TEXT NOT NULL,
+                    run_time TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
                 """
             )
 

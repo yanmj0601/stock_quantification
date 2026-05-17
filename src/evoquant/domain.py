@@ -45,6 +45,24 @@ class RiskMode(str, Enum):
     PAUSED = "paused"
 
 
+class SignalSide(str, Enum):
+    BUY = "buy"
+    HOLD = "hold"
+    SELL = "sell"
+
+
+class OrderDraftStatus(str, Enum):
+    DRAFT = "draft"
+    APPROVED = "approved"
+    CANCELLED = "cancelled"
+    SUBMITTED = "submitted"
+    BLOCKED = "blocked"
+
+
+class TimeFrame(str, Enum):
+    DAILY = "1d"
+
+
 @dataclass(frozen=True)
 class Instrument:
     symbol: str
