@@ -6,6 +6,7 @@ import {
   DatabaseZap,
   GitBranch,
   LineChart,
+  ListChecks,
   ScrollText,
   ShieldCheck,
 } from "lucide-react";
@@ -17,11 +18,13 @@ import Evolution from "./pages/Evolution";
 import Overview from "./pages/Overview";
 import PaperTrading from "./pages/PaperTrading";
 import Risk from "./pages/Risk";
+import Signals from "./pages/Signals";
 import Strategies from "./pages/Strategies";
 
 type PageKey =
   | "overview"
   | "strategies"
+  | "signals"
   | "backtests"
   | "evolution"
   | "paper"
@@ -32,6 +35,7 @@ type PageKey =
 const navItems = [
   { key: "overview", label: "Overview", icon: Activity },
   { key: "strategies", label: "Strategies", icon: ClipboardList },
+  { key: "signals", label: "Signals", icon: ListChecks },
   { key: "backtests", label: "Backtests", icon: BarChart3 },
   { key: "evolution", label: "Evolution", icon: GitBranch },
   { key: "paper", label: "Paper Trading", icon: LineChart },
@@ -43,6 +47,7 @@ const navItems = [
 const pageTitle: Record<PageKey, string> = {
   overview: "Overview",
   strategies: "Strategies",
+  signals: "Signals",
   backtests: "Backtests",
   evolution: "Evolution",
   paper: "Paper Trading",
@@ -57,6 +62,7 @@ function App() {
     const pages: Record<PageKey, ReactElement> = {
       overview: <Overview />,
       strategies: <Strategies />,
+      signals: <Signals />,
       backtests: <Backtests />,
       evolution: <Evolution />,
       paper: <PaperTrading />,
@@ -74,7 +80,7 @@ function App() {
           <div className="brand-mark">EQ</div>
           <div>
             <div className="brand-name">EvoQuant</div>
-            <div className="brand-subtitle">MVP v1 Admin</div>
+            <div className="brand-subtitle">MVP v2 Admin</div>
           </div>
         </div>
         <nav className="nav-list" aria-label="Admin sections">

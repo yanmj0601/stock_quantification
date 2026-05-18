@@ -1,4 +1,4 @@
-import { FlaskConical, Play } from "lucide-react";
+import { FlaskConical, Play, TrendingUp } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   Line,
@@ -12,6 +12,11 @@ import { apiGet, apiPost } from "../api";
 
 type Strategy = { id: string; name: string; market: string };
 type BacktestResult = { strategy_id: string; metrics: Record<string, number> };
+type SignalBacktestResult = {
+  metrics: Record<string, number>;
+  trades: unknown[];
+  equity_curve: Array<{ session: string; equity: number; drawdown: number }>;
+};
 
 const fallbackStrategies: Strategy[] = [
   { id: "str_us_momo", name: "us_momentum_breakout", market: "US" },
@@ -19,11 +24,18 @@ const fallbackStrategies: Strategy[] = [
 ];
 
 const equity = [100000, 100480, 101020, 100760, 102300, 103120, 104050, 103780];
+const metricValue = (result: SignalBacktestResult | BacktestResult | null, metric: string) => {
+  if (!result) return "-";
+  return Number(result.metrics[metric] ?? 0).toFixed(3);
+};
 
 function Backtests() {
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [selected, setSelected] = useState("");
   const [result, setResult] = useState<BacktestResult | null>(null);
+  const [signalResult, setSignalResult] = useState<SignalBacktestResult | null>(null);
+  const [signalMarket, setSignalMarket] = useState<"US" | "CN">("US");
+  const [universeText, setUniverseText] = useState("AAPL,MSFT,NVDA");
   const [status, setStatus] = useState("idle");
   const [message, setMessage] = useState<string | null>(null);
 
@@ -54,6 +66,7 @@ function Backtests() {
     }
     setStatus("running");
     setMessage(null);
+    setSignalResult(null);
     apiPost<BacktestResult>("/api/backtests", {
       strategy_id: selected,
       equity,
@@ -72,6 +85,37 @@ function Backtests() {
           setStatus("fallback result");
           return;
         }
+        setMessage(error.message);
+        setStatus("idle");
+      });
+  };
+
+  const runSignalBacktest = () => {
+    const universe = universeText.split(",").map((item) => item.trim().toUpperCase()).filter(Boolean);
+    if (universe.length === 0) {
+      setMessage("Enter at least one symbol for the signal backtest.");
+      return;
+    }
+    setStatus("running signal");
+    setMessage(null);
+    setResult(null);
+    apiPost<SignalBacktestResult>("/api/backtests/signal", {
+      market: signalMarket,
+      universe,
+      parameters: {
+        lookback_long: 120,
+        lookback_short: 20,
+        top_n: 20,
+        hold_rank: 50,
+        max_weight: 0.08,
+      },
+      starting_cash: 100000,
+    })
+      .then((payload) => {
+        setSignalResult(payload);
+        setStatus("complete");
+      })
+      .catch((error: Error) => {
         setMessage(error.message);
         setStatus("idle");
       });
@@ -113,6 +157,29 @@ function Backtests() {
         )}
       </section>
 
+      <section className="panel">
+        <div className="panel-header">
+          <h2>Signal Backtest</h2>
+          <span>cached daily bars</span>
+        </div>
+        <div className="form-grid signal-backtest-form">
+          <label>
+            Market
+            <select value={signalMarket} onChange={(event) => setSignalMarket(event.target.value as "US" | "CN")}>
+              <option value="US">US</option>
+              <option value="CN">CN</option>
+            </select>
+          </label>
+          <label>
+            Universe
+            <input value={universeText} onChange={(event) => setUniverseText(event.target.value)} />
+          </label>
+          <button className="primary-button" disabled={status === "running signal"} type="button" onClick={runSignalBacktest}>
+            <TrendingUp size={16} /> Run Signal
+          </button>
+        </div>
+      </section>
+
       <div className="panel-grid two">
         <section className="panel">
           <div className="panel-header">
@@ -139,9 +206,15 @@ function Backtests() {
             {["cagr", "sharpe", "max_drawdown", "calmar", "turnover"].map((metric) => (
               <div key={metric}>
                 <span>{metric}</span>
-                <strong>{result ? Number(result.metrics[metric] ?? 0).toFixed(3) : "-"}</strong>
+                <strong>{metricValue(signalResult ?? result, metric)}</strong>
               </div>
             ))}
+            {signalResult && (
+              <>
+                <div><span>trades</span><strong>{signalResult.trades.length}</strong></div>
+                <div><span>sessions</span><strong>{signalResult.equity_curve.length}</strong></div>
+              </>
+            )}
           </div>
         </section>
       </div>

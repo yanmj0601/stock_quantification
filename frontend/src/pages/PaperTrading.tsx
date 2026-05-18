@@ -1,6 +1,6 @@
-import { CircleDollarSign, Plus, Send } from "lucide-react";
+import { Check, CircleDollarSign, Plus, Send, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { apiGet, apiPost } from "../api";
+import { apiGet, apiPatch, apiPost } from "../api";
 
 type Account = { id: string; name: string; cash: number; nav: number };
 type Order = {
@@ -31,6 +31,22 @@ type Position = {
   quantity: number;
   average_cost: number;
 };
+type Draft = {
+  id: string;
+  scan_id: string;
+  account_id: string;
+  strategy_id: string;
+  symbol: string;
+  market: string;
+  side: string;
+  target_weight: number;
+  current_weight: number;
+  estimated_quantity: number;
+  reference_price: number;
+  reason: string;
+  risk_flags: string[];
+  status: string;
+};
 
 const fallbackAccounts: Account[] = [
   { id: "paper_us", name: "paper-us", cash: 49820, nav: 103420 },
@@ -54,6 +70,7 @@ function PaperTrading() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [fills, setFills] = useState<Fill[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
+  const [drafts, setDrafts] = useState<Draft[]>([]);
   const [selected, setSelected] = useState("");
   const [state, setState] = useState("loading");
   const [message, setMessage] = useState<string | null>(null);
@@ -68,8 +85,9 @@ function PaperTrading() {
       apiGet<Account[]>("/api/paper/accounts"),
       apiGet<Order[]>("/api/paper/orders"),
       apiGet<Fill[]>("/api/paper/fills"),
+      apiGet<Draft[]>("/api/paper/drafts"),
     ])
-      .then(([accountRows, orderRows, fillRows]) => {
+      .then(([accountRows, orderRows, fillRows, draftRows]) => {
         const selectedId = nextSelected ?? selected;
         const accountId = accountRows.some((account) => account.id === selectedId)
           ? selectedId
@@ -77,6 +95,7 @@ function PaperTrading() {
         setAccounts(accountRows);
         setOrders(orderRows);
         setFills(fillRows);
+        setDrafts(draftRows);
         setSelected(accountId);
         setMessage(null);
         setState("ready");
@@ -93,6 +112,7 @@ function PaperTrading() {
         setOrders(fallbackOrders);
         setFills([]);
         setPositions([]);
+        setDrafts([]);
         setSelected(fallbackAccounts[0].id);
         setMessage("API unavailable. Showing offline example paper account data.");
         setState("fallback");
@@ -146,8 +166,23 @@ function PaperTrading() {
       });
   };
 
+  const updateDraft = (draftId: string, action: "approve" | "cancel" | "submit") => {
+    setState("updating");
+    setMessage(null);
+    apiPatch<Draft>(`/api/paper/drafts/${draftId}/${action}`, {})
+      .then(() => {
+        setMessage(`Draft ${action} completed.`);
+        load(selected);
+      })
+      .catch((error: Error) => {
+        setMessage(error.message);
+        setState("ready");
+      });
+  };
+
   const selectedOrders = orders.filter((order) => !selected || order.account_id === selected);
   const selectedFills = fills.filter((fill) => !selected || fill.account_id === selected);
+  const selectedDrafts = drafts.filter((draft) => !selected || draft.account_id === selected);
   const paperNotional = positions.reduce(
     (sum, position) => sum + position.quantity * position.average_cost,
     0,
@@ -257,6 +292,68 @@ function PaperTrading() {
           </div>
         </section>
       </div>
+
+      <section className="panel">
+        <div className="panel-header">
+          <h2>Signal Drafts</h2>
+          <span>{selectedDrafts.length} staged</span>
+        </div>
+        <div className="table-wrap embedded">
+          <table className="data-table draft-table">
+            <thead>
+              <tr>
+                <th>Draft</th>
+                <th>Signal</th>
+                <th>Qty</th>
+                <th>Reference</th>
+                <th>Risk</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {selectedDrafts.length === 0 ? (
+                <tr>
+                  <td colSpan={7}>
+                    <div className="empty-state compact">
+                      <strong>No signal drafts</strong>
+                      <span>Create drafts from the Signals page to approve paper orders.</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : selectedDrafts.map((draft) => (
+                <tr key={draft.id}>
+                  <td><strong>{draft.symbol}</strong><small>{draft.market} / {draft.id}</small></td>
+                  <td><span className={`badge ${draft.side}`}>{draft.side}</span></td>
+                  <td>{draft.estimated_quantity}</td>
+                  <td>{draft.reference_price.toFixed(2)}</td>
+                  <td>{draft.risk_flags.length ? draft.risk_flags.join(", ") : "pass"}</td>
+                  <td><span className={`badge ${draft.status}`}>{draft.status}</span></td>
+                  <td>
+                    <div className="action-row">
+                      {draft.status === "draft" && (
+                        <button className="small-button" type="button" onClick={() => updateDraft(draft.id, "approve")}>
+                          <Check size={14} /> Approve
+                        </button>
+                      )}
+                      {draft.status === "approved" && (
+                        <button className="small-button" type="button" onClick={() => updateDraft(draft.id, "submit")}>
+                          <Send size={14} /> Submit
+                        </button>
+                      )}
+                      {draft.status !== "submitted" && draft.status !== "cancelled" && (
+                        <button className="small-button danger" type="button" onClick={() => updateDraft(draft.id, "cancel")}>
+                          <X size={14} /> Cancel
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <div className="table-wrap">
         <table className="data-table paper-table">
