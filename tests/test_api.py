@@ -1,12 +1,61 @@
+from datetime import date
+
 from fastapi.testclient import TestClient
 
 from evoquant.api import create_app
+from evoquant.domain import Market
+from evoquant.providers.base import ProviderBar, ProviderInstrument
 from evoquant.storage import SQLiteStore
 
 
-def _client(tmp_path, *, raise_server_exceptions=True):
+class ApiFakeProvider:
+    name = "fake"
+
+    def sync_instruments(self, index_id: str) -> list[ProviderInstrument]:
+        assert index_id == "SP500"
+        return [
+            ProviderInstrument(
+                symbol="AAPL",
+                market=Market.US,
+                name="Apple",
+                name_zh="苹果",
+                exchange="NASDAQ",
+                currency="USD",
+                sector="Technology",
+                index_membership="SP500",
+                tradable=True,
+                lot_size=1,
+            )
+        ]
+
+    def sync_bars(self, symbols, market, start, end, timeframe="1d"):
+        assert symbols == ["AAPL"]
+        assert market is Market.US
+        assert timeframe == "1d"
+        assert start <= date(2026, 1, 2) <= end
+        return [
+            ProviderBar(
+                symbol="AAPL",
+                market=Market.US,
+                session=date(2026, 1, 2),
+                open=99,
+                high=101,
+                low=98,
+                close=100,
+                volume=1000,
+                amount=100000,
+                adjusted=True,
+                suspended=False,
+                limit_up=False,
+                limit_down=False,
+                source="fake",
+            )
+        ]
+
+
+def _client(tmp_path, *, raise_server_exceptions=True, provider_factory=None):
     return TestClient(
-        create_app(SQLiteStore(tmp_path / "state.db")),
+        create_app(SQLiteStore(tmp_path / "state.db"), provider_factory=provider_factory),
         raise_server_exceptions=raise_server_exceptions,
     )
 
@@ -455,3 +504,66 @@ def test_schedule_api_returns_default_market_schedules(tmp_path):
     assert response.status_code == 200
     markets = {row["market"] for row in response.json()}
     assert {"US", "CN"}.issubset(markets)
+
+
+def test_data_sync_api_uses_provider_and_persists_market_data(tmp_path):
+    store = SQLiteStore(tmp_path / "state.db")
+    client = TestClient(
+        create_app(store, provider_factory=lambda market: ApiFakeProvider())
+    )
+
+    response = client.post("/api/data-sync/US")
+
+    assert response.status_code == 201
+    job = response.json()
+    assert job["market"] == "US"
+    assert job["provider"] == "fake"
+    assert job["coverage"] == 1.0
+
+    jobs = client.get("/api/data-sync/jobs").json()
+    assert jobs[0]["id"] == job["id"]
+    with store.connection() as conn:
+        instrument = conn.execute(
+            "SELECT symbol, name_zh FROM instruments WHERE market = 'US'"
+        ).fetchone()
+        bar = conn.execute(
+            "SELECT symbol, close, source FROM market_bars WHERE market = 'US'"
+        ).fetchone()
+    assert dict(instrument) == {"symbol": "AAPL", "name_zh": "苹果"}
+    assert dict(bar) == {"symbol": "AAPL", "close": 100.0, "source": "fake"}
+
+    scan = client.post(
+        "/api/signals/scans",
+        json={
+            "strategy_template": "cross_sectional_momentum",
+            "markets": ["US"],
+            "parameters": {
+                "top_n": 1,
+                "hold_rank": 2,
+                "lookback_long": 1,
+                "lookback_short": 1,
+                "max_weight": 0.08,
+                "min_amount": 1000,
+                "max_volatility": 10,
+                "max_drawdown": 1,
+            },
+        },
+    )
+    assert scan.status_code in {201, 400}
+    assert scan.status_code != 500
+
+
+def test_data_sync_api_maps_provider_failures_to_client_error(tmp_path):
+    def failing_provider(_market):
+        raise RuntimeError("provider dependency missing")
+
+    client = _client(
+        tmp_path,
+        provider_factory=failing_provider,
+        raise_server_exceptions=False,
+    )
+
+    response = client.post("/api/data-sync/US")
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "provider dependency missing"

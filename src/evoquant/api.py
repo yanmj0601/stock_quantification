@@ -1,20 +1,22 @@
 from __future__ import annotations
 
 from dataclasses import fields, is_dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from enum import Enum
 from types import MappingProxyType
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from evoquant.domain import Market, RiskMode, SignalSide, StrategyStatus
+from evoquant.providers.base import MarketDataProvider, ProviderInstrument
 from evoquant.services.backtest import BacktestRunner
 from evoquant.services.data_hub import DataHub
 from evoquant.services.drafts import PaperOrderDraftService
 from evoquant.services.evolution import EvolutionService, StrategyTemplate
+from evoquant.services.instruments import InstrumentMaster, InstrumentRecord
 from evoquant.services.market_data import MarketDataService
 from evoquant.services.paper import PaperTradingService
 from evoquant.services.registry import StrategyRegistry
@@ -108,7 +110,13 @@ class ScheduleUpdate(BaseModel):
     enabled: bool
 
 
-def create_app(store: SQLiteStore | None = None) -> FastAPI:
+ProviderFactory = Callable[[Market], MarketDataProvider]
+
+
+def create_app(
+    store: SQLiteStore | None = None,
+    provider_factory: ProviderFactory | None = None,
+) -> FastAPI:
     app = FastAPI(title="EvoQuant API")
     app.add_middleware(
         CORSMiddleware,
@@ -117,6 +125,7 @@ def create_app(store: SQLiteStore | None = None) -> FastAPI:
         allow_headers=["Content-Type"],
     )
     app.state.store = store or SQLiteStore("var/evoquant.db")
+    app.state.provider_factory = provider_factory or _default_provider_factory
     register_routes(app)
     return app
 
@@ -439,10 +448,27 @@ def register_routes(app: FastAPI) -> None:
 
     @app.post("/api/data-sync/{market}", status_code=201)
     def start_data_sync(market: Market) -> dict[str, Any]:
-        raise HTTPException(
-            status_code=400,
-            detail=f"{market.value} provider sync is not configured in this local API session",
-        )
+        if market not in {Market.US, Market.CN}:
+            raise HTTPException(status_code=400, detail=f"{market.value} sync is not supported yet")
+        try:
+            provider = _provider_factory(app)(market)
+            instruments = provider.sync_instruments(_index_id(market))
+            if not instruments:
+                raise RuntimeError(f"{market.value} provider returned no instruments")
+            InstrumentMaster(_store(app)).upsert_many(
+                [_instrument_record(item) for item in instruments]
+            )
+            symbols = [item.symbol for item in instruments if item.tradable]
+            job = MarketDataService(_store(app)).sync_bars(
+                provider,
+                symbols,
+                market,
+                date.today() - timedelta(days=365 * 5),
+                date.today(),
+            )
+        except (RuntimeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return _jsonable(job)
 
     @app.post("/api/signals/scans", status_code=201)
     def create_signal_scan(payload: SignalScanCreate) -> dict[str, Any]:
@@ -542,6 +568,45 @@ def register_routes(app: FastAPI) -> None:
 
 def _store(app: FastAPI) -> SQLiteStore:
     return app.state.store
+
+
+def _provider_factory(app: FastAPI) -> ProviderFactory:
+    return app.state.provider_factory
+
+
+def _default_provider_factory(market: Market) -> MarketDataProvider:
+    if market is Market.US:
+        from evoquant.providers.yahoo import YahooFinanceProvider
+
+        return YahooFinanceProvider()
+    if market is Market.CN:
+        from evoquant.providers.akshare import AkshareProvider
+
+        return AkshareProvider()
+    raise RuntimeError(f"{market.value} sync is not supported yet")
+
+
+def _index_id(market: Market) -> str:
+    if market is Market.US:
+        return "SP500"
+    if market is Market.CN:
+        return "CSI300"
+    raise RuntimeError(f"{market.value} sync is not supported yet")
+
+
+def _instrument_record(item: ProviderInstrument) -> InstrumentRecord:
+    return InstrumentRecord(
+        symbol=item.symbol,
+        market=item.market,
+        name=item.name,
+        name_zh=item.name_zh,
+        exchange=item.exchange,
+        currency=item.currency,
+        sector=item.sector,
+        index_membership=item.index_membership,
+        tradable=item.tradable,
+        lot_size=item.lot_size,
+    )
 
 
 def _jsonable(value: Any) -> Any:

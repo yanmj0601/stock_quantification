@@ -67,4 +67,4 @@ uv sync --extra dev --extra market-data
 - 策略进入模拟盘需要显式人工状态变更，所有变更写入审计日志。
 - Signals 页面展示的是研究信号，不构成投资建议。
 
-更多运行和验收说明见 `docs/evoquant_mvp_v2_operating_notes.md`。
+更多运行和验收说明见 `docs/evoquant_mvp_v2_operating_notes.md`，数据源细节见 `docs/evoquant_mvp_v2_data_sources.md`。

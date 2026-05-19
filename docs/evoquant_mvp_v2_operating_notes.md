@@ -64,7 +64,11 @@ npm run dev -- --host 127.0.0.1 --port 57818
 uv sync --extra dev --extra market-data
 ```
 
-当前 API 的 `/api/data-sync/{market}` 仍是安全占位端点，会提示本地 API session 没有配置 provider sync。下一步需要把 Provider 实例接入 API/定时任务，才能在后台点 Sync US / Sync CN 直接拉真实行情。
+当前 API 的 `/api/data-sync/{market}` 已接入 provider 同步：
+
+- `POST /api/data-sync/US` 会同步 S&P 500 instrument master，并拉取近 5 年美股日线。
+- `POST /api/data-sync/CN` 会同步沪深 300 instrument master，并拉取近 5 年 A 股日线。
+- 如果本地没有安装 `market-data` 依赖，或外部免费源字段变化、限流、不可用，API 会返回 400 和明确错误信息。
 
 ## 端到端验收
 
@@ -72,7 +76,7 @@ uv sync --extra dev --extra market-data
 
 1. 启动后端和前端。
 2. 在 Paper Trading 页面创建一个 paper account。
-3. 用数据同步服务或 CSV Provider 写入足够的 `market_bars`。
+3. 在 Data Health 页面点击 Sync US 或 Sync CN，或用 CSV Provider 写入足够的 `market_bars`。
 4. 在 Signals 页面点击 Run Scan。
 5. 查看 Global Top40 或 US/CN Top20，确认能看到 buy/hold/sell、评分、目标权重、风险标记和原因。
 6. 对 buy 或 sell 信号点击 Draft，生成纸面订单草稿。
@@ -103,7 +107,7 @@ npm run build
 
 ## 当前限制和下一步
 
-- 后台 Sync 按钮已接 API，但 provider 注入还未完成；下一步应把 `yfinance`/`AKShare` 同步任务接入 API。
+- 后台 Sync 已接 provider，但仍是同步请求；下一步应改为后台异步任务，避免外部源慢响应时占住 HTTP 请求。
 - `SignalScanner` 已保留中文名称字段，但需要在真实 instrument master 中补全美股中文名映射。
 - 回测仍是同步执行，后续应改为异步任务和结果表。
 - 模拟盘成交费用和滑点已有市场规则雏形，但还需要更贴近真实撮合。
