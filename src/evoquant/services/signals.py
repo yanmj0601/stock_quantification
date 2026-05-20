@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Mapping
 
 from evoquant.domain import Market, new_id, utc_now
+from evoquant.services.instruments import InstrumentMaster, InstrumentRecord
 from evoquant.services.market_data import MarketBar
 from evoquant.services.strategies import CrossSectionalMomentumStrategy
 from evoquant.storage import SQLiteStore, dumps, loads
@@ -81,6 +82,7 @@ class SignalScanner:
             raise ValueError(f"unsupported strategy template: {strategy_template}")
 
         strategy = CrossSectionalMomentumStrategy(parameters)
+        instruments = self._instrument_lookup(market_scope)
         results: list[SignalResult] = []
         for market in market_scope:
             market_signals = strategy.generate(
@@ -93,13 +95,14 @@ class SignalScanner:
                 sorted(market_signals, key=lambda item: item.score, reverse=True), start=1
             ):
                 latest_close = _latest_close(signal.symbol, signal.market, bars)
+                instrument = instruments.get((signal.market, signal.symbol))
                 results.append(
                     SignalResult(
                         scan_id=scan_id,
                         symbol=signal.symbol,
                         market=signal.market,
-                        name=signal.symbol,
-                        name_zh=signal.symbol,
+                        name=instrument.name if instrument else signal.symbol,
+                        name_zh=instrument.name_zh if instrument else signal.symbol,
                         close=latest_close,
                         signal=signal.signal.value,
                         score=signal.score,
@@ -182,6 +185,16 @@ class SignalScanner:
             )
             for row in rows
         ]
+
+    def _instrument_lookup(
+        self, markets: list[Market]
+    ) -> dict[tuple[Market, str], InstrumentRecord]:
+        master = InstrumentMaster(self.store)
+        instruments: dict[tuple[Market, str], InstrumentRecord] = {}
+        for market in markets:
+            for instrument in master.list_by_market(market):
+                instruments[(instrument.market, instrument.symbol)] = instrument
+        return instruments
 
     def _save_scan(self, scan: SignalScan) -> None:
         with self.store.connection() as conn:

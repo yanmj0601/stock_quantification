@@ -3,6 +3,7 @@ from datetime import date, timedelta
 import pytest
 
 from evoquant.domain import Market, SignalSide
+from evoquant.services.instruments import InstrumentMaster, InstrumentRecord
 from evoquant.services.market_data import MarketBar
 from evoquant.services.signals import SignalScanner
 from evoquant.services.strategies import (
@@ -134,6 +135,50 @@ def test_signal_scanner_persists_scan_and_results(tmp_path):
     assert len(results) == 2
     assert results[0].rank == 1
     assert results[0].name_zh
+
+
+def test_signal_scanner_enriches_results_from_instrument_master(tmp_path):
+    store = SQLiteStore(tmp_path / "state.db")
+    InstrumentMaster(store).upsert_many(
+        [
+            InstrumentRecord(
+                symbol="AAA",
+                market=Market.US,
+                name="Alpha Corp",
+                name_zh="阿尔法公司",
+                exchange="NASDAQ",
+                currency="USD",
+                sector="Technology",
+                index_membership="SP500",
+                tradable=True,
+                lot_size=1,
+            )
+        ]
+    )
+    scanner = SignalScanner(store)
+
+    scan = scanner.run_scan(
+        strategy_template="cross_sectional_momentum",
+        parameters={
+            "top_n": 1,
+            "exit_rank": 2,
+            "lookback_long": 120,
+            "lookback_short": 20,
+            "max_weight": 0.08,
+            "min_amount": 1000,
+            "max_volatility": 10,
+            "max_drawdown": 1,
+        },
+        market_scope=[Market.US],
+        universe={Market.US: ["AAA"]},
+        bars=_series("AAA", 10, 1.0),
+        coverage={Market.US: 1.0},
+        current_positions={},
+    )
+
+    result = scanner.list_results(scan.id)[0]
+    assert result.name == "Alpha Corp"
+    assert result.name_zh == "阿尔法公司"
 
 
 def test_signal_scanner_fails_market_below_coverage_threshold(tmp_path):
