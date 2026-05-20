@@ -71,7 +71,7 @@ class YahooFinanceProvider:
             return bars
 
         for symbol in symbols:
-            symbol_frame = frame[symbol] if len(symbols) > 1 and symbol in frame else frame
+            symbol_frame = _symbol_frame(frame, symbol)
             for index, row in symbol_frame.iterrows():
                 session = index.date()
                 close = float(row.get("Adj Close", row["Close"]))
@@ -95,3 +95,11 @@ class YahooFinanceProvider:
                     )
                 )
         return bars
+
+
+def _symbol_frame(frame, symbol: str):
+    if hasattr(frame.columns, "nlevels") and frame.columns.nlevels > 1:
+        if symbol not in frame.columns.get_level_values(0):
+            return frame.iloc[0:0]
+        return frame[symbol]
+    return frame

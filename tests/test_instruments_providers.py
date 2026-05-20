@@ -1,7 +1,12 @@
 from datetime import date
+import sys
+from types import SimpleNamespace
+
+import pytest
 
 from evoquant.domain import Market
 from evoquant.providers.csv import CsvMarketDataProvider
+from evoquant.providers.yahoo import YahooFinanceProvider
 from evoquant.services.instruments import InstrumentMaster, InstrumentRecord
 from evoquant.storage import SQLiteStore
 
@@ -58,3 +63,30 @@ def test_csv_market_data_provider_reads_instruments_and_bars(tmp_path):
     assert loaded_instruments[0].name_zh == "苹果公司"
     assert loaded_bars[0].close == 104.0
     assert loaded_bars[0].amount == 104000000.0
+
+
+def test_yahoo_provider_handles_single_symbol_multiindex_download(monkeypatch):
+    pd = pytest.importorskip("pandas")
+    columns = pd.MultiIndex.from_product(
+        [["AAPL"], ["Open", "High", "Low", "Close", "Adj Close", "Volume"]],
+        names=["Ticker", "Price"],
+    )
+    frame = pd.DataFrame(
+        [[100.0, 105.0, 99.0, 104.0, 103.5, 1000.0]],
+        index=pd.to_datetime(["2026-01-02"]),
+        columns=columns,
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "yfinance",
+        SimpleNamespace(download=lambda **_kwargs: frame),
+    )
+
+    bars = YahooFinanceProvider().sync_bars(
+        ["AAPL"], Market.US, date(2026, 1, 1), date(2026, 1, 31)
+    )
+
+    assert len(bars) == 1
+    assert bars[0].symbol == "AAPL"
+    assert bars[0].close == 103.5
+    assert bars[0].amount == 103500.0
