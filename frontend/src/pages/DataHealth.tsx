@@ -15,7 +15,7 @@ type SyncJob = {
 type ScheduleConfig = {
   market: string;
   enabled: boolean;
-  local_time: string;
+  run_time: string;
   timezone: string;
 };
 
@@ -51,8 +51,8 @@ function DataHealth() {
         setPayload({ dataset_count: 3 });
         setJobs([]);
         setSchedules([
-          { market: "CN", enabled: true, local_time: "15:30", timezone: "Asia/Shanghai" },
-          { market: "US", enabled: true, local_time: "16:30", timezone: "America/New_York" },
+          { market: "CN", enabled: true, run_time: "15:30", timezone: "Asia/Shanghai" },
+          { market: "US", enabled: true, run_time: "16:30", timezone: "America/New_York" },
         ]);
         setMessage("API unavailable. Showing offline example data health.");
         setState("fallback");
@@ -134,7 +134,7 @@ function DataHealth() {
                 <span className={`badge ${schedule.enabled ? "active" : "paused"}`}>
                   {schedule.enabled ? "active" : "paused"}
                 </span>
-                <small>{schedule.local_time} {schedule.timezone}</small>
+                <small>{schedule.run_time} {schedule.timezone}</small>
               </div>
             ))}
           </div>

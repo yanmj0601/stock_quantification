@@ -70,6 +70,25 @@ def test_sync_bars_records_coverage_and_persists_bars(tmp_path):
     assert bars[0].close == 10.0
 
 
+def test_list_sync_jobs_exposes_timing_and_operator_message(tmp_path):
+    service = MarketDataService(SQLiteStore(tmp_path / "state.db"))
+    provider = FakeProvider([_bar("AAPL", date(2026, 1, 2))])
+
+    created = service.sync_bars(
+        provider,
+        ["AAPL", "MSFT"],
+        Market.US,
+        date(2026, 1, 1),
+        date(2026, 1, 5),
+    )
+    listed = service.list_sync_jobs()[0]
+
+    assert listed.id == created.id
+    assert listed.started_at
+    assert listed.finished_at
+    assert listed.message == "1/2 symbols synced; failures: MSFT"
+
+
 def test_incremental_sync_starts_after_latest_cached_date(tmp_path):
     service = MarketDataService(SQLiteStore(tmp_path / "state.db"))
     initial_provider = FakeProvider([_bar("AAPL", date(2026, 1, 2))])

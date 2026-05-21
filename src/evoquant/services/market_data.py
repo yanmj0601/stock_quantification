@@ -32,11 +32,14 @@ class SyncJob:
     market: Market
     provider: str
     status: str
+    started_at: str
+    finished_at: str
     total_symbols: int
     success_symbols: int
     failed_symbols: int
     coverage: float
     failures: tuple[str, ...]
+    message: str
 
 
 @dataclass(frozen=True)
@@ -129,19 +132,22 @@ class MarketDataService:
         failed_symbols = len(failures)
         coverage = round(success_symbols / total_symbols, 4) if total_symbols else 0.0
         status = "success" if failed_symbols == 0 else "partial"
+        now = utc_now().isoformat()
         job = SyncJob(
             id=new_id("sync"),
             market=market,
             provider=provider.name,
             status=status,
+            started_at=started_at,
+            finished_at=now,
             total_symbols=total_symbols,
             success_symbols=success_symbols,
             failed_symbols=failed_symbols,
             coverage=coverage,
             failures=failures,
+            message=_sync_message(success_symbols, total_symbols, failures),
         )
 
-        now = utc_now().isoformat()
         with self.store.connection() as conn:
             conn.executemany(
                 """
@@ -314,7 +320,7 @@ class MarketDataService:
             rows = conn.execute(
                 """
                 SELECT id, market, provider, status, total_symbols, success_symbols,
-                       failed_symbols, coverage, failures
+                       failed_symbols, coverage, failures, started_at, finished_at
                 FROM market_sync_jobs
                 ORDER BY started_at DESC, rowid DESC
                 """
@@ -325,11 +331,27 @@ class MarketDataService:
                 market=Market(row["market"]),
                 provider=row["provider"],
                 status=row["status"],
+                started_at=row["started_at"],
+                finished_at=row["finished_at"] or "",
                 total_symbols=int(row["total_symbols"]),
                 success_symbols=int(row["success_symbols"]),
                 failed_symbols=int(row["failed_symbols"]),
                 coverage=float(row["coverage"]),
                 failures=tuple(loads(row["failures"])),
+                message=_sync_message(
+                    int(row["success_symbols"]),
+                    int(row["total_symbols"]),
+                    tuple(loads(row["failures"])),
+                ),
             )
             for row in rows
         ]
+
+
+def _sync_message(success_symbols: int, total_symbols: int, failures: tuple[str, ...]) -> str:
+    base = f"{success_symbols}/{total_symbols} symbols synced"
+    if not failures:
+        return base
+    preview = ", ".join(failures[:5])
+    suffix = "..." if len(failures) > 5 else ""
+    return f"{base}; failures: {preview}{suffix}"
