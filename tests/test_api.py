@@ -53,6 +53,65 @@ class ApiFakeProvider:
         ]
 
 
+class LowCoverageApiFakeProvider:
+    name = "fake"
+
+    def sync_instruments(self, index_id: str) -> list[ProviderInstrument]:
+        assert index_id == "SP500"
+        return [
+            ProviderInstrument(
+                symbol=symbol,
+                market=Market.US,
+                name=symbol,
+                name_zh=symbol,
+                exchange="NASDAQ",
+                currency="USD",
+                sector="Technology",
+                index_membership="SP500",
+                tradable=True,
+                lot_size=1,
+            )
+            for symbol in ("AAPL", "MSFT")
+        ]
+
+    def sync_bars(self, symbols, market, start, end, timeframe="1d"):
+        assert symbols == ["AAPL", "MSFT"]
+        return [
+            ProviderBar(
+                symbol="AAPL",
+                market=Market.US,
+                session=date(2026, 1, 1),
+                open=99,
+                high=101,
+                low=98,
+                close=100,
+                volume=1000,
+                amount=100000,
+                adjusted=True,
+                suspended=False,
+                limit_up=False,
+                limit_down=False,
+                source="fake",
+            ),
+            ProviderBar(
+                symbol="AAPL",
+                market=Market.US,
+                session=date(2026, 1, 2),
+                open=100,
+                high=102,
+                low=99,
+                close=101,
+                volume=1000,
+                amount=101000,
+                adjusted=True,
+                suspended=False,
+                limit_up=False,
+                limit_down=False,
+                source="fake",
+            ),
+        ]
+
+
 def _client(tmp_path, *, raise_server_exceptions=True, provider_factory=None):
     return TestClient(
         create_app(SQLiteStore(tmp_path / "state.db"), provider_factory=provider_factory),
@@ -567,3 +626,31 @@ def test_data_sync_api_maps_provider_failures_to_client_error(tmp_path):
 
     assert response.status_code == 400
     assert response.json()["detail"] == "provider dependency missing"
+
+
+def test_signal_scan_api_uses_latest_sync_coverage_gate(tmp_path):
+    client = _client(tmp_path, provider_factory=lambda market: LowCoverageApiFakeProvider())
+    sync = client.post("/api/data-sync/US")
+    assert sync.status_code == 201
+    assert sync.json()["coverage"] == 0.5
+
+    response = client.post(
+        "/api/signals/scans",
+        json={
+            "strategy_template": "cross_sectional_momentum",
+            "markets": ["US"],
+            "parameters": {
+                "top_n": 1,
+                "hold_rank": 2,
+                "lookback_long": 1,
+                "lookback_short": 1,
+                "max_weight": 0.08,
+                "min_amount": 1000,
+                "max_volatility": 10,
+                "max_drawdown": 1,
+            },
+        },
+    )
+
+    assert response.status_code == 400
+    assert "coverage below 70%" in response.json()["detail"]

@@ -490,7 +490,7 @@ def register_routes(app: FastAPI) -> None:
                 ).fetchall()
             symbols = [row["symbol"] for row in symbol_rows]
             universe[market] = symbols
-            coverage[market] = 1.0 if symbols else 0.0
+            coverage[market] = _latest_sync_coverage(store, market, has_cached_bars=bool(symbols))
             if symbols:
                 bars.extend(market_data.list_bars(market, symbols, date(1900, 1, 1), date.today()))
 
@@ -592,6 +592,23 @@ def _index_id(market: Market) -> str:
     if market is Market.CN:
         return "CSI300"
     raise RuntimeError(f"{market.value} sync is not supported yet")
+
+
+def _latest_sync_coverage(store: SQLiteStore, market: Market, *, has_cached_bars: bool) -> float:
+    with store.connection() as conn:
+        row = conn.execute(
+            """
+            SELECT coverage
+            FROM market_sync_jobs
+            WHERE market = ?
+            ORDER BY started_at DESC, rowid DESC
+            LIMIT 1
+            """,
+            (market.value,),
+        ).fetchone()
+    if row is not None:
+        return float(row["coverage"])
+    return 1.0 if has_cached_bars else 0.0
 
 
 def _instrument_record(item: ProviderInstrument) -> InstrumentRecord:
