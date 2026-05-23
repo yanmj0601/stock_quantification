@@ -25,3 +25,27 @@ def test_v2_tables_are_initialized(tmp_path):
         "paper_order_drafts",
         "schedule_configs",
     }.issubset(table_names)
+
+
+def test_storage_migrates_existing_bar_sync_jobs_table(tmp_path):
+    db_path = tmp_path / "state.db"
+    store = SQLiteStore(db_path)
+    with store.connection() as conn:
+        conn.execute("DROP TABLE bar_sync_jobs")
+        conn.execute(
+            """
+            CREATE TABLE bar_sync_jobs (
+                id TEXT PRIMARY KEY,
+                market TEXT NOT NULL
+            )
+            """
+        )
+
+    SQLiteStore(db_path)
+
+    with SQLiteStore(db_path).connection() as conn:
+        columns = {
+            row["name"]
+            for row in conn.execute("PRAGMA table_info(bar_sync_jobs)").fetchall()
+        }
+    assert "scheduled_for" in columns

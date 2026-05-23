@@ -186,6 +186,12 @@ class SQLiteStore:
                 );
                 """
             )
+            _ensure_column(
+                conn,
+                "bar_sync_jobs",
+                "scheduled_for",
+                "TEXT NOT NULL DEFAULT ''",
+            )
 
 
 def dumps(value: Any) -> str:
@@ -194,6 +200,19 @@ def dumps(value: Any) -> str:
 
 def loads(value: str) -> Any:
     return json.loads(value)
+
+
+def _ensure_column(
+    conn: sqlite3.Connection,
+    table_name: str,
+    column_name: str,
+    column_definition: str,
+) -> None:
+    columns = {
+        row["name"] for row in conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+    }
+    if column_name not in columns:
+        conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}")
 
 
 def _thaw(value: Any) -> Any:
