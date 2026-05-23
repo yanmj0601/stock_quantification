@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from io import StringIO
 
 from evoquant.domain import Market
 from evoquant.providers.base import ProviderBar, ProviderInstrument
@@ -17,7 +18,21 @@ class YahooFinanceProvider:
         except ImportError as exc:
             raise RuntimeError("pandas is required for S&P 500 instrument sync") from exc
 
-        tables = pd.read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")
+        try:
+            import requests
+        except ImportError as exc:
+            raise RuntimeError("requests is required for S&P 500 instrument sync") from exc
+
+        try:
+            response = requests.get(
+                "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies",
+                headers={"User-Agent": "EvoQuant research data sync/0.1"},
+                timeout=20,
+            )
+            response.raise_for_status()
+            tables = pd.read_html(StringIO(response.text))
+        except Exception as exc:
+            raise RuntimeError(f"S&P 500 instrument sync failed: {exc}") from exc
         frame = tables[0]
         instruments: list[ProviderInstrument] = []
         for row in frame.to_dict("records"):

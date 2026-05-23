@@ -639,6 +639,22 @@ def test_instruments_api_lists_stock_pool_with_cache_status(tmp_path):
     ]
 
 
+def test_instrument_sync_api_populates_pool_without_downloading_bars(tmp_path):
+    client = _client(tmp_path, provider_factory=lambda market: ApiFakeProvider())
+
+    response = client.post("/api/data-sync/US/instruments")
+
+    assert response.status_code == 201
+    assert response.json() == {
+        "market": "US",
+        "provider": "fake",
+        "instrument_count": 1,
+    }
+    instruments = client.get("/api/instruments?market=US").json()
+    assert instruments[0]["symbol"] == "AAPL"
+    assert instruments[0]["bar_count"] == 0
+
+
 def test_data_sync_api_maps_provider_failures_to_client_error(tmp_path):
     def failing_provider(_market):
         raise RuntimeError("provider dependency missing")

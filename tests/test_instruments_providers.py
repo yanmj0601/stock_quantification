@@ -90,3 +90,42 @@ def test_yahoo_provider_handles_single_symbol_multiindex_download(monkeypatch):
     assert bars[0].symbol == "AAPL"
     assert bars[0].close == 103.5
     assert bars[0].amount == 103500.0
+
+
+def test_yahoo_provider_fetches_sp500_html_with_http_client(monkeypatch):
+    pd = pytest.importorskip("pandas")
+    calls: list[dict] = []
+
+    class Response:
+        text = "<table></table>"
+
+        def raise_for_status(self):
+            return None
+
+    def fake_get(url, headers, timeout):
+        calls.append({"url": url, "headers": headers, "timeout": timeout})
+        return Response()
+
+    def fake_read_html(html):
+        assert "List_of_S%26P_500_companies" not in str(html)
+        return [
+            pd.DataFrame(
+                [
+                    {
+                        "Symbol": "BRK.B",
+                        "Security": "Berkshire Hathaway",
+                        "GICS Sector": "Financials",
+                    }
+                ]
+            )
+        ]
+
+    monkeypatch.setitem(sys.modules, "requests", SimpleNamespace(get=fake_get))
+    monkeypatch.setattr(pd, "read_html", fake_read_html)
+
+    instruments = YahooFinanceProvider().sync_instruments("SP500")
+
+    assert calls
+    assert "User-Agent" in calls[0]["headers"]
+    assert instruments[0].symbol == "BRK-B"
+    assert instruments[0].name == "Berkshire Hathaway"

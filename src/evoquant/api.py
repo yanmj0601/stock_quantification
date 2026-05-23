@@ -530,6 +530,26 @@ def register_routes(app: FastAPI) -> None:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return _jsonable(job)
 
+    @app.post("/api/data-sync/{market}/instruments", status_code=201)
+    def sync_instruments_only(market: Market) -> dict[str, Any]:
+        if market not in {Market.US, Market.CN}:
+            raise HTTPException(status_code=400, detail=f"{market.value} sync is not supported yet")
+        try:
+            provider = _provider_factory(app)(market)
+            instruments = provider.sync_instruments(_index_id(market))
+            if not instruments:
+                raise RuntimeError(f"{market.value} provider returned no instruments")
+            InstrumentMaster(_store(app)).upsert_many(
+                [_instrument_record(item) for item in instruments]
+            )
+        except (RuntimeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {
+            "market": market.value,
+            "provider": provider.name,
+            "instrument_count": len(instruments),
+        }
+
     @app.post("/api/signals/scans", status_code=201)
     def create_signal_scan(payload: SignalScanCreate) -> dict[str, Any]:
         store = _store(app)

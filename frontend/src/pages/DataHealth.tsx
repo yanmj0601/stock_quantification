@@ -63,10 +63,11 @@ function DataHealth() {
     load();
   }, []);
 
-  const requestSync = (market: "US" | "CN") => {
+  const requestSync = (market: "US" | "CN", scope: "instruments" | "bars") => {
     setMessage(null);
     setState("syncing");
-    apiPost(`/api/data-sync/${market}`, {})
+    const path = scope === "instruments" ? `/api/data-sync/${market}/instruments` : `/api/data-sync/${market}`;
+    apiPost(path, {})
       .then(() => load())
       .catch((error: Error) => {
         setMessage(error.message);
@@ -78,8 +79,10 @@ function DataHealth() {
     <div className="page-stack">
       <div className="toolbar">
         <span className={`pill ${state === "fallback" ? "warning" : "ok"}`}>{state}</span>
-        <button className="small-button" type="button" onClick={() => requestSync("US")}>Sync US</button>
-        <button className="small-button" type="button" onClick={() => requestSync("CN")}>Sync CN</button>
+        <button className="small-button" type="button" onClick={() => requestSync("US", "instruments")}>Sync US Pool</button>
+        <button className="small-button" type="button" onClick={() => requestSync("CN", "instruments")}>Sync CN Pool</button>
+        <button className="small-button" type="button" onClick={() => requestSync("US", "bars")}>Sync US Bars</button>
+        <button className="small-button" type="button" onClick={() => requestSync("CN", "bars")}>Sync CN Bars</button>
         <button className="icon-button" type="button" title="Refresh" onClick={load}><RefreshCw size={16} /></button>
       </div>
       {message && <p className="inline-message" role="status">{message}</p>}
