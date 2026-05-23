@@ -446,6 +446,66 @@ def register_routes(app: FastAPI) -> None:
     def list_data_sync_jobs() -> list[dict[str, Any]]:
         return _jsonable(MarketDataService(_store(app)).list_sync_jobs())
 
+    @app.get("/api/instruments")
+    def list_instruments(market: Market | None = None) -> list[dict[str, Any]]:
+        filters = []
+        params: list[str] = []
+        if market is not None:
+            filters.append("i.market = ?")
+            params.append(market.value)
+        where_clause = f"WHERE {' AND '.join(filters)}" if filters else ""
+        with _store(app).connection() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT
+                    i.symbol,
+                    i.market,
+                    i.name,
+                    i.name_zh,
+                    i.exchange,
+                    i.currency,
+                    i.sector,
+                    i.index_membership,
+                    i.tradable,
+                    i.lot_size,
+                    COALESCE(b.bar_count, 0) AS bar_count,
+                    b.first_session,
+                    b.latest_session
+                FROM instruments i
+                LEFT JOIN (
+                    SELECT
+                        symbol,
+                        market,
+                        COUNT(*) AS bar_count,
+                        MIN(session) AS first_session,
+                        MAX(session) AS latest_session
+                    FROM market_bars
+                    GROUP BY symbol, market
+                ) b ON b.symbol = i.symbol AND b.market = i.market
+                {where_clause}
+                ORDER BY i.market ASC, i.symbol ASC
+                """,
+                tuple(params),
+            ).fetchall()
+        return [
+            {
+                "symbol": row["symbol"],
+                "market": row["market"],
+                "name": row["name"],
+                "name_zh": row["name_zh"],
+                "exchange": row["exchange"],
+                "currency": row["currency"],
+                "sector": row["sector"],
+                "index_membership": row["index_membership"],
+                "tradable": bool(row["tradable"]),
+                "lot_size": int(row["lot_size"]),
+                "bar_count": int(row["bar_count"]),
+                "first_session": row["first_session"],
+                "latest_session": row["latest_session"],
+            }
+            for row in rows
+        ]
+
     @app.post("/api/data-sync/{market}", status_code=201)
     def start_data_sync(market: Market) -> dict[str, Any]:
         if market not in {Market.US, Market.CN}:

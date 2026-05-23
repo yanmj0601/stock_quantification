@@ -612,6 +612,33 @@ def test_data_sync_api_uses_provider_and_persists_market_data(tmp_path):
     assert scan.status_code != 500
 
 
+def test_instruments_api_lists_stock_pool_with_cache_status(tmp_path):
+    client = _client(tmp_path, provider_factory=lambda market: ApiFakeProvider())
+    sync = client.post("/api/data-sync/US")
+    assert sync.status_code == 201
+
+    response = client.get("/api/instruments?market=US")
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "symbol": "AAPL",
+            "market": "US",
+            "name": "Apple",
+            "name_zh": "苹果",
+            "exchange": "NASDAQ",
+            "currency": "USD",
+            "sector": "Technology",
+            "index_membership": "SP500",
+            "tradable": True,
+            "lot_size": 1,
+            "bar_count": 1,
+            "first_session": "2026-01-02",
+            "latest_session": "2026-01-02",
+        }
+    ]
+
+
 def test_data_sync_api_maps_provider_failures_to_client_error(tmp_path):
     def failing_provider(_market):
         raise RuntimeError("provider dependency missing")

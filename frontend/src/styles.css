@@ -370,12 +370,17 @@ small {
 .evolution-table,
 .paper-table,
 .signal-table,
-.draft-table {
+.draft-table,
+.stock-pool-table {
   min-width: 980px;
 }
 
 .signal-table {
   min-width: 1180px;
+}
+
+.stock-pool-table {
+  min-width: 1200px;
 }
 
 .draft-table {
@@ -699,6 +704,33 @@ input {
 
 .signal-backtest-form {
   grid-template-columns: 160px minmax(260px, 1fr) auto;
+}
+
+.stock-pool-toolbar {
+  align-items: stretch;
+}
+
+.search-box {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 280px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 0 9px;
+  color: var(--muted);
+}
+
+.search-box input {
+  min-height: 30px;
+  border: 0;
+  padding: 0;
+}
+
+.search-box input:focus {
+  outline: 0;
 }
 
 .schedule-row {

@@ -7,6 +7,7 @@ import {
   GitBranch,
   LineChart,
   ListChecks,
+  ListTree,
   ScrollText,
   ShieldCheck,
 } from "lucide-react";
@@ -19,11 +20,13 @@ import Overview from "./pages/Overview";
 import PaperTrading from "./pages/PaperTrading";
 import Risk from "./pages/Risk";
 import Signals from "./pages/Signals";
+import StockPool from "./pages/StockPool";
 import Strategies from "./pages/Strategies";
 
 type PageKey =
   | "overview"
   | "strategies"
+  | "stockPool"
   | "signals"
   | "backtests"
   | "evolution"
@@ -35,6 +38,7 @@ type PageKey =
 const navItems = [
   { key: "overview", label: "Overview", icon: Activity },
   { key: "strategies", label: "Strategies", icon: ClipboardList },
+  { key: "stockPool", label: "Stock Pool", icon: ListTree },
   { key: "signals", label: "Signals", icon: ListChecks },
   { key: "backtests", label: "Backtests", icon: BarChart3 },
   { key: "evolution", label: "Evolution", icon: GitBranch },
@@ -47,6 +51,7 @@ const navItems = [
 const pageTitle: Record<PageKey, string> = {
   overview: "Overview",
   strategies: "Strategies",
+  stockPool: "Stock Pool",
   signals: "Signals",
   backtests: "Backtests",
   evolution: "Evolution",
@@ -62,6 +67,7 @@ function App() {
     const pages: Record<PageKey, ReactElement> = {
       overview: <Overview />,
       strategies: <Strategies />,
+      stockPool: <StockPool />,
       signals: <Signals />,
       backtests: <Backtests />,
       evolution: <Evolution />,
