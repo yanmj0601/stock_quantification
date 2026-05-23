@@ -12,6 +12,19 @@ type SyncJob = {
   finished_at?: string;
   message: string;
 };
+type BarSyncJob = {
+  id: string;
+  market: string;
+  mode: string;
+  status: string;
+  total_symbols: number;
+  completed_symbols: number;
+  success_symbols: number;
+  failed_symbols: number;
+  progress: number;
+  scheduled_for: string;
+  updated_at: string;
+};
 type ScheduleConfig = {
   market: string;
   enabled: boolean;
@@ -29,6 +42,7 @@ const offlineFeeds = [
 function DataHealth() {
   const [payload, setPayload] = useState<DataHealthPayload>({ dataset_count: 0 });
   const [jobs, setJobs] = useState<SyncJob[]>([]);
+  const [barJobs, setBarJobs] = useState<BarSyncJob[]>([]);
   const [schedules, setSchedules] = useState<ScheduleConfig[]>([]);
   const [state, setState] = useState("loading");
   const [message, setMessage] = useState<string | null>(null);
@@ -38,11 +52,13 @@ function DataHealth() {
     Promise.all([
       apiGet<DataHealthPayload>("/api/data-health"),
       apiGet<SyncJob[]>("/api/data-sync/jobs"),
+      apiGet<BarSyncJob[]>("/api/data-sync/bar-jobs"),
       apiGet<ScheduleConfig[]>("/api/schedules"),
     ])
-      .then(([data, jobRows, scheduleRows]) => {
+      .then(([data, jobRows, barJobRows, scheduleRows]) => {
         setPayload(data);
         setJobs(jobRows);
+        setBarJobs(barJobRows);
         setSchedules(scheduleRows);
         setMessage(null);
         setState("ready");
@@ -50,6 +66,7 @@ function DataHealth() {
       .catch(() => {
         setPayload({ dataset_count: 3 });
         setJobs([]);
+        setBarJobs([]);
         setSchedules([
           { market: "CN", enabled: true, run_time: "15:30", timezone: "Asia/Shanghai" },
           { market: "US", enabled: true, run_time: "16:30", timezone: "America/New_York" },
@@ -66,7 +83,7 @@ function DataHealth() {
   const requestSync = (market: "US" | "CN", scope: "instruments" | "bars") => {
     setMessage(null);
     setState("syncing");
-    const path = scope === "instruments" ? `/api/data-sync/${market}/instruments` : `/api/data-sync/${market}`;
+    const path = scope === "instruments" ? `/api/data-sync/${market}/instruments` : `/api/data-sync/${market}/bars/jobs`;
     apiPost(path, {})
       .then(() => load())
       .catch((error: Error) => {
@@ -88,11 +105,33 @@ function DataHealth() {
       {message && <p className="inline-message" role="status">{message}</p>}
       <div className="kpi-grid">
         <div className="kpi-tile"><DatabaseZap size={18} /><span>Datasets</span><strong>{payload.dataset_count}</strong></div>
-        <div className="kpi-tile"><RadioTower size={18} /><span>Sync Jobs</span><strong>{jobs.length}</strong></div>
+        <div className="kpi-tile"><RadioTower size={18} /><span>Bar Jobs</span><strong>{barJobs.length}</strong></div>
         <div className="kpi-tile"><Clock3 size={18} /><span>Schedules</span><strong>{schedules.filter((schedule) => schedule.enabled).length}</strong></div>
         <div className="kpi-tile"><HardDrive size={18} /><span>Storage</span><strong>SQLite</strong></div>
       </div>
       <div className="panel-grid two">
+        <section className="panel">
+          <div className="panel-header">
+            <h2>Bar Sync Jobs</h2>
+            <span>{barJobs.length} jobs</span>
+          </div>
+          {barJobs.length === 0 ? (
+            <div className="empty-state">
+              <strong>No bar sync jobs yet</strong>
+              <span>Use Sync US Bars or Sync CN Bars to start a batched background job.</span>
+            </div>
+          ) : (
+            <div className="health-grid">
+              {barJobs.map((job) => (
+                <div className="health-row" key={job.id}>
+                  <span>{job.market} / {job.mode}</span>
+                  <span className={`badge ${job.status}`}>{job.status}</span>
+                  <small>{job.completed_symbols}/{job.total_symbols} symbols · {(job.progress * 100).toFixed(1)}% · failed {job.failed_symbols}</small>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
         <section className="panel">
           <div className="panel-header">
             <h2>Sync Jobs</h2>

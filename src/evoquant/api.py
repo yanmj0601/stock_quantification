@@ -1,18 +1,22 @@
 from __future__ import annotations
 
+import logging
+import threading
 from dataclasses import fields, is_dataclass
 from datetime import date, datetime, timedelta
 from enum import Enum
 from types import MappingProxyType
 from typing import Any, Callable, Mapping
 
-from fastapi import FastAPI, HTTPException
+from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from evoquant.domain import Market, RiskMode, SignalSide, StrategyStatus
 from evoquant.providers.base import MarketDataProvider, ProviderInstrument
+from evoquant.services.auto_sync import AutoBarSyncService
 from evoquant.services.backtest import BacktestRunner
+from evoquant.services.bar_sync import BarSyncJobService
 from evoquant.services.data_hub import DataHub
 from evoquant.services.drafts import PaperOrderDraftService
 from evoquant.services.evolution import EvolutionService, StrategyTemplate
@@ -32,6 +36,8 @@ ADMIN_CONSOLE_ORIGINS = (
     "http://127.0.0.1:4173",
     "http://localhost:4173",
 )
+
+LOGGER = logging.getLogger(__name__)
 
 
 class StrategyCreate(BaseModel):
@@ -110,12 +116,18 @@ class ScheduleUpdate(BaseModel):
     enabled: bool
 
 
+class BarSyncJobCreate(BaseModel):
+    mode: str = "initial"
+    batch_size: int = 25
+
+
 ProviderFactory = Callable[[Market], MarketDataProvider]
 
 
 def create_app(
     store: SQLiteStore | None = None,
     provider_factory: ProviderFactory | None = None,
+    enable_auto_scheduler: bool = False,
 ) -> FastAPI:
     app = FastAPI(title="EvoQuant API")
     app.add_middleware(
@@ -126,6 +138,9 @@ def create_app(
     )
     app.state.store = store or SQLiteStore("var/evoquant.db")
     app.state.provider_factory = provider_factory or _default_provider_factory
+    app.state.auto_scheduler_stop = threading.Event()
+    if enable_auto_scheduler:
+        _register_auto_scheduler(app)
     register_routes(app)
     return app
 
@@ -446,6 +461,10 @@ def register_routes(app: FastAPI) -> None:
     def list_data_sync_jobs() -> list[dict[str, Any]]:
         return _jsonable(MarketDataService(_store(app)).list_sync_jobs())
 
+    @app.get("/api/data-sync/bar-jobs")
+    def list_bar_sync_jobs() -> list[dict[str, Any]]:
+        return _jsonable(BarSyncJobService(_store(app)).list_jobs())
+
     @app.get("/api/instruments")
     def list_instruments(market: Market | None = None) -> list[dict[str, Any]]:
         filters = []
@@ -549,6 +568,25 @@ def register_routes(app: FastAPI) -> None:
             "provider": provider.name,
             "instrument_count": len(instruments),
         }
+
+    @app.post("/api/data-sync/{market}/bars/jobs", status_code=201)
+    def create_bar_sync_job(
+        market: Market,
+        payload: BarSyncJobCreate,
+        background_tasks: BackgroundTasks,
+    ) -> dict[str, Any]:
+        if market not in {Market.US, Market.CN}:
+            raise HTTPException(status_code=400, detail=f"{market.value} sync is not supported yet")
+        try:
+            job = BarSyncJobService(_store(app)).create_job(
+                market,
+                mode=payload.mode,
+                batch_size=payload.batch_size,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        background_tasks.add_task(_run_bar_sync_job, app, job.id, market)
+        return _jsonable(job)
 
     @app.post("/api/signals/scans", status_code=201)
     def create_signal_scan(payload: SignalScanCreate) -> dict[str, Any]:
@@ -691,6 +729,37 @@ def _latest_sync_coverage(store: SQLiteStore, market: Market, *, has_cached_bars
     return 1.0 if has_cached_bars else 0.0
 
 
+def _run_bar_sync_job(app: FastAPI, job_id: str, market: Market) -> None:
+    provider = _provider_factory(app)(market)
+    BarSyncJobService(_store(app)).run_job(job_id, provider)
+
+
+def _register_auto_scheduler(app: FastAPI) -> None:
+    @app.on_event("startup")
+    def start_auto_scheduler() -> None:
+        stop_event = app.state.auto_scheduler_stop
+        thread = threading.Thread(
+            target=_auto_scheduler_loop,
+            args=(app, stop_event),
+            name="evoquant-auto-bar-sync",
+            daemon=True,
+        )
+        thread.start()
+        app.state.auto_scheduler_thread = thread
+
+    @app.on_event("shutdown")
+    def stop_auto_scheduler() -> None:
+        app.state.auto_scheduler_stop.set()
+
+
+def _auto_scheduler_loop(app: FastAPI, stop_event: threading.Event) -> None:
+    while not stop_event.wait(60):
+        try:
+            AutoBarSyncService(_store(app), _provider_factory(app)).run_due_once()
+        except Exception:
+            LOGGER.exception("auto bar sync scheduler tick failed")
+
+
 def _instrument_record(item: ProviderInstrument) -> InstrumentRecord:
     return InstrumentRecord(
         symbol=item.symbol,
@@ -722,4 +791,4 @@ def _jsonable(value: Any) -> Any:
     return value
 
 
-app = create_app()
+app = create_app(enable_auto_scheduler=True)

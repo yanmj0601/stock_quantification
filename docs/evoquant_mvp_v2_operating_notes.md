@@ -70,20 +70,28 @@ uv sync --extra dev --extra market-data
 - `POST /api/data-sync/CN` 会同步沪深 300 instrument master，并拉取近 5 年 A 股日线。
 - 如果本地没有安装 `market-data` 依赖，或外部免费源字段变化、限流、不可用，API 会返回 400 和明确错误信息。
 
+更推荐的运行方式是分两步：
+
+- `POST /api/data-sync/US/instruments` 或 `POST /api/data-sync/CN/instruments`：快速同步股票池成分。
+- `POST /api/data-sync/US/bars/jobs` 或 `POST /api/data-sync/CN/bars/jobs`：创建分批后台任务拉取日 K。
+
+日 K 任务会写入 `bar_sync_jobs`，Data Health 页面可以看到进度、完成数、失败数和状态。系统启动后也会按 `schedule_configs` 检查收盘后增量任务；如果某个市场还没有初始化 K 线，自动增量会跳过，避免启动时误触发 5 年全量下载。
+
 ## 端到端验收
 
 建议按这个顺序验证：
 
 1. 启动后端和前端。
 2. 在 Paper Trading 页面创建一个 paper account。
-3. 在 Data Health 页面点击 Sync US 或 Sync CN，或用 CSV Provider 写入足够的 `market_bars`。
-4. 在 Signals 页面点击 Run Scan。
-5. 查看 Global Top40 或 US/CN Top20，确认能看到 buy/hold/sell、评分、目标权重、风险标记和原因。
-6. 对 buy 或 sell 信号点击 Draft，生成纸面订单草稿。
-7. 在 Paper Trading 页面对草稿执行 Approve、Submit 或 Cancel。
-8. 在 Backtests 页面运行 Signal Backtest，查看收益、Sharpe、最大回撤、换手等指标。
-9. 在 Data Health 页面查看同步任务和市场定时任务配置。
-10. 在 Audit Log 页面确认扫描、草稿、订单和风险动作有审计记录。
+3. 在 Data Health 页面先点击 Sync US Pool 或 Sync CN Pool。
+4. 再点击 Sync US Bars 或 Sync CN Bars，等待 Bar Sync Jobs 进度完成。
+5. 在 Signals 页面点击 Run Scan。
+6. 查看 Global Top40 或 US/CN Top20，确认能看到 buy/hold/sell、评分、目标权重、风险标记和原因。
+7. 对 buy 或 sell 信号点击 Draft，生成纸面订单草稿。
+8. 在 Paper Trading 页面对草稿执行 Approve、Submit 或 Cancel。
+9. 在 Backtests 页面运行 Signal Backtest，查看收益、Sharpe、最大回撤、换手等指标。
+10. 在 Data Health 页面查看同步任务和市场定时任务配置。
+11. 在 Audit Log 页面确认扫描、草稿、订单和风险动作有审计记录。
 
 ## 验证命令
 
@@ -107,7 +115,7 @@ npm run build
 
 ## 当前限制和下一步
 
-- 后台 Sync 已接 provider，但仍是同步请求；下一步应改为后台异步任务，避免外部源慢响应时占住 HTTP 请求。
+- Bar Sync 已经是分批后台任务；下一步可以把任务执行器升级为独立 worker 或进程外队列，提高长任务稳定性。
 - `SignalScanner` 已保留中文名称字段，但需要在真实 instrument master 中补全美股中文名映射。
 - 回测仍是同步执行，后续应改为异步任务和结果表。
 - 模拟盘成交费用和滑点已有市场规则雏形，但还需要更贴近真实撮合。

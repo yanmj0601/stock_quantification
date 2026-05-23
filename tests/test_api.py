@@ -655,6 +655,24 @@ def test_instrument_sync_api_populates_pool_without_downloading_bars(tmp_path):
     assert instruments[0]["bar_count"] == 0
 
 
+def test_bar_sync_job_api_starts_background_job_and_lists_progress(tmp_path):
+    client = _client(tmp_path, provider_factory=lambda market: ApiFakeProvider())
+    assert client.post("/api/data-sync/US/instruments").status_code == 201
+
+    created = client.post(
+        "/api/data-sync/US/bars/jobs",
+        json={"mode": "initial", "batch_size": 1},
+    )
+    jobs = client.get("/api/data-sync/bar-jobs")
+
+    assert created.status_code == 201
+    assert created.json()["market"] == "US"
+    assert created.json()["mode"] == "initial"
+    assert jobs.status_code == 200
+    assert jobs.json()[0]["id"] == created.json()["id"]
+    assert jobs.json()[0]["total_symbols"] == 1
+
+
 def test_data_sync_api_maps_provider_failures_to_client_error(tmp_path):
     def failing_provider(_market):
         raise RuntimeError("provider dependency missing")

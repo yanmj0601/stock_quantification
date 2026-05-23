@@ -113,6 +113,24 @@ class SQLiteStore:
                     limit_down_count INTEGER NOT NULL,
                     created_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS bar_sync_jobs (
+                    id TEXT PRIMARY KEY,
+                    market TEXT NOT NULL,
+                    mode TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    batch_size INTEGER NOT NULL,
+                    total_symbols INTEGER NOT NULL,
+                    completed_symbols INTEGER NOT NULL,
+                    success_symbols INTEGER NOT NULL,
+                    failed_symbols INTEGER NOT NULL,
+                    progress REAL NOT NULL,
+                    failures TEXT NOT NULL,
+                    scheduled_for TEXT NOT NULL DEFAULT '',
+                    started_at TEXT,
+                    finished_at TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
                 CREATE TABLE IF NOT EXISTS signal_scans (
                     id TEXT PRIMARY KEY,
                     strategy_template TEXT NOT NULL,

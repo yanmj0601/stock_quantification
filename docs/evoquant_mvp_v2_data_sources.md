@@ -36,7 +36,10 @@
 ```bash
 curl -X POST http://127.0.0.1:8000/api/data-sync/US
 curl -X POST http://127.0.0.1:8000/api/data-sync/CN
+curl -X POST http://127.0.0.1:8000/api/data-sync/US/instruments
+curl -X POST http://127.0.0.1:8000/api/data-sync/US/bars/jobs
 curl http://127.0.0.1:8000/api/data-sync/jobs
+curl http://127.0.0.1:8000/api/data-sync/bar-jobs
 ```
 
 返回的 sync job 包含：
@@ -64,3 +67,5 @@ uv sync --extra dev --extra market-data
 - A 股涨跌停、停牌、复权字段依赖 AKShare 当前返回格式，字段变化时需要更新 adapter。
 - 美股成交额用 `close * volume` 估算，因为 Yahoo 日线默认不直接给 amount。
 - 数据覆盖率、异常价格、停牌、涨跌停会被记录，但更严格的缺失交易日检查还需要交易日历模块。
+- 首次全量 K 线同步建议通过 `/bars/jobs` 分批执行；手动全量同步只用于初始化或补数据。
+- 自动增量只在已有历史 K 线的市场上运行，避免系统启动时误拉五年全量数据。
