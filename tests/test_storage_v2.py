@@ -49,3 +49,4 @@ def test_storage_migrates_existing_bar_sync_jobs_table(tmp_path):
             for row in conn.execute("PRAGMA table_info(bar_sync_jobs)").fetchall()
         }
     assert "scheduled_for" in columns
+    assert "target_symbols" in columns

@@ -180,6 +180,8 @@ def test_browser_origins_receive_cors_headers(tmp_path):
         "http://localhost:5173",
         "http://127.0.0.1:4173",
         "http://localhost:4173",
+        "http://127.0.0.1:57818",
+        "http://localhost:57818",
     ):
         response = client.get("/api/risk", headers={"Origin": origin})
 
@@ -671,6 +673,29 @@ def test_bar_sync_job_api_starts_background_job_and_lists_progress(tmp_path):
     assert jobs.status_code == 200
     assert jobs.json()[0]["id"] == created.json()["id"]
     assert jobs.json()[0]["total_symbols"] == 1
+
+
+def test_bar_sync_retry_api_creates_job_for_failed_symbols(tmp_path):
+    store = SQLiteStore(tmp_path / "state.db")
+    client = TestClient(
+        create_app(store, provider_factory=lambda market: LowCoverageApiFakeProvider())
+    )
+    assert client.post("/api/data-sync/US/instruments").status_code == 201
+
+    created = client.post(
+        "/api/data-sync/US/bars/jobs",
+        json={"mode": "initial", "batch_size": 2},
+    )
+    retry = client.post(
+        f"/api/data-sync/bar-jobs/{created.json()['id']}/retry",
+        json={"batch_size": 1},
+    )
+
+    assert retry.status_code == 201
+    payload = retry.json()
+    assert payload["mode"] == "retry"
+    assert payload["target_symbols"] == ["MSFT"]
+    assert payload["total_symbols"] == 1
 
 
 def test_data_sync_api_maps_provider_failures_to_client_error(tmp_path):

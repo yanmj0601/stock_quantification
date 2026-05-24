@@ -18,6 +18,7 @@ class BarSyncJob:
     status: str
     batch_size: int
     total_symbols: int
+    target_symbols: tuple[str, ...]
     completed_symbols: int
     success_symbols: int
     failed_symbols: int
@@ -41,10 +42,11 @@ class BarSyncJobService:
         mode: str,
         batch_size: int = 25,
         scheduled_for: str = "",
+        target_symbols: list[str] | None = None,
     ) -> BarSyncJob:
-        if mode not in {"initial", "incremental", "manual"}:
+        if mode not in {"initial", "incremental", "manual", "retry"}:
             raise ValueError(f"unsupported bar sync mode: {mode}")
-        symbols = self._symbols(market)
+        symbols = self._symbols(market, target_symbols=target_symbols)
         if not symbols:
             raise ValueError(f"no instruments loaded for {market.value}")
         now = utc_now().isoformat()
@@ -55,6 +57,7 @@ class BarSyncJobService:
             status="queued",
             batch_size=max(1, int(batch_size)),
             total_symbols=len(symbols),
+            target_symbols=tuple(symbols) if target_symbols is not None else (),
             completed_symbols=0,
             success_symbols=0,
             failed_symbols=0,
@@ -70,11 +73,11 @@ class BarSyncJobService:
             conn.execute(
                 """
                 INSERT INTO bar_sync_jobs (
-                    id, market, mode, status, batch_size, total_symbols,
+                    id, market, mode, status, batch_size, total_symbols, target_symbols,
                     completed_symbols, success_symbols, failed_symbols, progress,
                     failures, scheduled_for, started_at, finished_at, created_at, updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     job.id,
@@ -83,6 +86,7 @@ class BarSyncJobService:
                     job.status,
                     job.batch_size,
                     job.total_symbols,
+                    dumps(list(job.target_symbols)),
                     job.completed_symbols,
                     job.success_symbols,
                     job.failed_symbols,
@@ -97,6 +101,18 @@ class BarSyncJobService:
             )
         return job
 
+    def create_retry_job(self, source_job_id: str, *, batch_size: int = 1) -> BarSyncJob:
+        source = self.get_job(source_job_id)
+        target_symbols = _failed_symbols(source.failures)
+        if not target_symbols:
+            raise ValueError("source job has no failed symbols to retry")
+        return self.create_job(
+            source.market,
+            mode="retry",
+            batch_size=batch_size,
+            target_symbols=target_symbols,
+        )
+
     def run_job(
         self,
         job_id: str,
@@ -106,7 +122,7 @@ class BarSyncJobService:
     ) -> BarSyncJob:
         today = today or date.today()
         job = self.get_job(job_id)
-        symbols = self._symbols(job.market)
+        symbols = list(job.target_symbols) if job.target_symbols else self._symbols(job.market)
         self._mark_running(job.id)
         completed = 0
         success = 0
@@ -137,6 +153,7 @@ class BarSyncJobService:
             rows = conn.execute(
                 """
                 SELECT id, market, mode, status, batch_size, total_symbols,
+                       target_symbols,
                        completed_symbols, success_symbols, failed_symbols, progress,
                        failures, scheduled_for, started_at, finished_at, created_at, updated_at
                 FROM bar_sync_jobs
@@ -150,6 +167,7 @@ class BarSyncJobService:
             row = conn.execute(
                 """
                 SELECT id, market, mode, status, batch_size, total_symbols,
+                       target_symbols,
                        completed_symbols, success_symbols, failed_symbols, progress,
                        failures, scheduled_for, started_at, finished_at, created_at, updated_at
                 FROM bar_sync_jobs
@@ -161,12 +179,16 @@ class BarSyncJobService:
             raise KeyError(job_id)
         return self._from_row(row)
 
-    def _symbols(self, market: Market) -> list[str]:
-        return [
+    def _symbols(self, market: Market, target_symbols: list[str] | None = None) -> list[str]:
+        instruments = [
             instrument.symbol
             for instrument in InstrumentMaster(self.store).list_by_market(market)
             if instrument.tradable
         ]
+        if target_symbols is None:
+            return instruments
+        tradable = set(instruments)
+        return [symbol for symbol in dict.fromkeys(target_symbols) if symbol in tradable]
 
     def _mark_running(self, job_id: str) -> None:
         now = utc_now().isoformat()
@@ -228,6 +250,7 @@ class BarSyncJobService:
             status=row["status"],
             batch_size=int(row["batch_size"]),
             total_symbols=int(row["total_symbols"]),
+            target_symbols=tuple(loads(row["target_symbols"])),
             completed_symbols=int(row["completed_symbols"]),
             success_symbols=int(row["success_symbols"]),
             failed_symbols=int(row["failed_symbols"]),
@@ -244,3 +267,12 @@ class BarSyncJobService:
 def _chunks(items: list[str], size: int):
     for index in range(0, len(items), size):
         yield items[index : index + size]
+
+
+def _failed_symbols(failures: tuple[str, ...]) -> list[str]:
+    symbols: list[str] = []
+    for failure in failures:
+        symbol = failure.split(":", 1)[0].strip()
+        if symbol:
+            symbols.append(symbol)
+    return list(dict.fromkeys(symbols))

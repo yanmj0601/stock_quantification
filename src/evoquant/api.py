@@ -35,6 +35,8 @@ ADMIN_CONSOLE_ORIGINS = (
     "http://localhost:5173",
     "http://127.0.0.1:4173",
     "http://localhost:4173",
+    "http://127.0.0.1:57818",
+    "http://localhost:57818",
 )
 
 LOGGER = logging.getLogger(__name__)
@@ -119,6 +121,10 @@ class ScheduleUpdate(BaseModel):
 class BarSyncJobCreate(BaseModel):
     mode: str = "initial"
     batch_size: int = 25
+
+
+class BarSyncRetryCreate(BaseModel):
+    batch_size: int = 1
 
 
 ProviderFactory = Callable[[Market], MarketDataProvider]
@@ -464,6 +470,24 @@ def register_routes(app: FastAPI) -> None:
     @app.get("/api/data-sync/bar-jobs")
     def list_bar_sync_jobs() -> list[dict[str, Any]]:
         return _jsonable(BarSyncJobService(_store(app)).list_jobs())
+
+    @app.post("/api/data-sync/bar-jobs/{job_id}/retry", status_code=201)
+    def retry_bar_sync_job(
+        job_id: str,
+        payload: BarSyncRetryCreate,
+        background_tasks: BackgroundTasks,
+    ) -> dict[str, Any]:
+        try:
+            job = BarSyncJobService(_store(app)).create_retry_job(
+                job_id,
+                batch_size=payload.batch_size,
+            )
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="bar sync job not found") from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        background_tasks.add_task(_run_bar_sync_job, app, job.id, job.market)
+        return _jsonable(job)
 
     @app.get("/api/instruments")
     def list_instruments(market: Market | None = None) -> list[dict[str, Any]]:

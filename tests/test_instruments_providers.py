@@ -92,6 +92,34 @@ def test_yahoo_provider_handles_single_symbol_multiindex_download(monkeypatch):
     assert bars[0].amount == 103500.0
 
 
+def test_yahoo_provider_skips_rows_with_missing_ohlcv(monkeypatch):
+    pd = pytest.importorskip("pandas")
+    columns = pd.MultiIndex.from_product(
+        [["AAPL"], ["Open", "High", "Low", "Close", "Adj Close", "Volume"]],
+        names=["Ticker", "Price"],
+    )
+    frame = pd.DataFrame(
+        [
+            [100.0, 105.0, 99.0, 104.0, 103.5, 1000.0],
+            [None, 106.0, 101.0, 105.0, 104.5, 1100.0],
+        ],
+        index=pd.to_datetime(["2026-01-02", "2026-01-03"]),
+        columns=columns,
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "yfinance",
+        SimpleNamespace(download=lambda **_kwargs: frame),
+    )
+
+    bars = YahooFinanceProvider().sync_bars(
+        ["AAPL"], Market.US, date(2026, 1, 1), date(2026, 1, 31)
+    )
+
+    assert len(bars) == 1
+    assert bars[0].session == date(2026, 1, 2)
+
+
 def test_yahoo_provider_fetches_sp500_html_with_http_client(monkeypatch):
     pd = pytest.importorskip("pandas")
     calls: list[dict] = []

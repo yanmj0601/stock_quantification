@@ -125,6 +125,7 @@ class SQLiteStore:
                     failed_symbols INTEGER NOT NULL,
                     progress REAL NOT NULL,
                     failures TEXT NOT NULL,
+                    target_symbols TEXT NOT NULL DEFAULT '[]',
                     scheduled_for TEXT NOT NULL DEFAULT '',
                     started_at TEXT,
                     finished_at TEXT,
@@ -191,6 +192,12 @@ class SQLiteStore:
                 "bar_sync_jobs",
                 "scheduled_for",
                 "TEXT NOT NULL DEFAULT ''",
+            )
+            _ensure_column(
+                conn,
+                "bar_sync_jobs",
+                "target_symbols",
+                "TEXT NOT NULL DEFAULT '[]'",
             )
 
 

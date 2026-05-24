@@ -18,6 +18,7 @@ type BarSyncJob = {
   mode: string;
   status: string;
   total_symbols: number;
+  target_symbols: string[];
   completed_symbols: number;
   success_symbols: number;
   failed_symbols: number;
@@ -80,11 +81,28 @@ function DataHealth() {
     load();
   }, []);
 
+  useEffect(() => {
+    if (!barJobs.some((job) => job.status === "queued" || job.status === "running")) return;
+    const timer = window.setInterval(load, 5000);
+    return () => window.clearInterval(timer);
+  }, [barJobs]);
+
   const requestSync = (market: "US" | "CN", scope: "instruments" | "bars") => {
     setMessage(null);
     setState("syncing");
     const path = scope === "instruments" ? `/api/data-sync/${market}/instruments` : `/api/data-sync/${market}/bars/jobs`;
     apiPost(path, {})
+      .then(() => load())
+      .catch((error: Error) => {
+        setMessage(error.message);
+        setState("ready");
+      });
+  };
+
+  const requestRetry = (jobId: string) => {
+    setMessage(null);
+    setState("syncing");
+    apiPost(`/api/data-sync/bar-jobs/${jobId}/retry`, { batch_size: 1 })
       .then(() => load())
       .catch((error: Error) => {
         setMessage(error.message);
@@ -126,7 +144,12 @@ function DataHealth() {
                 <div className="health-row" key={job.id}>
                   <span>{job.market} / {job.mode}</span>
                   <span className={`badge ${job.status}`}>{job.status}</span>
-                  <small>{job.completed_symbols}/{job.total_symbols} symbols · {(job.progress * 100).toFixed(1)}% · failed {job.failed_symbols}</small>
+                  <small>
+                    <span>{job.completed_symbols}/{job.total_symbols} symbols · ok {job.success_symbols} · failed {job.failed_symbols} · {(job.progress * 100).toFixed(1)}%</span>
+                    {job.failed_symbols > 0 && job.status !== "queued" && job.status !== "running" && (
+                      <button className="small-button" type="button" onClick={() => requestRetry(job.id)}>Retry failed</button>
+                    )}
+                  </small>
                 </div>
               ))}
             </div>

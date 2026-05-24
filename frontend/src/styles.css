@@ -683,6 +683,19 @@ input {
   padding-bottom: 8px;
 }
 
+.health-row small {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.health-row small span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .health-row:last-child {
   border-bottom: 0;
   padding-bottom: 0;

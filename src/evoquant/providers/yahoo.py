@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from datetime import date
 from io import StringIO
 
@@ -79,7 +80,8 @@ class YahooFinanceProvider:
             group_by="ticker",
             auto_adjust=False,
             progress=False,
-            threads=False,
+            threads=True,
+            timeout=8,
         )
         bars: list[ProviderBar] = []
         if frame.empty:
@@ -88,6 +90,8 @@ class YahooFinanceProvider:
         for symbol in symbols:
             symbol_frame = _symbol_frame(frame, symbol)
             for index, row in symbol_frame.iterrows():
+                if _has_missing_price_row(row):
+                    continue
                 session = index.date()
                 close = float(row.get("Adj Close", row["Close"]))
                 volume = float(row["Volume"])
@@ -118,3 +122,22 @@ def _symbol_frame(frame, symbol: str):
             return frame.iloc[0:0]
         return frame[symbol]
     return frame
+
+
+def _has_missing_price_row(row) -> bool:
+    for field in ("Open", "High", "Low", "Close", "Volume"):
+        value = row.get(field)
+        if value is None:
+            return True
+        try:
+            if math.isnan(float(value)):
+                return True
+        except (TypeError, ValueError):
+            return True
+    adjusted_close = row.get("Adj Close")
+    if adjusted_close is not None:
+        try:
+            return math.isnan(float(adjusted_close))
+        except (TypeError, ValueError):
+            return True
+    return False
