@@ -1,11 +1,12 @@
 # EvoQuant MVP v2 数据源说明
 
-## 免费数据源
+## 数据源
 
-- 美股使用 `yfinance`。
+- 美股优先使用 `Tiingo`，配置 `TIINGO_API_KEY` 后自动启用。
+- 未配置 Tiingo key 时，美股会回退到 `yfinance`，方便本地开发和流程验证。
 - A 股使用 `AKShare`。
 - 本地和测试使用 `CsvMarketDataProvider`。
-- 免费数据源可能延迟、缺失、限流或字段变化。
+- 免费数据源可能延迟、缺失、限流或字段变化；正式研究不建议只依赖免费源。
 - 系统只用于研究和模拟盘，不构成投资建议。
 
 ## 默认市场范围
@@ -60,13 +61,25 @@ curl http://127.0.0.1:8000/api/data-sync/bar-jobs
 uv sync --extra dev --extra market-data
 ```
 
-如果没有安装 `market-data` extra，API 会返回 400，并说明缺少 `yfinance`、`AKShare` 或 `pandas`。
+Tiingo 配置：
+
+```bash
+export TIINGO_API_KEY=你的 Tiingo API Key
+```
+
+默认逻辑：
+
+- `TIINGO_API_KEY` 存在：美股日 K 使用 `TiingoProvider`。
+- `TIINGO_API_KEY` 不存在：美股日 K 回退 `YahooFinanceProvider`。
+- `EVOQUANT_US_PROVIDER=tiingo`：强制使用 Tiingo；缺 key 时 API 返回明确错误。
+
+如果没有安装 `market-data` extra，API 会返回 400，并说明缺少 `requests`、`yfinance`、`AKShare` 或 `pandas`。
 
 ## 质量和风险提示
 
-- 免费源不是交易级行情，不适合作为真实下单依据。
+- 免费源不是交易级行情，不适合作为真实下单依据；Tiingo 也需要按账号权限和数据授权使用。
 - A 股涨跌停、停牌、复权字段依赖 AKShare 当前返回格式，字段变化时需要更新 adapter。
-- 美股成交额用 `close * volume` 估算，因为 Yahoo 日线默认不直接给 amount。
+- 美股成交额用 `close * volume` 估算，因为 Tiingo/Yahoo 日线默认不直接给 amount。
 - 数据覆盖率、异常价格、停牌、涨跌停会被记录，但更严格的缺失交易日检查还需要交易日历模块。
 - 首次全量 K 线同步建议通过 `/bars/jobs` 分批执行；手动全量同步只用于初始化或补数据。
 - `partial` 的批量任务可以通过 `/api/data-sync/bar-jobs/<job_id>/retry` 只重试失败标的。

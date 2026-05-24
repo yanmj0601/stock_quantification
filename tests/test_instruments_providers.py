@@ -6,6 +6,7 @@ import pytest
 
 from evoquant.domain import Market
 from evoquant.providers.csv import CsvMarketDataProvider
+from evoquant.providers.tiingo import TiingoProvider
 from evoquant.providers.yahoo import YahooFinanceProvider
 from evoquant.services.instruments import InstrumentMaster, InstrumentRecord
 from evoquant.storage import SQLiteStore
@@ -63,6 +64,63 @@ def test_csv_market_data_provider_reads_instruments_and_bars(tmp_path):
     assert loaded_instruments[0].name_zh == "苹果公司"
     assert loaded_bars[0].close == 104.0
     assert loaded_bars[0].amount == 104000000.0
+
+
+def test_tiingo_provider_reads_adjusted_daily_bars(monkeypatch):
+    calls: list[dict] = []
+
+    class Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return [
+                {
+                    "date": "2026-01-02T00:00:00.000Z",
+                    "open": 100,
+                    "high": 105,
+                    "low": 99,
+                    "close": 104,
+                    "volume": 1000,
+                    "adjOpen": 50,
+                    "adjHigh": 52.5,
+                    "adjLow": 49.5,
+                    "adjClose": 52,
+                    "adjVolume": 2000,
+                }
+            ]
+
+    def fake_get(url, headers, params, timeout):
+        calls.append({"url": url, "headers": headers, "params": params, "timeout": timeout})
+        return Response()
+
+    monkeypatch.setitem(sys.modules, "requests", SimpleNamespace(get=fake_get))
+
+    bars = TiingoProvider(api_key="secret").sync_bars(
+        ["AAPL"], Market.US, date(2026, 1, 1), date(2026, 1, 31)
+    )
+
+    assert calls[0]["url"] == "https://api.tiingo.com/tiingo/daily/aapl/prices"
+    assert calls[0]["headers"]["Authorization"] == "Token secret"
+    assert calls[0]["params"] == {
+        "startDate": "2026-01-01",
+        "endDate": "2026-01-31",
+        "resampleFreq": "daily",
+    }
+    assert calls[0]["timeout"] == 20
+    assert len(bars) == 1
+    assert bars[0].symbol == "AAPL"
+    assert bars[0].close == 52.0
+    assert bars[0].volume == 2000.0
+    assert bars[0].amount == 104000.0
+    assert bars[0].source == "tiingo"
+
+
+def test_tiingo_provider_requires_api_key(monkeypatch):
+    monkeypatch.delenv("TIINGO_API_KEY", raising=False)
+
+    with pytest.raises(RuntimeError, match="TIINGO_API_KEY"):
+        TiingoProvider()
 
 
 def test_yahoo_provider_handles_single_symbol_multiindex_download(monkeypatch):

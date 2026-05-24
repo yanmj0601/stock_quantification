@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import threading
 from dataclasses import fields, is_dataclass
 from datetime import date, datetime, timedelta
@@ -718,6 +719,11 @@ def _provider_factory(app: FastAPI) -> ProviderFactory:
 
 def _default_provider_factory(market: Market) -> MarketDataProvider:
     if market is Market.US:
+        provider_name = os.environ.get("EVOQUANT_US_PROVIDER", "").strip().lower()
+        if provider_name == "tiingo" or os.environ.get("TIINGO_API_KEY"):
+            from evoquant.providers.tiingo import TiingoProvider
+
+            return TiingoProvider()
         from evoquant.providers.yahoo import YahooFinanceProvider
 
         return YahooFinanceProvider()

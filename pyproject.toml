@@ -19,6 +19,7 @@ dev = [
     "httpx>=0.27",
 ]
 market-data = [
+    "requests>=2.32",
     "yfinance>=0.2",
     "akshare>=1.16",
     "pandas>=2.2",

@@ -52,9 +52,10 @@ npm run dev -- --host 127.0.0.1 --port 57818
 
 ## 数据源
 
-真实数据适配层已经接入三个 Provider：
+真实数据适配层已经接入四个 Provider：
 
-- `YahooFinanceProvider`：用于美股 S&P 500 成分和日线行情。
+- `TiingoProvider`：用于美股日线行情，配置 `TIINGO_API_KEY` 后会成为默认美股行情源。
+- `YahooFinanceProvider`：用于美股 S&P 500 成分同步；没有 Tiingo key 时也可作为美股日线开发 fallback。
 - `AkshareProvider`：用于沪深 300 成分和 A 股日线行情。
 - `CsvMarketDataProvider`：用于本地 CSV、测试和离线兜底。
 
@@ -64,9 +65,21 @@ npm run dev -- --host 127.0.0.1 --port 57818
 uv sync --extra dev --extra market-data
 ```
 
+配置 Tiingo：
+
+```bash
+export TIINGO_API_KEY=你的 Tiingo API Key
+```
+
+如果想强制使用 Tiingo 并在缺 key 时直接报错：
+
+```bash
+export EVOQUANT_US_PROVIDER=tiingo
+```
+
 当前 API 的 `/api/data-sync/{market}` 已接入 provider 同步：
 
-- `POST /api/data-sync/US` 会同步 S&P 500 instrument master，并拉取近 5 年美股日线。
+- `POST /api/data-sync/US` 会同步 S&P 500 instrument master，并拉取近 5 年美股日线；配置 Tiingo key 后日线由 Tiingo 提供。
 - `POST /api/data-sync/CN` 会同步沪深 300 instrument master，并拉取近 5 年 A 股日线。
 - 如果本地没有安装 `market-data` 依赖，或外部免费源字段变化、限流、不可用，API 会返回 400 和明确错误信息。
 

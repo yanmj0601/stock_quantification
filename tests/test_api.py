@@ -1,8 +1,10 @@
 from datetime import date
 
+import pytest
 from fastapi.testclient import TestClient
 
 from evoquant.api import create_app
+from evoquant.api import _default_provider_factory
 from evoquant.domain import Market
 from evoquant.providers.base import ProviderBar, ProviderInstrument
 from evoquant.storage import SQLiteStore
@@ -170,6 +172,23 @@ def test_healthz(tmp_path):
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def test_default_us_provider_prefers_tiingo_when_api_key_is_configured(monkeypatch):
+    monkeypatch.setenv("TIINGO_API_KEY", "secret")
+    monkeypatch.delenv("EVOQUANT_US_PROVIDER", raising=False)
+
+    provider = _default_provider_factory(Market.US)
+
+    assert provider.name == "tiingo"
+
+
+def test_default_us_provider_can_force_tiingo_and_report_missing_key(monkeypatch):
+    monkeypatch.setenv("EVOQUANT_US_PROVIDER", "tiingo")
+    monkeypatch.delenv("TIINGO_API_KEY", raising=False)
+
+    with pytest.raises(RuntimeError, match="TIINGO_API_KEY"):
+        _default_provider_factory(Market.US)
 
 
 def test_browser_origins_receive_cors_headers(tmp_path):

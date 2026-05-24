@@ -5,7 +5,7 @@ EvoQuant 是一个多市场通用的量化研究平台 MVP。当前 v2 聚焦“
 ## 范围
 
 - 支持多市场抽象：`US`、`CN`、`CRYPTO`，当前真实信号链路优先覆盖美股和 A 股。
-- 支持免费数据源适配：美股 `yfinance`、A 股 `AKShare`，并保留 CSV Provider 作为本地和测试兜底。
+- 支持数据源适配：美股优先 `Tiingo`，无 key 时可回退 `yfinance`；A 股当前使用 `AKShare`，并保留 CSV Provider 作为本地和测试兜底。
 - 支持缓存日线行情、同步任务记录、覆盖率检查和手动定时任务配置。
 - 支持 `cross_sectional_momentum` 横截面动量策略：
   - 评分 = `0.50 * 120日动量排名分 + 0.25 * 20日动量排名分 - 0.15 * 波动率惩罚 - 0.10 * 最大回撤惩罚`
@@ -44,6 +44,14 @@ npm run dev
 ```bash
 uv sync --extra dev --extra market-data
 ```
+
+美股推荐配置 Tiingo：
+
+```bash
+export TIINGO_API_KEY=你的 Tiingo API Key
+```
+
+配置后，美股日 K 默认由 Tiingo 拉取；未配置时仍会回退到 `yfinance` 方便本地开发。
 
 ## 后台管理台
 
