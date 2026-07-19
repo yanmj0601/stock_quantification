@@ -749,20 +749,27 @@ def _index_id(market: Market) -> str:
 
 
 def _latest_sync_coverage(store: SQLiteStore, market: Market, *, has_cached_bars: bool) -> float:
+    if not has_cached_bars:
+        return 0.0
     with store.connection() as conn:
-        row = conn.execute(
-            """
-            SELECT coverage
-            FROM market_sync_jobs
-            WHERE market = ?
-            ORDER BY started_at DESC, rowid DESC
-            LIMIT 1
-            """,
-            (market.value,),
+        # 查询 instruments 中 tradable 的总股票数
+        total_row = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM instruments WHERE market = ? AND tradable = 1",
+            (market.value,)
         ).fetchone()
-    if row is not None:
-        return float(row["coverage"])
-    return 1.0 if has_cached_bars else 0.0
+        total_inst = total_row["cnt"] if total_row else 0
+        if total_inst == 0:
+            return 0.0
+            
+        # 查询 market_bars 中有数据的独特股票数
+        active_row = conn.execute(
+            "SELECT COUNT(DISTINCT symbol) AS cnt FROM market_bars WHERE market = ?",
+            (market.value,)
+        ).fetchone()
+        active_bars = active_row["cnt"] if active_row else 0
+        
+        real_coverage = round(active_bars / total_inst, 4)
+        return real_coverage
 
 
 def _run_bar_sync_job(app: FastAPI, job_id: str, market: Market) -> None:
