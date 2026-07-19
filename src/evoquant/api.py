@@ -605,8 +605,8 @@ def register_routes(app: FastAPI) -> None:
             master = InstrumentMaster(store)
             existing = master.list_by_market(market)
             
-            # 如果股票池尚未初始化，自动在后台前置同步一次 Pool 列表入库
-            if not existing:
+            # 如果股票池尚未初始化，或者目前还是少于 1000 只股票的标普500旧池，自动自动热升级为全市场
+            if len(existing) < 1000:
                 provider = _provider_factory(app)(market)
                 instruments = provider.sync_instruments(_index_id(market))
                 if instruments:
