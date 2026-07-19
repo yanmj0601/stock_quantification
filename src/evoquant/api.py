@@ -726,9 +726,9 @@ def _default_provider_factory(market: Market) -> MarketDataProvider:
 
         return YahooFinanceProvider()
     if market is Market.CN:
-        from evoquant.providers.akshare import AkshareProvider
+        from evoquant.providers.baostock import BaostockProvider
 
-        return AkshareProvider()
+        return BaostockProvider()
     raise RuntimeError(f"{market.value} sync is not supported yet")
 
 
@@ -736,7 +736,7 @@ def _index_id(market: Market) -> str:
     if market is Market.US:
         return "SP500"
     if market is Market.CN:
-        return "CSI300"
+        return "ALL"
     raise RuntimeError(f"{market.value} sync is not supported yet")
 
 

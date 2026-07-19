@@ -21,7 +21,7 @@ dev = [
 market-data = [
     "requests>=2.32",
     "yfinance>=0.2",
-    "akshare>=1.16",
+    "baostock>=0.9.3",
     "pandas>=2.2",
 ]
 
