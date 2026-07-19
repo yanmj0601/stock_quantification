@@ -72,7 +72,7 @@ function DataHealth() {
           { market: "CN", enabled: true, run_time: "15:30", timezone: "Asia/Shanghai" },
           { market: "US", enabled: true, run_time: "16:30", timezone: "America/New_York" },
         ]);
-        setMessage("API unavailable. Showing offline example data health.");
+        setMessage("API unavailable. Showing offline example data sources.");
         setState("fallback");
       });
   };

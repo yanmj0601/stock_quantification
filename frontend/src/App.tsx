@@ -43,7 +43,7 @@ const navItems = [
   { key: "backtests", label: "Backtests", icon: BarChart3 },
   { key: "evolution", label: "Evolution", icon: GitBranch },
   { key: "paper", label: "Paper Trading", icon: LineChart },
-  { key: "data", label: "Data Health", icon: DatabaseZap },
+  { key: "data", label: "Data Sources", icon: DatabaseZap },
   { key: "risk", label: "Risk", icon: ShieldCheck },
   { key: "audit", label: "Audit Log", icon: ScrollText },
 ] satisfies Array<{ key: PageKey; label: string; icon: typeof Beaker }>;
@@ -56,7 +56,7 @@ const pageTitle: Record<PageKey, string> = {
   backtests: "Backtests",
   evolution: "Evolution",
   paper: "Paper Trading",
-  data: "Data Health",
+  data: "Data Sources",
   risk: "Risk",
   audit: "Audit Log",
 };

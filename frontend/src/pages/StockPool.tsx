@@ -130,7 +130,7 @@ function StockPool() {
                   <td colSpan={10}>
                     <div className="empty-state compact">
                       <strong>No instruments loaded</strong>
-                      <span>Run Sync US or Sync CN in Data Health to populate the stock pool.</span>
+                      <span>Run Sync US or Sync CN in Data Sources to populate the stock pool.</span>
                     </div>
                   </td>
                 </tr>
