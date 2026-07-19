@@ -112,7 +112,7 @@ function Signals() {
   const [state, setState] = useState("loading");
   const [message, setMessage] = useState<string | null>(null);
 
-  const loadScans = () => {
+  const loadScans = (keepMessage = false) => {
     setState("loading");
     Promise.all([apiGet<SignalScan[]>("/api/signals/scans"), apiGet<Account[]>("/api/paper/accounts")])
       .then(([scanRows, accountRows]) => {
@@ -121,7 +121,9 @@ function Signals() {
         setSelectedAccount((current) => current || accountRows[0]?.id || "");
         const nextScanId = selectedScanId || scanRows[0]?.id || "";
         setSelectedScanId(nextScanId);
-        setMessage(null);
+        if (!keepMessage) {
+          setMessage(null);
+        }
         setState("ready");
         if (nextScanId) {
           loadResults(nextScanId);
@@ -166,9 +168,10 @@ function Signals() {
   const runScan = () => {
     setState("running");
     setMessage(null);
+    const activeMarkets = marketMode === "global" ? ["US", "CN"] : [marketMode];
     apiPost<SignalScan>("/api/signals/scans", {
       strategy_template: "cross_sectional_momentum",
-      markets: ["US", "CN"],
+      markets: activeMarkets,
       parameters: defaultParameters,
     })
       .then((scan) => {
@@ -180,7 +183,7 @@ function Signals() {
       .catch((error: Error) => {
         setMessage(error.message);
         setState("ready");
-        loadScans();
+        loadScans(true);
       });
   };
 

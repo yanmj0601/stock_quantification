@@ -79,7 +79,7 @@ function PaperTrading() {
   const [quantity, setQuantity] = useState(10);
   const [limitPrice, setLimitPrice] = useState(185);
 
-  const load = (nextSelected?: string) => {
+  const load = (nextSelected?: string, keepMessage = false) => {
     setState("loading");
     Promise.all([
       apiGet<Account[]>("/api/paper/accounts"),
@@ -97,7 +97,9 @@ function PaperTrading() {
         setFills(fillRows);
         setDrafts(draftRows);
         setSelected(accountId);
-        setMessage(null);
+        if (!keepMessage) {
+          setMessage(null);
+        }
         setState("ready");
         if (!accountId) {
           setPositions([]);
@@ -134,7 +136,7 @@ function PaperTrading() {
     setState("creating");
     apiPost<Account>("/api/paper/accounts", { name: `paper-${accounts.length + 1}`, starting_cash: 100000 })
       .then((account) => {
-        load(account.id);
+        load(account.id, true);
       })
       .catch((error: Error) => {
         setMessage(error.message);
@@ -158,7 +160,7 @@ function PaperTrading() {
     })
       .then(() => {
         setMessage(`Submitted and filled ${quantity} ${symbol} @ ${limitPrice}.`);
-        load(selected);
+        load(selected, true);
       })
       .catch((error: Error) => {
         setMessage(error.message);
@@ -172,7 +174,7 @@ function PaperTrading() {
     apiPatch<Draft>(`/api/paper/drafts/${draftId}/${action}`, {})
       .then(() => {
         setMessage(`Draft ${action} completed.`);
-        load(selected);
+        load(selected, true);
       })
       .catch((error: Error) => {
         setMessage(error.message);
