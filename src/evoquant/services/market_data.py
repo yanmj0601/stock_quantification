@@ -231,39 +231,49 @@ class MarketDataService:
     def latest_session(self, market: Market, symbols: list[str]) -> date | None:
         if not symbols:
             return None
-        placeholders = ",".join("?" for _ in symbols)
+        chunk_size = 500
+        latest_dates = []
         with self.store.connection() as conn:
-            row = conn.execute(
-                f"""
-                SELECT MAX(session) AS latest_session
-                FROM market_bars
-                WHERE market = ? AND symbol IN ({placeholders})
-                """,
-                (market.value, *symbols),
-            ).fetchone()
-        value = row["latest_session"]
-        return date.fromisoformat(value) if value else None
+            for k in range(0, len(symbols), chunk_size):
+                chunk = symbols[k : k + chunk_size]
+                placeholders = ",".join("?" for _ in chunk)
+                row = conn.execute(
+                    f"""
+                    SELECT MAX(session) AS latest_session
+                    FROM market_bars
+                    WHERE market = ? AND symbol IN ({placeholders})
+                    """,
+                    (market.value, *chunk),
+                ).fetchone()
+                if row and row["latest_session"]:
+                    latest_dates.append(date.fromisoformat(row["latest_session"]))
+        return max(latest_dates) if latest_dates else None
 
     def list_bars(
         self, market: Market, symbols: list[str], start: date, end: date
     ) -> list[MarketBar]:
         if not symbols:
             return []
-        placeholders = ",".join("?" for _ in symbols)
+        chunk_size = 500
+        rows = []
         with self.store.connection() as conn:
-            rows = conn.execute(
-                f"""
-                SELECT symbol, market, session, open, high, low, close, volume,
-                       amount, adjusted, suspended, limit_up, limit_down, source
-                FROM market_bars
-                WHERE market = ?
-                  AND symbol IN ({placeholders})
-                  AND session >= ?
-                  AND session <= ?
-                ORDER BY symbol ASC, session ASC
-                """,
-                (market.value, *symbols, start.isoformat(), end.isoformat()),
-            ).fetchall()
+            for k in range(0, len(symbols), chunk_size):
+                chunk = symbols[k : k + chunk_size]
+                placeholders = ",".join("?" for _ in chunk)
+                chunk_rows = conn.execute(
+                    f"""
+                    SELECT symbol, market, session, open, high, low, close, volume,
+                           amount, adjusted, suspended, limit_up, limit_down, source
+                    FROM market_bars
+                    WHERE market = ?
+                      AND symbol IN ({placeholders})
+                      AND session >= ?
+                      AND session <= ?
+                    ORDER BY symbol ASC, session ASC
+                    """,
+                    (market.value, *chunk, start.isoformat(), end.isoformat()),
+                ).fetchall()
+                rows.extend(chunk_rows)
         return [_bar_from_row(row) for row in rows]
 
     def quality_report(
