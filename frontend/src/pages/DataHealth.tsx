@@ -45,8 +45,8 @@ function DataHealth() {
   const [jobs, setJobs] = useState<SyncJob[]>([]);
   const [barJobs, setBarJobs] = useState<BarSyncJob[]>([]);
   const [schedules, setSchedules] = useState<ScheduleConfig[]>([]);
-  const [state, setState] = useState("loading");
-  const [message, setMessage] = useState<string | null>(null);
+  const isUsSyncing = state === "syncing" || barJobs.some((job) => job.market === "US" && (job.status === "queued" || job.status === "running"));
+  const isCnSyncing = state === "syncing" || barJobs.some((job) => job.market === "CN" && (job.status === "queued" || job.status === "running"));
 
   const load = () => {
     setState("loading");
@@ -114,8 +114,22 @@ function DataHealth() {
     <div className="page-stack">
       <div className="toolbar">
         <span className={`pill ${state === "fallback" ? "warning" : "ok"}`}>{state}</span>
-        <button className="small-button" type="button" onClick={() => requestSync("US", "bars")}>Sync US Market</button>
-        <button className="small-button" type="button" onClick={() => requestSync("CN", "bars")}>Sync CN Market</button>
+        <button
+          className="small-button"
+          type="button"
+          disabled={isUsSyncing}
+          onClick={() => requestSync("US", "bars")}
+        >
+          {isUsSyncing ? "US Syncing..." : "Sync US Market"}
+        </button>
+        <button
+          className="small-button"
+          type="button"
+          disabled={isCnSyncing}
+          onClick={() => requestSync("CN", "bars")}
+        >
+          {isCnSyncing ? "CN Syncing..." : "Sync CN Market"}
+        </button>
         <button className="icon-button" type="button" title="Refresh" onClick={load}><RefreshCw size={16} /></button>
       </div>
       {message && <p className="inline-message" role="status">{message}</p>}
