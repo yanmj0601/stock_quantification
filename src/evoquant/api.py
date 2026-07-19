@@ -601,12 +601,23 @@ def register_routes(app: FastAPI) -> None:
         if market not in {Market.US, Market.CN}:
             raise HTTPException(status_code=400, detail=f"{market.value} sync is not supported yet")
         try:
-            job = BarSyncJobService(_store(app)).create_job(
+            store = _store(app)
+            master = InstrumentMaster(store)
+            existing = master.list_by_market(market)
+            
+            # 如果股票池尚未初始化，自动在后台前置同步一次 Pool 列表入库
+            if not existing:
+                provider = _provider_factory(app)(market)
+                instruments = provider.sync_instruments(_index_id(market))
+                if instruments:
+                    master.upsert_many([_instrument_record(item) for item in instruments])
+
+            job = BarSyncJobService(store).create_job(
                 market,
                 mode=payload.mode,
                 batch_size=payload.batch_size,
             )
-        except ValueError as exc:
+        except (ValueError, RuntimeError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         background_tasks.add_task(_run_bar_sync_job, app, job.id, market)
         return _jsonable(job)
@@ -733,10 +744,7 @@ def _default_provider_factory(market: Market) -> MarketDataProvider:
 
 
 def _index_id(market: Market) -> str:
-    if market is Market.US:
-        return "SP500"
-    if market is Market.CN:
-        return "ALL"
+    return "ALL"
     raise RuntimeError(f"{market.value} sync is not supported yet")
 
 

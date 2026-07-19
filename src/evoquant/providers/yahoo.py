@@ -12,17 +12,45 @@ class YahooFinanceProvider:
     name = "yfinance"
 
     def sync_instruments(self, index_id: str) -> list[ProviderInstrument]:
-        if index_id != "SP500":
-            raise ValueError("YahooFinanceProvider only supports SP500 instruments")
+        if index_id not in {"SP500", "ALL"}:
+            raise ValueError("YahooFinanceProvider supports SP500 or ALL instruments")
         try:
             import pandas as pd
-        except ImportError as exc:
-            raise RuntimeError("pandas is required for S&P 500 instrument sync") from exc
-
-        try:
             import requests
         except ImportError as exc:
-            raise RuntimeError("requests is required for S&P 500 instrument sync") from exc
+            raise RuntimeError("pandas and requests are required for Yahoo instrument sync") from exc
+
+        if index_id == "ALL":
+            try:
+                response = requests.get(
+                    "https://www.sec.gov/files/company_tickers.json",
+                    headers={"User-Agent": "EvoQuant Research Team admin@evoquant.com"},
+                    timeout=20,
+                )
+                response.raise_for_status()
+                data = response.json()
+            except Exception as exc:
+                raise RuntimeError(f"SEC US instrument sync failed: {exc}") from exc
+            
+            instruments: list[ProviderInstrument] = []
+            for item in data.values():
+                symbol = str(item["ticker"]).strip().upper()
+                if symbol.isalpha() and len(symbol) <= 4:
+                    instruments.append(
+                        ProviderInstrument(
+                            symbol=symbol,
+                            market=Market.US,
+                            name=str(item["title"]),
+                            name_zh=symbol,
+                            exchange="US",
+                            currency="USD",
+                            sector="General",
+                            index_membership="ALL",
+                            tradable=True,
+                            lot_size=1,
+                        )
+                    )
+            return instruments
 
         try:
             response = requests.get(

@@ -14,7 +14,7 @@ class ApiFakeProvider:
     name = "fake"
 
     def sync_instruments(self, index_id: str) -> list[ProviderInstrument]:
-        assert index_id == "SP500"
+        assert index_id in {"SP500", "ALL"}
         return [
             ProviderInstrument(
                 symbol="AAPL",
@@ -59,7 +59,7 @@ class LowCoverageApiFakeProvider:
     name = "fake"
 
     def sync_instruments(self, index_id: str) -> list[ProviderInstrument]:
-        assert index_id == "SP500"
+        assert index_id in {"SP500", "ALL"}
         return [
             ProviderInstrument(
                 symbol=symbol,
