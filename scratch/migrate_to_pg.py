@@ -15,6 +15,22 @@ print(f"Connecting to source SQLite database: {SQLITE_PATH}...")
 sqlite_conn = sqlite3.connect(SQLITE_PATH)
 sqlite_conn.row_factory = sqlite3.Row
 
+# 自动探测并创建 evoquant 数据库（以防用户本地是干净的新 PG 实例）
+try:
+    import psycopg2
+    temp_dsn = PG_DSN.replace("/evoquant", "/postgres")
+    temp_conn = psycopg2.connect(temp_dsn)
+    temp_conn.autocommit = True
+    temp_cur = temp_conn.cursor()
+    temp_cur.execute("SELECT 1 FROM pg_database WHERE datname = 'evoquant'")
+    if not temp_cur.fetchone():
+        print("Database 'evoquant' does not exist. Creating it on local PostgreSQL...")
+        temp_cur.execute("CREATE DATABASE evoquant")
+    temp_cur.close()
+    temp_conn.close()
+except Exception as e:
+    print(f"PostgreSQL connection / database creation warning: {e}")
+
 print(f"Connecting to target PostgreSQL database: {PG_DSN}...")
 try:
     pg_store = PostgreSQLStore(PG_DSN)
