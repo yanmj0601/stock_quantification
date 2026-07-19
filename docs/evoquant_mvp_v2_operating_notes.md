@@ -71,6 +71,14 @@ uv sync --extra dev --extra market-data
 export TIINGO_API_KEY=你的 Tiingo API Key
 ```
 
+全量缓存建议同时配置节流：
+
+```bash
+export TIINGO_REQUEST_DELAY_SECONDS=1
+export TIINGO_RETRY_BACKOFF_SECONDS=30
+export TIINGO_MAX_RETRIES=3
+```
+
 如果想强制使用 Tiingo 并在缺 key 时直接报错：
 
 ```bash

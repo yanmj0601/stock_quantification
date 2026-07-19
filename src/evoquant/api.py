@@ -18,7 +18,6 @@ from evoquant.providers.base import MarketDataProvider, ProviderInstrument
 from evoquant.services.auto_sync import AutoBarSyncService
 from evoquant.services.backtest import BacktestRunner
 from evoquant.services.bar_sync import BarSyncJobService
-from evoquant.services.data_hub import DataHub
 from evoquant.services.drafts import PaperOrderDraftService
 from evoquant.services.evolution import EvolutionService, StrategyTemplate
 from evoquant.services.instruments import InstrumentMaster, InstrumentRecord
@@ -454,12 +453,11 @@ def register_routes(app: FastAPI) -> None:
 
     @app.get("/api/data-health")
     def data_health() -> dict[str, Any]:
-        DataHub(_store(app))
         with _store(app).connection() as conn:
             row = conn.execute(
                 """
                 SELECT COUNT(*) AS dataset_count
-                FROM datasets
+                FROM instruments
                 """
             ).fetchone()
         return {"dataset_count": int(row["dataset_count"])}

@@ -1,6 +1,6 @@
 import pytest
 
-from evoquant.metrics import calculate_performance, paper_decay
+from evoquant.metrics import calculate_performance
 
 
 def test_calculate_performance_includes_return_risk_and_turnover():
@@ -40,5 +40,4 @@ def test_calculate_performance_returns_zero_risk_for_flat_equity():
     assert metrics.calmar == 0.0
 
 
-def test_paper_decay_compares_paper_to_backtest_cagr():
-    assert paper_decay(backtest_cagr=0.20, paper_cagr=0.14) == -0.30
+

@@ -123,6 +123,50 @@ def test_tiingo_provider_requires_api_key(monkeypatch):
         TiingoProvider()
 
 
+def test_tiingo_provider_retries_rate_limited_requests(monkeypatch):
+    calls: list[str] = []
+    sleeps: list[float] = []
+
+    class Response:
+        def __init__(self, status_code: int):
+            self.status_code = status_code
+            self.headers = {"Retry-After": "2"} if status_code == 429 else {}
+
+        def raise_for_status(self):
+            if self.status_code >= 400:
+                raise RuntimeError(f"{self.status_code} error")
+
+        def json(self):
+            return [
+                {
+                    "date": "2026-01-02T00:00:00.000Z",
+                    "open": 100,
+                    "high": 105,
+                    "low": 99,
+                    "close": 104,
+                    "volume": 1000,
+                }
+            ]
+
+    responses = [Response(429), Response(200)]
+
+    def fake_get(url, headers, params, timeout):
+        calls.append(url)
+        return responses.pop(0)
+
+    monkeypatch.setitem(sys.modules, "requests", SimpleNamespace(get=fake_get))
+
+    bars = TiingoProvider(
+        api_key="secret",
+        max_retries=1,
+        sleep=sleeps.append,
+    ).sync_bars(["AAPL"], Market.US, date(2026, 1, 1), date(2026, 1, 31))
+
+    assert len(calls) == 2
+    assert sleeps == [2.0]
+    assert len(bars) == 1
+
+
 def test_yahoo_provider_handles_single_symbol_multiindex_download(monkeypatch):
     pd = pytest.importorskip("pandas")
     columns = pd.MultiIndex.from_product(

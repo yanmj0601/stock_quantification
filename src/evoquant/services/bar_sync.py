@@ -129,21 +129,16 @@ class BarSyncJobService:
         failures: list[str] = []
         market_data = MarketDataService(self.store)
         for batch in _chunks(symbols, job.batch_size):
-            try:
-                if job.mode == "incremental":
-                    sync = market_data.incremental_sync(provider, batch, job.market, end=today)
-                else:
-                    sync = market_data.sync_bars(
-                        provider,
-                        batch,
-                        job.market,
-                        today - timedelta(days=365 * 5),
-                        today,
-                    )
-                success += sync.success_symbols
-                failures.extend(sync.failures)
-            except Exception as exc:
-                failures.extend(f"{symbol}: {exc}" for symbol in batch)
+            batch_success, batch_failures = self._sync_batch(
+                market_data,
+                provider,
+                batch,
+                job.market,
+                job.mode,
+                today,
+            )
+            success += batch_success
+            failures.extend(batch_failures)
             completed += len(batch)
             self._update_progress(job.id, completed, success, failures, finished=False)
         return self._update_progress(job.id, completed, success, failures, finished=True)
@@ -201,6 +196,50 @@ class BarSyncJobService:
                 """,
                 (now, now, job_id),
             )
+
+    def _sync_batch(
+        self,
+        market_data: MarketDataService,
+        provider: MarketDataProvider,
+        batch: list[str],
+        market: Market,
+        mode: str,
+        today: date,
+    ) -> tuple[int, list[str]]:
+        try:
+            sync = _run_market_sync(market_data, provider, batch, market, mode, today)
+        except Exception:
+            if len(batch) == 1:
+                raise
+            return self._sync_symbols_one_by_one(
+                market_data,
+                provider,
+                batch,
+                market,
+                mode,
+                today,
+            )
+        return sync.success_symbols, list(sync.failures)
+
+    def _sync_symbols_one_by_one(
+        self,
+        market_data: MarketDataService,
+        provider: MarketDataProvider,
+        symbols: list[str],
+        market: Market,
+        mode: str,
+        today: date,
+    ) -> tuple[int, list[str]]:
+        success = 0
+        failures: list[str] = []
+        for symbol in symbols:
+            try:
+                sync = _run_market_sync(market_data, provider, [symbol], market, mode, today)
+                success += sync.success_symbols
+                failures.extend(sync.failures)
+            except Exception as exc:
+                failures.append(f"{symbol}: {exc}")
+        return success, failures
 
     def _update_progress(
         self,
@@ -267,6 +306,25 @@ class BarSyncJobService:
 def _chunks(items: list[str], size: int):
     for index in range(0, len(items), size):
         yield items[index : index + size]
+
+
+def _run_market_sync(
+    market_data: MarketDataService,
+    provider: MarketDataProvider,
+    symbols: list[str],
+    market: Market,
+    mode: str,
+    today: date,
+):
+    if mode == "incremental":
+        return market_data.incremental_sync(provider, symbols, market, end=today)
+    return market_data.sync_bars(
+        provider,
+        symbols,
+        market,
+        today - timedelta(days=365 * 5),
+        today,
+    )
 
 
 def _failed_symbols(failures: tuple[str, ...]) -> list[str]:

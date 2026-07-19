@@ -47,7 +47,3 @@ def calculate_performance(
     return PerformanceMetrics(total_return, cagr, volatility, sharpe, sortino, max_drawdown, calmar, turnover)
 
 
-def paper_decay(backtest_cagr: float, paper_cagr: float) -> float:
-    if backtest_cagr == 0:
-        return 0.0
-    return round((paper_cagr - backtest_cagr) / abs(backtest_cagr), 4)

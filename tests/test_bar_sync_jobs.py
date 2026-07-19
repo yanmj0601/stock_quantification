@@ -74,6 +74,33 @@ class PartiallyAvailableProvider(RecordingProvider):
         return bars
 
 
+class FailingBatchProvider(RecordingProvider):
+    def sync_bars(self, symbols, market, start, end, timeframe="1d"):
+        self.calls.append((tuple(symbols), market, start, end, timeframe))
+        if len(symbols) > 1:
+            raise RuntimeError("batch transport failed")
+        if symbols == ["BBB"]:
+            raise RuntimeError("symbol transport failed")
+        return [
+            ProviderBar(
+                symbol=symbols[0],
+                market=market,
+                session=end,
+                open=10,
+                high=11,
+                low=9,
+                close=10,
+                volume=1000,
+                amount=10000,
+                adjusted=True,
+                suspended=False,
+                limit_up=False,
+                limit_down=False,
+                source="fake",
+            )
+        ]
+
+
 def _instrument(symbol: str) -> InstrumentRecord:
     return InstrumentRecord(
         symbol=symbol,
@@ -148,3 +175,25 @@ def test_retry_bar_sync_job_targets_failed_symbols_only(tmp_path):
     assert [call[0] for call in retry_provider.calls] == [("BBB",), ("CCC",)]
     assert completed_retry.status == "success"
     assert completed_retry.success_symbols == 2
+
+
+def test_bar_sync_job_falls_back_to_single_symbol_requests_after_batch_error(tmp_path):
+    store = SQLiteStore(tmp_path / "state.db")
+    InstrumentMaster(store).upsert_many([_instrument("AAA"), _instrument("BBB"), _instrument("CCC")])
+    provider = FailingBatchProvider()
+    service = BarSyncJobService(store)
+
+    job = service.create_job(Market.US, mode="initial", batch_size=3)
+    completed = service.run_job(job.id, provider, today=date(2026, 1, 10))
+
+    assert [call[0] for call in provider.calls] == [
+        ("AAA", "BBB", "CCC"),
+        ("AAA",),
+        ("BBB",),
+        ("CCC",),
+    ]
+    assert completed.status == "partial"
+    assert completed.success_symbols == 2
+    assert completed.failed_symbols == 1
+    assert completed.failures == ("BBB: symbol transport failed",)
+    assert len(MarketDataService(store).list_bars(Market.US, ["AAA", "CCC"], date(2026, 1, 1), date(2026, 1, 10))) == 2

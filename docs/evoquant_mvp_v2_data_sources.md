@@ -67,11 +67,22 @@ Tiingo 配置：
 export TIINGO_API_KEY=你的 Tiingo API Key
 ```
 
+建议全量缓存时打开节流，避免触发 Tiingo 的 429：
+
+```bash
+export TIINGO_REQUEST_DELAY_SECONDS=1
+export TIINGO_RETRY_BACKOFF_SECONDS=30
+export TIINGO_MAX_RETRIES=3
+```
+
 默认逻辑：
 
 - `TIINGO_API_KEY` 存在：美股日 K 使用 `TiingoProvider`。
 - `TIINGO_API_KEY` 不存在：美股日 K 回退 `YahooFinanceProvider`。
 - `EVOQUANT_US_PROVIDER=tiingo`：强制使用 Tiingo；缺 key 时 API 返回明确错误。
+- `TIINGO_REQUEST_DELAY_SECONDS`：每个 symbol 请求后的固定等待秒数，默认 0。
+- `TIINGO_RETRY_BACKOFF_SECONDS`：遇到 429 且响应没有 `Retry-After` 时的等待秒数，默认 5。
+- `TIINGO_MAX_RETRIES`：遇到 429 时的最大重试次数，默认 2。
 
 如果没有安装 `market-data` extra，API 会返回 400，并说明缺少 `requests`、`yfinance`、`AKShare` 或 `pandas`。
 

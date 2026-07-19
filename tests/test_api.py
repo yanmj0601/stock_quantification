@@ -77,7 +77,9 @@ class LowCoverageApiFakeProvider:
         ]
 
     def sync_bars(self, symbols, market, start, end, timeframe="1d"):
-        assert symbols == ["AAPL", "MSFT"]
+        assert set(symbols).issubset({"AAPL", "MSFT"})
+        if "AAPL" not in symbols:
+            return []
         return [
             ProviderBar(
                 symbol="AAPL",
