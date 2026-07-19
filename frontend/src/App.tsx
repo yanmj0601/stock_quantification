@@ -2,6 +2,7 @@ import {
   Activity,
   BarChart3,
   Beaker,
+  BookOpen,
   ClipboardList,
   DatabaseZap,
   GitBranch,
@@ -16,6 +17,7 @@ import AuditLog from "./pages/AuditLog";
 import Backtests from "./pages/Backtests";
 import DataHealth from "./pages/DataHealth";
 import Evolution from "./pages/Evolution";
+import Manual from "./pages/Manual";
 import Overview from "./pages/Overview";
 import PaperTrading from "./pages/PaperTrading";
 import Risk from "./pages/Risk";
@@ -33,7 +35,8 @@ type PageKey =
   | "paper"
   | "data"
   | "risk"
-  | "audit";
+  | "audit"
+  | "manual";
 
 const navItems = [
   { key: "overview", label: "Overview", icon: Activity },
@@ -46,6 +49,7 @@ const navItems = [
   { key: "data", label: "Data Sources", icon: DatabaseZap },
   { key: "risk", label: "Risk", icon: ShieldCheck },
   { key: "audit", label: "Audit Log", icon: ScrollText },
+  { key: "manual", label: "User Manual", icon: BookOpen },
 ] satisfies Array<{ key: PageKey; label: string; icon: typeof Beaker }>;
 
 const pageTitle: Record<PageKey, string> = {
@@ -59,6 +63,7 @@ const pageTitle: Record<PageKey, string> = {
   data: "Data Sources",
   risk: "Risk",
   audit: "Audit Log",
+  manual: "User Manual",
 };
 
 function App() {
@@ -75,6 +80,7 @@ function App() {
       data: <DataHealth />,
       risk: <Risk />,
       audit: <AuditLog />,
+      manual: <Manual />,
     };
     return pages[active];
   }, [active]);
