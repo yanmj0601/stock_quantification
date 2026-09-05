@@ -3,11 +3,12 @@ import pytest
 from evoquant.domain import RiskMode
 from evoquant.services.evolution import EvolutionService, GeneratedCandidate, StrategyTemplate
 from evoquant.services.risk import RiskService
-from evoquant.storage import SQLiteStore, loads
+from evoquant.storage import PostgreSQLStore, loads
 
 
 def test_risk_service_starts_with_live_disabled(tmp_path):
-    service = RiskService(SQLiteStore(tmp_path / "state.db"))
+    store = PostgreSQLStore()
+    service = RiskService(store)
 
     state = service.current()
 
@@ -16,7 +17,7 @@ def test_risk_service_starts_with_live_disabled(tmp_path):
 
 
 def test_evolution_expands_template_parameter_space(tmp_path):
-    service = EvolutionService(SQLiteStore(tmp_path / "state.db"))
+    service = EvolutionService(PostgreSQLStore())
     template = StrategyTemplate("momentum", {"lookback": [20, 60], "threshold": [0.01, 0.03]})
 
     candidates = service.generate_candidates(template, max_candidates=3)
@@ -26,7 +27,7 @@ def test_evolution_expands_template_parameter_space(tmp_path):
 
 
 def test_paused_risk_mode_blocks_paper_trading(tmp_path):
-    service = RiskService(SQLiteStore(tmp_path / "state.db"))
+    service = RiskService(PostgreSQLStore())
     service.set_mode(RiskMode.PAUSED, reason="market halt")
 
     with pytest.raises(RuntimeError, match="paper trading is paused"):
@@ -34,14 +35,14 @@ def test_paused_risk_mode_blocks_paper_trading(tmp_path):
 
 
 def test_live_disabled_assertion_never_fails_in_v1(tmp_path):
-    service = RiskService(SQLiteStore(tmp_path / "state.db"))
+    service = RiskService(PostgreSQLStore())
     service.set_mode(RiskMode.PAPER_ONLY, reason="paper test")
 
     service.assert_live_disabled()
 
 
 def test_set_mode_persists_reason_and_audit_event(tmp_path):
-    store = SQLiteStore(tmp_path / "state.db")
+    store = PostgreSQLStore()
     service = RiskService(store)
 
     state = service.set_mode(RiskMode.PAPER_ONLY, reason="paper validation")
@@ -69,7 +70,7 @@ def test_set_mode_persists_reason_and_audit_event(tmp_path):
 
 
 def test_generate_candidates_rejects_non_positive_max_candidates(tmp_path):
-    service = EvolutionService(SQLiteStore(tmp_path / "state.db"))
+    service = EvolutionService(PostgreSQLStore())
     template = StrategyTemplate("momentum", {"lookback": [20]})
 
     with pytest.raises(ValueError, match="max_candidates must be positive"):
@@ -77,7 +78,7 @@ def test_generate_candidates_rejects_non_positive_max_candidates(tmp_path):
 
 
 def test_generated_candidate_parameters_are_deterministic_and_immutable(tmp_path):
-    service = EvolutionService(SQLiteStore(tmp_path / "state.db"))
+    service = EvolutionService(PostgreSQLStore())
     parameters = {"lookback": [20, 60], "threshold": [0.01, 0.03]}
     template = StrategyTemplate("momentum", parameters)
 
@@ -113,7 +114,7 @@ def test_generated_candidate_nested_parameters_are_immutable():
 
 
 def test_generated_candidate_copies_nested_template_values(tmp_path):
-    service = EvolutionService(SQLiteStore(tmp_path / "state.db"))
+    service = EvolutionService(PostgreSQLStore())
     filter_config = {"windows": [20, 60], "enabled": True}
     template = StrategyTemplate("momentum", {"filters": [filter_config]})
 

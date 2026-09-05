@@ -5,11 +5,11 @@ import pytest
 from evoquant.domain import Market, OrderDraftStatus, SignalSide
 from evoquant.services.drafts import PaperOrderDraftService
 from evoquant.services.paper import PaperTradingService
-from evoquant.storage import SQLiteStore
+from evoquant.storage import PostgreSQLStore
 
 
 def test_draft_lifecycle_requires_approval_before_submit(tmp_path):
-    store = SQLiteStore(tmp_path / "state.db")
+    store = PostgreSQLStore()
     account = PaperTradingService(store).create_account("paper-us", 100_000)
     service = PaperOrderDraftService(store)
 
@@ -39,7 +39,7 @@ def test_draft_lifecycle_requires_approval_before_submit(tmp_path):
 
 
 def test_blocked_draft_cannot_be_approved(tmp_path):
-    store = SQLiteStore(tmp_path / "state.db")
+    store = PostgreSQLStore()
     account = PaperTradingService(store).create_account("paper-cn", 100_000)
     service = PaperOrderDraftService(store)
 

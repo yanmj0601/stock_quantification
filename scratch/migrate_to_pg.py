@@ -1,7 +1,7 @@
 import os
 import sqlite3
 import time
-from evoquant.storage import SQLiteStore, PostgreSQLStore
+from evoquant.storage import PostgreSQLStore
 import psycopg2.extras
 
 # 默认的 PostgreSQL DSN 连接串（支持通过环境变量覆盖）

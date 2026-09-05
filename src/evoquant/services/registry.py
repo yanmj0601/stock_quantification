@@ -6,7 +6,7 @@ from types import MappingProxyType
 from typing import Any, Mapping
 
 from evoquant.domain import Market, StrategyStatus, new_id, utc_now
-from evoquant.storage import SQLiteStore, dumps, loads
+from evoquant.storage import PostgreSQLStore, dumps, loads
 
 
 @dataclass(frozen=True)
@@ -39,7 +39,7 @@ class RegisteredStrategy:
 
 
 class StrategyRegistry:
-    def __init__(self, store: SQLiteStore):
+    def __init__(self, store: PostgreSQLStore):
         self.store = store
 
     def create_strategy(

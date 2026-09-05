@@ -1,16 +1,16 @@
-from evoquant.storage import SQLiteStore
+from evoquant.storage import PostgreSQLStore
 
 
 def test_v2_tables_are_initialized(tmp_path):
-    store = SQLiteStore(tmp_path / "state.db")
+    store = PostgreSQLStore()
 
     with store.connection() as conn:
         rows = conn.execute(
             """
-            SELECT name
-            FROM sqlite_master
-            WHERE type = 'table'
-            ORDER BY name
+            SELECT table_name AS name
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            ORDER BY table_name
             """
         ).fetchall()
 
@@ -26,27 +26,3 @@ def test_v2_tables_are_initialized(tmp_path):
         "schedule_configs",
     }.issubset(table_names)
 
-
-def test_storage_migrates_existing_bar_sync_jobs_table(tmp_path):
-    db_path = tmp_path / "state.db"
-    store = SQLiteStore(db_path)
-    with store.connection() as conn:
-        conn.execute("DROP TABLE bar_sync_jobs")
-        conn.execute(
-            """
-            CREATE TABLE bar_sync_jobs (
-                id TEXT PRIMARY KEY,
-                market TEXT NOT NULL
-            )
-            """
-        )
-
-    SQLiteStore(db_path)
-
-    with SQLiteStore(db_path).connection() as conn:
-        columns = {
-            row["name"]
-            for row in conn.execute("PRAGMA table_info(bar_sync_jobs)").fetchall()
-        }
-    assert "scheduled_for" in columns
-    assert "target_symbols" in columns

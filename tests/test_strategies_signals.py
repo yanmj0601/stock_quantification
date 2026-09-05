@@ -10,7 +10,7 @@ from evoquant.services.strategies import (
     CrossSectionalMomentumStrategy,
     PortfolioConstructor,
 )
-from evoquant.storage import SQLiteStore
+from evoquant.storage import PostgreSQLStore
 
 
 def _series(
@@ -107,7 +107,7 @@ def test_insufficient_data_is_not_buyable():
 
 
 def test_signal_scanner_persists_scan_and_results(tmp_path):
-    store = SQLiteStore(tmp_path / "state.db")
+    store = PostgreSQLStore()
     bars = _series("AAA", 10, 1.0) + _series("BBB", 10, 0.1)
     scanner = SignalScanner(store)
 
@@ -138,7 +138,7 @@ def test_signal_scanner_persists_scan_and_results(tmp_path):
 
 
 def test_signal_scanner_enriches_results_from_instrument_master(tmp_path):
-    store = SQLiteStore(tmp_path / "state.db")
+    store = PostgreSQLStore()
     InstrumentMaster(store).upsert_many(
         [
             InstrumentRecord(
@@ -182,7 +182,7 @@ def test_signal_scanner_enriches_results_from_instrument_master(tmp_path):
 
 
 def test_signal_scanner_fails_market_below_coverage_threshold(tmp_path):
-    store = SQLiteStore(tmp_path / "state.db")
+    store = PostgreSQLStore()
     bars = _series("AAA", 10, 1.0)
     scanner = SignalScanner(store)
 

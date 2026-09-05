@@ -6,7 +6,7 @@ from evoquant.providers.base import ProviderBar
 from evoquant.services.auto_sync import AutoBarSyncService
 from evoquant.services.instruments import InstrumentMaster, InstrumentRecord
 from evoquant.services.market_data import MarketDataService
-from evoquant.storage import SQLiteStore
+from evoquant.storage import PostgreSQLStore
 
 
 class Provider:
@@ -53,7 +53,7 @@ def _instrument(symbol: str) -> InstrumentRecord:
 
 
 def test_auto_sync_creates_incremental_job_after_market_close_once_per_day(tmp_path):
-    store = SQLiteStore(tmp_path / "state.db")
+    store = PostgreSQLStore()
     InstrumentMaster(store).upsert_many([_instrument("AAA")])
     MarketDataService(store).sync_bars(Provider(), ["AAA"], Market.US, date(2026, 1, 1), date(2026, 1, 2))
     service = AutoBarSyncService(store, provider_factory=lambda market: Provider())
@@ -72,7 +72,7 @@ def test_auto_sync_creates_incremental_job_after_market_close_once_per_day(tmp_p
 
 
 def test_auto_sync_skips_market_without_initial_bars(tmp_path):
-    store = SQLiteStore(tmp_path / "state.db")
+    store = PostgreSQLStore()
     InstrumentMaster(store).upsert_many([_instrument("AAA")])
     service = AutoBarSyncService(store, provider_factory=lambda market: Provider())
 

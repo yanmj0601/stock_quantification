@@ -7,7 +7,7 @@ from evoquant.domain import Market, new_id, utc_now
 from evoquant.providers.base import MarketDataProvider
 from evoquant.services.instruments import InstrumentMaster
 from evoquant.services.market_data import MarketDataService
-from evoquant.storage import SQLiteStore, dumps, loads
+from evoquant.storage import PostgreSQLStore, dumps, loads
 
 
 @dataclass(frozen=True)
@@ -32,7 +32,7 @@ class BarSyncJob:
 
 
 class BarSyncJobService:
-    def __init__(self, store: SQLiteStore):
+    def __init__(self, store: PostgreSQLStore):
         self.store = store
 
     def create_job(

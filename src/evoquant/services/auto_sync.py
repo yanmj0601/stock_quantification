@@ -10,13 +10,13 @@ from evoquant.services.bar_sync import BarSyncJob, BarSyncJobService
 from evoquant.services.instruments import InstrumentMaster
 from evoquant.services.market_data import MarketDataService
 from evoquant.services.scheduler import SchedulerService
-from evoquant.storage import SQLiteStore
+from evoquant.storage import PostgreSQLStore
 
 
 class AutoBarSyncService:
     def __init__(
         self,
-        store: SQLiteStore,
+        store: PostgreSQLStore,
         provider_factory: Callable[[Market], MarketDataProvider],
     ):
         self.store = store

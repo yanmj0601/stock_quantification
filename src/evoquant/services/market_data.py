@@ -5,7 +5,7 @@ from datetime import date, timedelta
 
 from evoquant.domain import Market, new_id, utc_now
 from evoquant.providers.base import MarketDataProvider, ProviderBar
-from evoquant.storage import SQLiteStore, dumps, loads
+from evoquant.storage import PostgreSQLStore, dumps, loads
 
 
 @dataclass(frozen=True)
@@ -109,7 +109,7 @@ def _is_price_anomaly(bar: MarketBar) -> bool:
 
 
 class MarketDataService:
-    def __init__(self, store: SQLiteStore):
+    def __init__(self, store: PostgreSQLStore):
         self.store = store
 
     def sync_bars(

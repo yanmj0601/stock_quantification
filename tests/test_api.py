@@ -7,7 +7,7 @@ from evoquant.api import create_app
 from evoquant.api import _default_provider_factory
 from evoquant.domain import Market
 from evoquant.providers.base import ProviderBar, ProviderInstrument
-from evoquant.storage import SQLiteStore
+from evoquant.storage import PostgreSQLStore
 
 
 class ApiFakeProvider:
@@ -118,7 +118,7 @@ class LowCoverageApiFakeProvider:
 
 def _client(tmp_path, *, raise_server_exceptions=True, provider_factory=None):
     return TestClient(
-        create_app(SQLiteStore(tmp_path / "state.db"), provider_factory=provider_factory),
+        create_app(PostgreSQLStore(), provider_factory=provider_factory),
         raise_server_exceptions=raise_server_exceptions,
     )
 
@@ -589,7 +589,7 @@ def test_schedule_api_returns_default_market_schedules(tmp_path):
 
 
 def test_data_sync_api_uses_provider_and_persists_market_data(tmp_path):
-    store = SQLiteStore(tmp_path / "state.db")
+    store = PostgreSQLStore()
     client = TestClient(
         create_app(store, provider_factory=lambda market: ApiFakeProvider())
     )
@@ -697,7 +697,7 @@ def test_bar_sync_job_api_starts_background_job_and_lists_progress(tmp_path):
 
 
 def test_bar_sync_retry_api_creates_job_for_failed_symbols(tmp_path):
-    store = SQLiteStore(tmp_path / "state.db")
+    store = PostgreSQLStore()
     client = TestClient(
         create_app(store, provider_factory=lambda market: LowCoverageApiFakeProvider())
     )

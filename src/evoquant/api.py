@@ -27,7 +27,7 @@ from evoquant.services.registry import StrategyRegistry
 from evoquant.services.risk import RiskService
 from evoquant.services.scheduler import SchedulerService
 from evoquant.services.signals import SignalScanner
-from evoquant.storage import SQLiteStore, PostgreSQLStore, loads
+from evoquant.storage import PostgreSQLStore, loads
 
 
 ADMIN_CONSOLE_ORIGINS = (
@@ -124,14 +124,14 @@ class BarSyncJobCreate(BaseModel):
 
 
 class BarSyncRetryCreate(BaseModel):
-    batch_size: int = 1
+    batch_size: int = 25
 
 
 ProviderFactory = Callable[[Market], MarketDataProvider]
 
 
 def create_app(
-    store: SQLiteStore | PostgreSQLStore | None = None,
+    store: PostgreSQLStore | None = None,
     provider_factory: ProviderFactory | None = None,
     enable_auto_scheduler: bool = False,
 ) -> FastAPI:
@@ -142,13 +142,7 @@ def create_app(
         allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Content-Type"],
     )
-    if store is None:
-        db_url = os.environ.get("EVOQUANT_DB_URL", "").strip()
-        if db_url.startswith("postgresql://") or db_url.startswith("postgres://"):
-            store = PostgreSQLStore(db_url)
-        else:
-            store = SQLiteStore("var/evoquant.db")
-    app.state.store = store
+    app.state.store = store or PostgreSQLStore()
     app.state.provider_factory = provider_factory or _default_provider_factory
     app.state.auto_scheduler_stop = threading.Event()
     if enable_auto_scheduler:
@@ -731,7 +725,7 @@ def register_routes(app: FastAPI) -> None:
         ]
 
 
-def _store(app: FastAPI) -> SQLiteStore | PostgreSQLStore:
+def _store(app: FastAPI) -> PostgreSQLStore:
     return app.state.store
 
 
@@ -761,7 +755,7 @@ def _index_id(market: Market) -> str:
     raise RuntimeError(f"{market.value} sync is not supported yet")
 
 
-def _latest_sync_coverage(store: SQLiteStore | PostgreSQLStore, market: Market, *, has_cached_bars: bool) -> float:
+def _latest_sync_coverage(store: PostgreSQLStore, market: Market, *, has_cached_bars: bool) -> float:
     if not has_cached_bars:
         return 0.0
     with store.connection() as conn:

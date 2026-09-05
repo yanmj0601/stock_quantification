@@ -1,236 +1,11 @@
 from __future__ import annotations
 
 import json
+import os
 import re
-import sqlite3
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
-from pathlib import Path
 from typing import Any
-
-
-class SQLiteStore:
-    def __init__(self, path: str | Path):
-        self.path = Path(path)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.initialize()
-
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.path)
-        conn.row_factory = sqlite3.Row
-        return conn
-
-    @contextmanager
-    def connection(self) -> Iterator[sqlite3.Connection]:
-        conn = self._connect()
-        try:
-            yield conn
-        except Exception:
-            conn.rollback()
-            raise
-        else:
-            conn.commit()
-        finally:
-            conn.close()
-
-    def initialize(self) -> None:
-        with self.connection() as conn:
-            conn.executescript(
-                """
-                CREATE TABLE IF NOT EXISTS strategies (
-                    id TEXT PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    market TEXT NOT NULL,
-                    asset_class TEXT NOT NULL,
-                    template_id TEXT NOT NULL,
-                    parameters TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    version INTEGER NOT NULL,
-                    metrics TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS audit_events (
-                    id TEXT PRIMARY KEY,
-                    entity_id TEXT NOT NULL,
-                    event_type TEXT NOT NULL,
-                    payload TEXT NOT NULL,
-                    created_at TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS instruments (
-                    symbol TEXT NOT NULL,
-                    market TEXT NOT NULL,
-                    name TEXT NOT NULL,
-                    name_zh TEXT NOT NULL,
-                    exchange TEXT NOT NULL,
-                    currency TEXT NOT NULL,
-                    sector TEXT NOT NULL,
-                    index_membership TEXT NOT NULL,
-                    tradable INTEGER NOT NULL,
-                    lot_size INTEGER NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    PRIMARY KEY (symbol, market)
-                );
-                CREATE TABLE IF NOT EXISTS market_bars (
-                    symbol TEXT NOT NULL,
-                    market TEXT NOT NULL,
-                    session TEXT NOT NULL,
-                    open REAL NOT NULL,
-                    high REAL NOT NULL,
-                    low REAL NOT NULL,
-                    close REAL NOT NULL,
-                    volume REAL NOT NULL,
-                    amount REAL NOT NULL,
-                    adjusted INTEGER NOT NULL,
-                    suspended INTEGER NOT NULL,
-                    limit_up INTEGER NOT NULL,
-                    limit_down INTEGER NOT NULL,
-                    source TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    PRIMARY KEY (symbol, market, session)
-                );
-                CREATE TABLE IF NOT EXISTS market_sync_jobs (
-                    id TEXT PRIMARY KEY,
-                    market TEXT NOT NULL,
-                    provider TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    started_at TEXT NOT NULL,
-                    finished_at TEXT,
-                    total_symbols INTEGER NOT NULL,
-                    success_symbols INTEGER NOT NULL,
-                    failed_symbols INTEGER NOT NULL,
-                    coverage REAL NOT NULL,
-                    failures TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS market_quality_reports (
-                    id TEXT PRIMARY KEY,
-                    sync_job_id TEXT NOT NULL,
-                    market TEXT NOT NULL,
-                    missing_bars INTEGER NOT NULL,
-                    duplicate_bars INTEGER NOT NULL,
-                    price_anomalies INTEGER NOT NULL,
-                    suspended_count INTEGER NOT NULL,
-                    limit_up_count INTEGER NOT NULL,
-                    limit_down_count INTEGER NOT NULL,
-                    created_at TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS bar_sync_jobs (
-                    id TEXT PRIMARY KEY,
-                    market TEXT NOT NULL,
-                    mode TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    batch_size INTEGER NOT NULL,
-                    total_symbols INTEGER NOT NULL,
-                    completed_symbols INTEGER NOT NULL,
-                    success_symbols INTEGER NOT NULL,
-                    failed_symbols INTEGER NOT NULL,
-                    progress REAL NOT NULL,
-                    failures TEXT NOT NULL,
-                    target_symbols TEXT NOT NULL DEFAULT '[]',
-                    scheduled_for TEXT NOT NULL DEFAULT '',
-                    started_at TEXT,
-                    finished_at TEXT,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS signal_scans (
-                    id TEXT PRIMARY KEY,
-                    strategy_template TEXT NOT NULL,
-                    parameters TEXT NOT NULL,
-                    market_scope TEXT NOT NULL,
-                    as_of_date TEXT NOT NULL,
-                    coverage TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    error_message TEXT NOT NULL,
-                    created_at TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS signal_results (
-                    scan_id TEXT NOT NULL,
-                    symbol TEXT NOT NULL,
-                    market TEXT NOT NULL,
-                    name TEXT NOT NULL,
-                    name_zh TEXT NOT NULL,
-                    close REAL NOT NULL,
-                    signal TEXT NOT NULL,
-                    score REAL NOT NULL,
-                    target_weight REAL NOT NULL,
-                    reason TEXT NOT NULL,
-                    risk_flags TEXT NOT NULL,
-                    as_of_date TEXT NOT NULL,
-                    rank INTEGER NOT NULL,
-                    PRIMARY KEY (scan_id, symbol, market)
-                );
-                CREATE TABLE IF NOT EXISTS paper_order_drafts (
-                    id TEXT PRIMARY KEY,
-                    scan_id TEXT NOT NULL,
-                    account_id TEXT NOT NULL,
-                    strategy_id TEXT NOT NULL,
-                    symbol TEXT NOT NULL,
-                    market TEXT NOT NULL,
-                    side TEXT NOT NULL,
-                    target_weight REAL NOT NULL,
-                    current_weight REAL NOT NULL,
-                    estimated_quantity REAL NOT NULL,
-                    reference_price REAL NOT NULL,
-                    reason TEXT NOT NULL,
-                    risk_flags TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS schedule_configs (
-                    id TEXT PRIMARY KEY,
-                    market TEXT NOT NULL,
-                    enabled INTEGER NOT NULL,
-                    timezone TEXT NOT NULL,
-                    run_time TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                );
-                """
-            )
-            _ensure_column(
-                conn,
-                "bar_sync_jobs",
-                "scheduled_for",
-                "TEXT NOT NULL DEFAULT ''",
-            )
-            _ensure_column(
-                conn,
-                "bar_sync_jobs",
-                "target_symbols",
-                "TEXT NOT NULL DEFAULT '[]'",
-            )
-
-
-def dumps(value: Any) -> str:
-    return json.dumps(_thaw(value), ensure_ascii=False, sort_keys=True)
-
-
-def loads(value: str) -> Any:
-    return json.loads(value)
-
-
-def _ensure_column(
-    conn: sqlite3.Connection,
-    table_name: str,
-    column_name: str,
-    column_definition: str,
-) -> None:
-    columns = {
-        row["name"] for row in conn.execute(f"PRAGMA table_info({table_name})").fetchall()
-    }
-    if column_name not in columns:
-        conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}")
-
-
-def _thaw(value: Any) -> Any:
-    if isinstance(value, Mapping):
-        return {key: _thaw(nested) for key, nested in value.items()}
-    if isinstance(value, tuple):
-        return [_thaw(nested) for nested in value]
-    if isinstance(value, list):
-        return [_thaw(nested) for nested in value]
-    return value
 
 
 class PostgresCursorWrapper:
@@ -238,7 +13,7 @@ class PostgresCursorWrapper:
         self.raw_cursor = raw_cursor
 
     def execute(self, sql: str, params: Any = None):
-        # 1. 智能拦截并转换 SQLite PRAGMA table_info 检查为 PostgreSQL 的 information_schema 系统查询
+        # 1. 智能拦截并转换 PRAGMA table_info 检查为 PostgreSQL 的 information_schema 系统查询
         m = re.match(r"PRAGMA\s+table_info\((\w+)\)", sql.strip(), re.IGNORECASE)
         if m:
             table_name = m.group(1).lower()
@@ -250,7 +25,17 @@ class PostgresCursorWrapper:
             self.raw_cursor.execute(sql)
             return self
 
-        # 2. 将 SQLite 问号占位符 ? 动态转换为 PostgreSQL 格式 %s
+        # 2. 智能转译 sqlite_master 为 PostgreSQL 的 information_schema.tables
+        if "sqlite_master" in sql:
+            sql = sql.replace("sqlite_master", "information_schema.tables")
+            sql = sql.replace("type = 'table'", "table_schema = 'public'")
+            sql = sql.replace("ORDER BY name", "ORDER BY table_name")
+            sql = sql.replace("SELECT name", "SELECT table_name AS name")
+
+        # 3. 清理不可用的 SQLite 方言 rowid
+        sql = sql.replace(", rowid ASC", "").replace(", rowid DESC", "").replace("rowid ASC", "created_at ASC").replace("rowid DESC", "created_at DESC")
+
+        # 4. 将问号占位符 ? 动态转换为 PostgreSQL 格式 %s
         sql = sql.replace("?", "%s")
         self.raw_cursor.execute(sql, params)
         return self
@@ -277,7 +62,6 @@ class PostgresConnectionWrapper:
 
     def cursor(self):
         import psycopg2.extras
-        # 使用 DictCursor 获得与 sqlite3.Row 等价的 row['col'] 及 row[0] 访问机制
         raw_cur = self.raw_conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         return PostgresCursorWrapper(raw_cur)
 
@@ -287,11 +71,15 @@ class PostgresConnectionWrapper:
         return cur
 
     def executescript(self, script: str):
-        # 拦截并分句执行，清洗掉不支持的 REAL / INTEGER 方言关键字
         script = script.replace("REAL", "DOUBLE PRECISION")
         script = script.replace("INTEGER", "BIGINT")
         cur = self.cursor()
         cur.raw_cursor.execute(script)
+        return cur
+
+    def executemany(self, sql: str, seq_of_parameters: Any):
+        cur = self.cursor()
+        cur.executemany(sql, seq_of_parameters)
         return cur
 
     def commit(self):
@@ -305,8 +93,11 @@ class PostgresConnectionWrapper:
 
 
 class PostgreSQLStore:
-    def __init__(self, dsn: str):
-        self.dsn = dsn
+    def __init__(self, dsn: str | None = None):
+        self.dsn = dsn or os.environ.get(
+            "EVOQUANT_DB_URL",
+            "postgresql://postgres:password@192.168.124.18:45869/evoquant"
+        )
         self.initialize()
 
     def _connect(self):
@@ -494,3 +285,37 @@ class PostgreSQLStore:
                 "target_symbols",
                 "VARCHAR NOT NULL DEFAULT '[]'",
             )
+
+
+Store = PostgreSQLStore
+
+
+def dumps(value: Any) -> str:
+    return json.dumps(_thaw(value), ensure_ascii=False, sort_keys=True)
+
+
+def loads(value: str) -> Any:
+    return json.loads(value)
+
+
+def _ensure_column(
+    conn: Any,
+    table_name: str,
+    column_name: str,
+    column_definition: str,
+) -> None:
+    columns = {
+        row["name"] for row in conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+    }
+    if column_name not in columns:
+        conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}")
+
+
+def _thaw(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return {key: _thaw(nested) for key, nested in value.items()}
+    if isinstance(value, tuple):
+        return [_thaw(nested) for nested in value]
+    if isinstance(value, list):
+        return [_thaw(nested) for nested in value]
+    return value

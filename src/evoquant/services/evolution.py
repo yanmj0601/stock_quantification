@@ -6,7 +6,7 @@ from types import MappingProxyType
 from typing import Any, Mapping
 
 from evoquant.domain import new_id
-from evoquant.storage import SQLiteStore
+from evoquant.storage import PostgreSQLStore
 
 
 def _freeze_parameter_value(value: Any) -> Any:
@@ -36,7 +36,7 @@ class GeneratedCandidate:
 
 
 class EvolutionService:
-    def __init__(self, store: SQLiteStore):
+    def __init__(self, store: PostgreSQLStore):
         self.store = store
 
     def generate_candidates(

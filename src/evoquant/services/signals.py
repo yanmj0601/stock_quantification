@@ -7,7 +7,7 @@ from evoquant.domain import Market, new_id, utc_now
 from evoquant.services.instruments import InstrumentMaster, InstrumentRecord
 from evoquant.services.market_data import MarketBar
 from evoquant.services.strategies import CrossSectionalMomentumStrategy
-from evoquant.storage import SQLiteStore, dumps, loads
+from evoquant.storage import PostgreSQLStore, dumps, loads
 
 
 @dataclass(frozen=True)
@@ -41,7 +41,7 @@ class SignalResult:
 
 
 class SignalScanner:
-    def __init__(self, store: SQLiteStore):
+    def __init__(self, store: PostgreSQLStore):
         self.store = store
 
     def run_scan(

@@ -9,11 +9,11 @@ from evoquant.providers.csv import CsvMarketDataProvider
 from evoquant.providers.tiingo import TiingoProvider
 from evoquant.providers.yahoo import YahooFinanceProvider
 from evoquant.services.instruments import InstrumentMaster, InstrumentRecord
-from evoquant.storage import SQLiteStore
+from evoquant.storage import PostgreSQLStore
 
 
 def test_instrument_master_upserts_and_prefers_chinese_name(tmp_path):
-    store = SQLiteStore(tmp_path / "state.db")
+    store = PostgreSQLStore()
     master = InstrumentMaster(store)
 
     master.upsert_many(

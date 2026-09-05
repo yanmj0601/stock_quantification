@@ -1,14 +1,12 @@
-import sqlite3
-
 import pytest
 
 from evoquant.domain import Market, StrategyStatus
 from evoquant.services.registry import StrategyRegistry
-from evoquant.storage import SQLiteStore, dumps
+from evoquant.storage import PostgreSQLStore, dumps
 
 
 def test_strategy_registry_persists_versions_metrics_and_audit(tmp_path):
-    registry = StrategyRegistry(SQLiteStore(tmp_path / "state.db"))
+    registry = StrategyRegistry(PostgreSQLStore())
 
     strategy = registry.create_strategy(
         name="us_momentum_breakout",
@@ -38,7 +36,7 @@ def test_strategy_registry_persists_versions_metrics_and_audit(tmp_path):
 
 
 def test_record_metrics_rejects_missing_strategy_id(tmp_path):
-    registry = StrategyRegistry(SQLiteStore(tmp_path / "state.db"))
+    registry = StrategyRegistry(PostgreSQLStore())
 
     with pytest.raises(KeyError) as error:
         registry.record_metrics("str_missing", {"sharpe": 0.0})
@@ -48,7 +46,7 @@ def test_record_metrics_rejects_missing_strategy_id(tmp_path):
 
 
 def test_registered_strategy_mappings_are_immutable_and_copied(tmp_path):
-    registry = StrategyRegistry(SQLiteStore(tmp_path / "state.db"))
+    registry = StrategyRegistry(PostgreSQLStore())
     parameters = {
         "lookback": 60,
         "risk": {"stop_loss": 0.08, "tiers": [0.25, {"trail": 0.03}]},
@@ -89,7 +87,7 @@ def test_registered_strategy_mappings_are_immutable_and_copied(tmp_path):
 
 
 def test_audit_event_payload_is_immutable_and_copied(tmp_path):
-    registry = StrategyRegistry(SQLiteStore(tmp_path / "state.db"))
+    registry = StrategyRegistry(PostgreSQLStore())
     strategy = registry.create_strategy(
         name="us_momentum_breakout",
         market=Market.US,
@@ -111,7 +109,7 @@ def test_audit_event_payload_is_immutable_and_copied(tmp_path):
 
 
 def test_set_status_records_from_to_payload_and_missing_id_has_no_status_audit(tmp_path):
-    registry = StrategyRegistry(SQLiteStore(tmp_path / "state.db"))
+    registry = StrategyRegistry(PostgreSQLStore())
     strategy = registry.create_strategy(
         name="us_momentum_breakout",
         market=Market.US,
@@ -146,7 +144,7 @@ def test_set_status_records_from_to_payload_and_missing_id_has_no_status_audit(t
 
 
 def test_audit_events_with_same_timestamp_return_in_insertion_order(tmp_path):
-    store = SQLiteStore(tmp_path / "state.db")
+    store = PostgreSQLStore()
     entity_id = "str_same_timestamp"
     timestamp = "2026-05-17T00:00:00+00:00"
     with store.connection() as conn:
@@ -171,7 +169,7 @@ def test_audit_events_with_same_timestamp_return_in_insertion_order(tmp_path):
 
 
 def test_store_connection_commits_and_closes(tmp_path):
-    store = SQLiteStore(tmp_path / "state.db")
+    store = PostgreSQLStore()
 
     with store.connection() as conn:
         conn.execute(
@@ -188,7 +186,7 @@ def test_store_connection_commits_and_closes(tmp_path):
             ),
         )
 
-    with pytest.raises(sqlite3.ProgrammingError):
+    with pytest.raises(Exception):
         conn.execute("SELECT 1")
 
     events = StrategyRegistry(store).list_events(entity_id="str_closed")

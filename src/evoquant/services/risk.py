@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from evoquant.domain import RiskMode, new_id, utc_now
-from evoquant.storage import SQLiteStore, dumps
+from evoquant.storage import PostgreSQLStore, dumps
 
 
 _RISK_STATE_ID = "risk_state"
@@ -18,7 +18,7 @@ class RiskState:
 
 
 class RiskService:
-    def __init__(self, store: SQLiteStore):
+    def __init__(self, store: PostgreSQLStore):
         self.store = store
         self._initialize_schema()
 

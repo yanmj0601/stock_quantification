@@ -2,11 +2,11 @@ import pytest
 
 from evoquant.domain import Market
 from evoquant.services.paper import PaperTradingService
-from evoquant.storage import SQLiteStore, loads
+from evoquant.storage import PostgreSQLStore, loads
 
 
 def test_paper_trading_records_order_fill_position_and_nav(tmp_path):
-    service = PaperTradingService(SQLiteStore(tmp_path / "state.db"))
+    service = PaperTradingService(PostgreSQLStore())
     account = service.create_account("default", starting_cash=100_000)
 
     order = service.submit_order(account.id, "AAPL", Market.US, quantity=10, limit_price=100)
@@ -20,7 +20,7 @@ def test_paper_trading_records_order_fill_position_and_nav(tmp_path):
 
 
 def test_paper_trading_raises_for_unknown_account_and_order(tmp_path):
-    service = PaperTradingService(SQLiteStore(tmp_path / "state.db"))
+    service = PaperTradingService(PostgreSQLStore())
 
     with pytest.raises(KeyError) as account_error:
         service.submit_order("acct_missing", "AAPL", Market.US, quantity=10, limit_price=100)
@@ -32,7 +32,7 @@ def test_paper_trading_raises_for_unknown_account_and_order(tmp_path):
 
 
 def test_order_and_fill_write_audit_events(tmp_path):
-    store = SQLiteStore(tmp_path / "state.db")
+    store = PostgreSQLStore()
     service = PaperTradingService(store)
     account = service.create_account("default", starting_cash=100_000)
 
@@ -56,7 +56,7 @@ def test_order_and_fill_write_audit_events(tmp_path):
 
 
 def test_multiple_fills_update_weighted_average_cost(tmp_path):
-    service = PaperTradingService(SQLiteStore(tmp_path / "state.db"))
+    service = PaperTradingService(PostgreSQLStore())
     account = service.create_account("default", starting_cash=100_000)
 
     first = service.submit_order(account.id, "AAPL", Market.US, quantity=10, limit_price=100)

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from evoquant.domain import Market, new_id, utc_now
-from evoquant.storage import SQLiteStore
+from evoquant.storage import PostgreSQLStore
 
 
 @dataclass(frozen=True)
@@ -17,7 +17,7 @@ class ScheduleConfig:
 
 
 class SchedulerService:
-    def __init__(self, store: SQLiteStore):
+    def __init__(self, store: PostgreSQLStore):
         self.store = store
         self._ensure_defaults()
 

@@ -6,7 +6,7 @@ from datetime import date
 from evoquant.domain import Market, OrderDraftStatus, SignalSide, new_id, utc_now
 from evoquant.services.market_rules import MarketRulesService
 from evoquant.services.paper import PaperTradingService
-from evoquant.storage import SQLiteStore, dumps, loads
+from evoquant.storage import PostgreSQLStore, dumps, loads
 
 
 @dataclass(frozen=True)
@@ -28,7 +28,7 @@ class PaperOrderDraft:
 
 
 class PaperOrderDraftService:
-    def __init__(self, store: SQLiteStore):
+    def __init__(self, store: PostgreSQLStore):
         self.store = store
         self.paper = PaperTradingService(store)
         self.rules = MarketRulesService.defaults()

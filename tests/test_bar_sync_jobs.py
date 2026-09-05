@@ -5,7 +5,7 @@ from evoquant.providers.base import ProviderBar
 from evoquant.services.bar_sync import BarSyncJobService
 from evoquant.services.instruments import InstrumentMaster, InstrumentRecord
 from evoquant.services.market_data import MarketDataService
-from evoquant.storage import SQLiteStore
+from evoquant.storage import PostgreSQLStore
 
 
 class RecordingProvider:
@@ -117,7 +117,7 @@ def _instrument(symbol: str) -> InstrumentRecord:
 
 
 def test_initial_bar_sync_job_runs_in_batches_and_persists_progress(tmp_path):
-    store = SQLiteStore(tmp_path / "state.db")
+    store = PostgreSQLStore()
     InstrumentMaster(store).upsert_many([_instrument("AAA"), _instrument("BBB"), _instrument("CCC")])
     provider = RecordingProvider()
     service = BarSyncJobService(store)
@@ -135,7 +135,7 @@ def test_initial_bar_sync_job_runs_in_batches_and_persists_progress(tmp_path):
 
 
 def test_incremental_bar_sync_job_starts_after_latest_cached_session(tmp_path):
-    store = SQLiteStore(tmp_path / "state.db")
+    store = PostgreSQLStore()
     InstrumentMaster(store).upsert_many([_instrument("AAA")])
     provider = RecordingProvider()
     market_data = MarketDataService(store)
@@ -150,7 +150,7 @@ def test_incremental_bar_sync_job_starts_after_latest_cached_session(tmp_path):
 
 
 def test_retry_bar_sync_job_targets_failed_symbols_only(tmp_path):
-    store = SQLiteStore(tmp_path / "state.db")
+    store = PostgreSQLStore()
     InstrumentMaster(store).upsert_many([_instrument("AAA"), _instrument("BBB"), _instrument("CCC")])
     service = BarSyncJobService(store)
     original_provider = PartiallyAvailableProvider({"AAA"})
@@ -178,7 +178,7 @@ def test_retry_bar_sync_job_targets_failed_symbols_only(tmp_path):
 
 
 def test_bar_sync_job_falls_back_to_single_symbol_requests_after_batch_error(tmp_path):
-    store = SQLiteStore(tmp_path / "state.db")
+    store = PostgreSQLStore()
     InstrumentMaster(store).upsert_many([_instrument("AAA"), _instrument("BBB"), _instrument("CCC")])
     provider = FailingBatchProvider()
     service = BarSyncJobService(store)

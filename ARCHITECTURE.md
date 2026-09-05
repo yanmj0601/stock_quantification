@@ -47,9 +47,9 @@ EvoQuant 采用了模块化、解耦的分层量化架构：
                                     |
                                     v
 +-------------------------------------------------------------------------+
-|                   统一数据存储层 (Storage Layer)                         |
+|                   纯 PostgreSQL 存储层 (Storage Layer)                   |
 |   - 零侵入兼容适配器 (PostgresConnection / Cursor Wrapper)                |
-|   - 双引擎支持: SQLiteStore (本地) / PostgreSQLStore (NAS/集中式)        |
+|   - 纯粹专精: PostgreSQLStore (NAS/集中式高性能数据库)                    |
 +-------------------------------------------------------------------------+
 ```
 
@@ -60,7 +60,7 @@ EvoQuant 采用了模块化、解耦的分层量化架构：
 ### 技术栈
 *   **后端 Core**: Python 3.14+ / FastAPI / Uvicorn / Pydantic v2
 *   **数据处理与统计**: Pandas / NumPy / PyTest
-*   **数据库接入**: Python 内置 `sqlite3` / `psycopg2-binary` (PostgreSQL) / `paramiko` (远程DevOps)
+*   **数据库接入**: `psycopg2-binary` (PostgreSQL) / `paramiko` (远程DevOps)
 *   **行情接口**: `yfinance` (美股/SEC API) / `baostock` (A股全市场)
 *   **前端 Core**: React 18+ / TypeScript / Vite / Vanilla CSS (精美现代暗黑风 UI)
 
@@ -72,7 +72,7 @@ stock_quantification/
 ├── agent.md                    # Agent 行为偏好与架构维护规范
 ├── ARCHITECTURE.md             # 本架构文档
 ├── scratch/                    # 运维与数据迁移实用脚本集
-│   ├── migrate_to_pg.py        # SQLite ➡️ PostgreSQL 高速全量数据迁移脚本
+│   ├── migrate_to_pg.py        # 全量数据迁移与校验脚本
 │   ├── deploy_nas_docker.py    # 远程 NAS Docker 部署自动化脚本
 │   ├── upload_tar_to_nas.py    # 离线镜像 SFTP 高速直传脚本
 │   └── sync_cn_bars_3y.py      # A股3年行情增量同步脚本
@@ -80,7 +80,7 @@ stock_quantification/
 │   └── evoquant/               # 后端核心源码包
 │       ├── api.py              # FastAPI 应用入口与 REST 路由定义
 │       ├── domain.py           # 领域枚举与核心数据模型 (Market, SignalSide 等)
-│       ├── storage.py          # 存储层 (SQLiteStore & PostgreSQLStore 及兼容适配器)
+│       ├── storage.py          # 存储层 (PostgreSQLStore 纯粹存储引擎及兼容适配器)
 │       ├── metrics.py          # 量化性能指标计算模块 (Sharpe, MaxDrawdown 等)
 │       ├── providers/          # 行情源接入适配器 (Yahoo, Baostock, Tiingo, CSV)
 │       └── services/           # 核心业务服务逻辑
@@ -123,20 +123,19 @@ stock_quantification/
 
 ## 3. 数据存储层架构 (Storage Architecture)
 
-存储层在 `src/evoquant/storage.py` 中实现了**双存储引擎热切换与零侵入方言适配**：
+存储层在 `src/evoquant/storage.py` 中实现了**纯粹 PostgreSQL 存储引擎与零侵入方言适配**：
 
-### 双引擎设计
-1.  **`SQLiteStore`**：基于单文件 `var/evoquant.db`，开箱即用，无需配置外部依赖，非常适合单元测试和轻量本地研发。
-2.  **`PostgreSQLStore`**：基于集中式/NAS 数据库，当环境变量中配置了 `EVOQUANT_DB_URL`（如 `postgresql://postgres:password@192.168.124.18:45869/evoquant`）时自动激活。
+### 单一存储引擎设计
+*   **`PostgreSQLStore`**（兼别名 `Store`）：集中式高性能数据库驱动，系统唯一持久化引擎。连接 NAS/生产数据库（通过环境变量 `EVOQUANT_DB_URL`，例如 `postgresql://postgres:password@192.168.124.18:45869/evoquant`）。单元测试通过独立隔离数据库（`evoquant_test`）实现无污染隔离测试。
 
 ### 零侵入兼容适配器 (Adapter Pattern)
-为了避免修改系统中成百上千条业务 SQL，引入了 `PostgresConnectionWrapper` 与 `PostgresCursorWrapper`：
-*   **占位符自动转换**：运行时自动将 SQLite 的 `?` 占位符转换为 PostgreSQL 的 `%s` 方言。
-*   **元数据检查拦截**：自动将 SQLite 专有的 `PRAGMA table_info(table_name)` 翻译为 PostgreSQL 标准的 `information_schema.columns` 查询。
-*   **字典/元组二合一访问**：游标使用 `psycopg2.extras.DictCursor` 包装，返回行同时支持 `row["col"]` 键名与 `row[0]` 索引访问，100% 兼容 `sqlite3.Row`。
+为了避免大规模改写既有标准 SQL 语句，引入了 `PostgresConnectionWrapper` 与 `PostgresCursorWrapper`：
+*   **占位符自动转换**：运行时自动将通用 `?` 占位符转换为 PostgreSQL 的 `%s` 方言。
+*   **元数据与视图转译**：自动将 `PRAGMA table_info` 翻译为 PostgreSQL `information_schema.columns`，将 `sqlite_master` 转译为 `information_schema.tables`，并自动清理不可用方言字段。
+*   **字典/元组二合一访问**：游标使用 `psycopg2.extras.DictCursor` 包装，返回行同时支持 `row["col"]` 键名与 `row[0]` 索引访问。
 
 ### 变量数分批防抖 (Chunking Protection)
-在 `MarketDataService` 的 `list_bars` 与 `latest_session` 方法中，对传入的 `symbols` 数组强制进行每 **500 个一组的分批 Chunk 处理**，彻底解除了 SQLite / Postgres 在大批量 `IN (...)` 查询时的变量超限崩塌 Bug。
+在 `MarketDataService` 的 `list_bars` 与 `latest_session` 方法中，对传入的 `symbols` 数组强制进行每 **500 个一组的分批 Chunk 处理**，彻底解除在海量股票标的 `IN (...)` 查询时的变量超限与性能瓶颈。
 
 ### 核心表结构 Schema
 *   `instruments`：股票池标的字典 (PRIMARY KEY: `symbol`, `market`)

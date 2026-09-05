@@ -3,7 +3,7 @@ from datetime import date
 from evoquant.domain import Market
 from evoquant.providers.base import ProviderBar, ProviderInstrument
 from evoquant.services.market_data import MarketDataService
-from evoquant.storage import SQLiteStore
+from evoquant.storage import PostgreSQLStore
 
 
 class FakeProvider:
@@ -50,7 +50,7 @@ def _bar(symbol: str, session: date, close: float = 10.0) -> ProviderBar:
 
 
 def test_sync_bars_records_coverage_and_persists_bars(tmp_path):
-    service = MarketDataService(SQLiteStore(tmp_path / "state.db"))
+    service = MarketDataService(PostgreSQLStore())
     provider = FakeProvider([_bar("AAPL", date(2026, 1, 2))])
 
     job = service.sync_bars(
@@ -71,7 +71,7 @@ def test_sync_bars_records_coverage_and_persists_bars(tmp_path):
 
 
 def test_list_sync_jobs_exposes_timing_and_operator_message(tmp_path):
-    service = MarketDataService(SQLiteStore(tmp_path / "state.db"))
+    service = MarketDataService(PostgreSQLStore())
     provider = FakeProvider([_bar("AAPL", date(2026, 1, 2))])
 
     created = service.sync_bars(
@@ -90,7 +90,7 @@ def test_list_sync_jobs_exposes_timing_and_operator_message(tmp_path):
 
 
 def test_incremental_sync_starts_after_latest_cached_date(tmp_path):
-    service = MarketDataService(SQLiteStore(tmp_path / "state.db"))
+    service = MarketDataService(PostgreSQLStore())
     initial_provider = FakeProvider([_bar("AAPL", date(2026, 1, 2))])
     update_provider = FakeProvider([_bar("AAPL", date(2026, 1, 3), close=11.0)])
 

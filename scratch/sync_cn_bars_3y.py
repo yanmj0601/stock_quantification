@@ -1,11 +1,11 @@
 import datetime
 import time
-from evoquant.storage import SQLiteStore
+from evoquant.storage import PostgreSQLStore
 from evoquant.providers.baostock import BaostockProvider
 from evoquant.services.instruments import InstrumentMaster
 from evoquant.domain import Market, utc_now
 
-store = SQLiteStore("var/evoquant.db")
+store = PostgreSQLStore()
 provider = BaostockProvider()
 instruments = InstrumentMaster(store).list_by_market(Market.CN)
 symbols = [item.symbol for item in instruments if item.tradable]

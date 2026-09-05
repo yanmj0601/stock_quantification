@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from evoquant.domain import Market, utc_now
-from evoquant.storage import SQLiteStore
+from evoquant.storage import PostgreSQLStore
 
 
 @dataclass(frozen=True)
@@ -21,7 +21,7 @@ class InstrumentRecord:
 
 
 class InstrumentMaster:
-    def __init__(self, store: SQLiteStore):
+    def __init__(self, store: PostgreSQLStore):
         self.store = store
 
     def upsert_many(self, instruments: list[InstrumentRecord]) -> None:

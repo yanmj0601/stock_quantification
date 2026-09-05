@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from evoquant.domain import Market, new_id, utc_now
-from evoquant.storage import SQLiteStore, dumps
+from evoquant.storage import PostgreSQLStore, dumps
 
 
 @dataclass(frozen=True)
@@ -50,7 +50,7 @@ class PaperPosition:
 
 
 class PaperTradingService:
-    def __init__(self, store: SQLiteStore):
+    def __init__(self, store: PostgreSQLStore):
         self.store = store
         self._initialize_schema()
 
