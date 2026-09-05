@@ -45,6 +45,8 @@ function DataHealth() {
   const [jobs, setJobs] = useState<SyncJob[]>([]);
   const [barJobs, setBarJobs] = useState<BarSyncJob[]>([]);
   const [schedules, setSchedules] = useState<ScheduleConfig[]>([]);
+  const [state, setState] = useState("loading");
+  const [message, setMessage] = useState<string | null>(null);
   const isUsSyncing = state === "syncing" || barJobs.some((job) => job.market === "US" && (job.status === "queued" || job.status === "running"));
   const isCnSyncing = state === "syncing" || barJobs.some((job) => job.market === "CN" && (job.status === "queued" || job.status === "running"));
 

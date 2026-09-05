@@ -84,6 +84,15 @@ class SignalScanner:
         strategy = CrossSectionalMomentumStrategy(parameters)
         instruments = self._instrument_lookup(market_scope)
         results: list[SignalResult] = []
+
+        # Precompute latest closes to avoid O(N * M) search
+        latest_closes: dict[tuple[Market, str], tuple[object, float]] = {}
+        for bar in bars:
+            key = (bar.market, bar.symbol)
+            existing = latest_closes.get(key)
+            if existing is None or bar.session > existing[0]:
+                latest_closes[key] = (bar.session, bar.close)
+
         for market in market_scope:
             market_signals = strategy.generate(
                 market,
@@ -94,7 +103,7 @@ class SignalScanner:
             for rank, signal in enumerate(
                 sorted(market_signals, key=lambda item: item.score, reverse=True), start=1
             ):
-                latest_close = _latest_close(signal.symbol, signal.market, bars)
+                latest_close = latest_closes.get((signal.market, signal.symbol), (None, 0.0))[1]
                 instrument = instruments.get((signal.market, signal.symbol))
                 results.append(
                     SignalResult(

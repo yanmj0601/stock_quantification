@@ -67,10 +67,13 @@ class CrossSectionalMomentumStrategy:
         self,
         market: Market,
         universe: list[str],
-        bars: list[MarketBar],
+        bars: list[MarketBar] | dict[str, list[MarketBar]],
         current_positions: Mapping[str, float],
     ) -> list[StrategySignal]:
-        by_symbol = _bars_by_symbol(market, universe, bars)
+        if isinstance(bars, dict):
+            by_symbol = bars
+        else:
+            by_symbol = _bars_by_symbol(market, universe, bars)
         scored = [self._score_symbol(symbol, by_symbol.get(symbol, [])) for symbol in universe]
         eligible = [item for item in scored if item is not None]
         ranked = self._rank(eligible)

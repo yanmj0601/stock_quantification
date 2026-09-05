@@ -451,6 +451,12 @@ code {
   white-space: nowrap;
 }
 
+.primary-button.danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #ffffff;
+}
+
 .small-button {
   min-height: 28px;
   padding: 0 9px;

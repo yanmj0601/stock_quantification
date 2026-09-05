@@ -68,6 +68,8 @@ class BacktestRunner:
         parameters: Mapping[str, object],
         starting_cash: float,
     ) -> SignalBacktestResult:
+        import bisect
+
         strategy = CrossSectionalMomentumStrategy(parameters)
         rules = MarketRulesService.defaults()
         sessions = sorted({bar.session for bar in bars if bar.market is market})
@@ -79,13 +81,29 @@ class BacktestRunner:
         equity_curve: list[float] = []
         turnover_notional = 0.0
 
+        # Group and sort bars by symbol once
+        bars_by_symbol: dict[str, list[MarketBar]] = {}
+        for bar in bars:
+            if bar.market is market:
+                bars_by_symbol.setdefault(bar.symbol, []).append(bar)
+        for sym_bars in bars_by_symbol.values():
+            sym_bars.sort(key=lambda bar: bar.session)
+
         for session in sessions[lookback_long:]:
-            bars_to_date = [bar for bar in bars if bar.market is market and bar.session <= session]
-            latest_by_symbol = _latest_bars_for_session(bars_to_date, session)
+            by_symbol: dict[str, list[MarketBar]] = {}
+            latest_by_symbol: dict[str, MarketBar] = {}
+            for symbol in universe:
+                sym_bars = bars_by_symbol.get(symbol, [])
+                idx = bisect.bisect_right(sym_bars, session, key=lambda bar: bar.session)
+                if idx > 0:
+                    sliced = sym_bars[:idx]
+                    by_symbol[symbol] = sliced
+                    latest_by_symbol[symbol] = sliced[-1]
+
             if not latest_by_symbol:
                 continue
 
-            signals = strategy.generate(market, universe, bars_to_date, positions)
+            signals = strategy.generate(market, universe, by_symbol, positions)
             for signal in signals:
                 latest = latest_by_symbol.get(signal.symbol)
                 if latest is None or latest.close <= 0:

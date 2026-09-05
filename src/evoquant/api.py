@@ -139,7 +139,7 @@ def create_app(
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(ADMIN_CONSOLE_ORIGINS),
-        allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
+        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Content-Type"],
     )
     if store is None:
@@ -321,6 +321,13 @@ def register_routes(app: FastAPI) -> None:
             payload.name, payload.starting_cash
         )
         return _jsonable(account)
+
+    @app.delete("/api/paper/accounts/{account_id}", status_code=204)
+    def delete_paper_account(account_id: str) -> None:
+        try:
+            PaperTradingService(_store(app)).delete_account(account_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="account not found") from exc
 
     @app.post("/api/paper/orders", status_code=201)
     def create_paper_order(payload: PaperOrderCreate) -> dict[str, Any]:

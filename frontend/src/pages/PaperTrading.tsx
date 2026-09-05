@@ -1,6 +1,6 @@
 import { Check, CircleDollarSign, Plus, Send, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { apiGet, apiPatch, apiPost } from "../api";
+import { apiDelete, apiGet, apiPatch, apiPost } from "../api";
 
 type Account = { id: string; name: string; cash: number; nav: number };
 type Order = {
@@ -144,6 +144,20 @@ function PaperTrading() {
       });
   };
 
+  const deleteAccount = (accountId: string) => {
+    if (!window.confirm("Are you sure you want to delete this account and all its data?")) return;
+    setState("deleting");
+    apiDelete(`/api/paper/accounts/${accountId}`)
+      .then(() => {
+        setMessage("Account deleted.");
+        load("", true);
+      })
+      .catch((error: Error) => {
+        setMessage(error.message);
+        setState("ready");
+      });
+  };
+
   const submitOrder = () => {
     if (!selected) {
       setMessage("Create a paper account before submitting an order.");
@@ -204,6 +218,16 @@ function PaperTrading() {
         >
           <Plus size={16} /> Account
         </button>
+        {selected && selected !== "offline" && (
+          <button
+            className="primary-button danger"
+            disabled={state === "fallback" || state === "deleting"}
+            type="button"
+            onClick={() => deleteAccount(selected)}
+          >
+            <X size={16} /> Delete Account
+          </button>
+        )}
       </div>
       {message && <p className="inline-message" role="status">{message}</p>}
       <div className="panel-grid two">

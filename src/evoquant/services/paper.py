@@ -72,6 +72,22 @@ class PaperTradingService:
             )
         return account
 
+    def delete_account(self, account_id: str) -> None:
+        with self.store.connection() as conn:
+            if self._account_row(conn, account_id) is None:
+                raise KeyError(account_id)
+            conn.execute("DELETE FROM paper_accounts WHERE id = ?", (account_id,))
+            conn.execute("DELETE FROM paper_positions WHERE account_id = ?", (account_id,))
+            conn.execute("DELETE FROM paper_orders WHERE account_id = ?", (account_id,))
+            conn.execute("DELETE FROM paper_fills WHERE account_id = ?", (account_id,))
+            conn.execute("DELETE FROM paper_order_drafts WHERE account_id = ?", (account_id,))
+            self._append_event(
+                conn,
+                account_id,
+                "paper.account_deleted",
+                {"account_id": account_id},
+            )
+
     def submit_order(
         self,
         account_id: str,

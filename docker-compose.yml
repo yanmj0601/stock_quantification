@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      # Persistent volume for the SQLite database so data is saved across restarts.
+      - ./var:/app/var
+    environment:
+      - EVOQUANT_DB_URL=sqlite:////app/var/evoquant.db
+    ports:
+      - "8000:8000"
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE=
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: always
