@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import datetime
+from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
 from evoquant.domain import Market
@@ -64,20 +64,19 @@ class AutoBarSyncService:
         return created
 
     def run_auto_trading(self, market: Market, today: date) -> None:
-        from datetime import date
         from evoquant.services.signals import SignalScanner
         from evoquant.services.drafts import PaperOrderDraftService
-        from evoquant.domain import SignalSide, OrderDraftStatus
+        from evoquant.domain import SignalSide
         from evoquant.api import _latest_sync_coverage
 
-        # 1. Fetch all active paper accounts
+        # 1. 读取全部模拟账户。
         with self.store.connection() as conn:
             account_rows = conn.execute("SELECT id, name, cash, nav FROM paper_accounts").fetchall()
         
         if not account_rows:
             return
 
-        # 2. Get all tradable instruments for this market
+        # 2. 读取当前市场的全部可交易标的。
         symbols = [
             item.symbol
             for item in InstrumentMaster(self.store).list_by_market(market)
@@ -86,7 +85,7 @@ class AutoBarSyncService:
         if not symbols:
             return
 
-        # 3. Load bars for signals (optimized date range)
+        # 3. 按策略所需的最小日期范围加载信号行情。
         lookback_long = 120
         limit = lookback_long + 30
         with self.store.connection() as conn:
@@ -103,7 +102,7 @@ class AutoBarSyncService:
         bars = MarketDataService(self.store).list_bars(market, symbols, start_date, today)
         coverage_val = _latest_sync_coverage(self.store, market, has_cached_bars=bool(bars))
 
-        # 4. Run automated trading for each account
+        # 4. 为每个账户运行自动研究流程。
         draft_service = PaperOrderDraftService(self.store)
         scanner = SignalScanner(self.store)
 
@@ -111,7 +110,7 @@ class AutoBarSyncService:
             account_id = act_row["id"]
             account_nav = float(act_row["nav"])
 
-            # Get current positions
+            # 读取当前持仓。
             with self.store.connection() as conn:
                 positions = conn.execute(
                     "SELECT symbol, quantity, average_cost FROM paper_positions WHERE account_id = ?",
@@ -119,14 +118,14 @@ class AutoBarSyncService:
                 ).fetchall()
             pos_map = {pos["symbol"]: float(pos["quantity"]) for pos in positions}
 
-            # Run signal scan
+            # 运行信号扫描。
             scan = scanner.run_scan(
                 strategy_template="cross_sectional_momentum",
                 parameters={
                     "lookback_long": 120,
                     "lookback_short": 20,
                     "top_n": 20,
-                    "hold_rank": 50,
+                    "exit_rank": 50,
                     "max_weight": 0.08,
                     "min_amount": 10000000,
                     "max_volatility": 0.45,
@@ -142,20 +141,20 @@ class AutoBarSyncService:
             if scan.status != "success":
                 continue
 
-            # Fetch signal results
+            # 读取信号结果。
             results = scanner.list_results(scan.id)
 
             for result in results:
-                # We only trade BUY and SELL signals
+                # 只有买入和卖出信号需要创建草稿。
                 if result.signal not in ("buy", "sell"):
                     continue
 
-                # Calculate current weight
+                # 计算当前持仓权重。
                 pos = next((p for p in positions if p["symbol"] == result.symbol), None)
                 current_weight = (float(pos["quantity"]) * result.close) / account_nav if pos else 0.0
 
-                # Create paper order draft
-                draft = draft_service.create_draft(
+                # 创建模拟订单草稿。
+                draft_service.create_draft(
                     scan_id=scan.id,
                     account_id=account_id,
                     strategy_id="cross_sectional_momentum",
@@ -170,10 +169,7 @@ class AutoBarSyncService:
                     trade_session=today,
                 )
 
-                # Auto-approve and auto-submit if DRAFT status
-                if draft.status is OrderDraftStatus.DRAFT:
-                    approved = draft_service.approve(draft.id)
-                    draft_service.submit(approved.id)
+                # 定时研究只留下草稿，必须由人工明确审批。
 
     def _already_ran(self, market: Market, local_date: str) -> bool:
         with self.store.connection() as conn:

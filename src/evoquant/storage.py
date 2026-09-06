@@ -20,7 +20,7 @@ class PostgresCursorWrapper:
             sql = f"""
             SELECT column_name AS name
             FROM information_schema.columns
-            WHERE table_name = '{table_name}'
+            WHERE table_name = '{table_name}' AND table_schema = current_schema()
             """
             self.raw_cursor.execute(sql)
             return self
@@ -28,7 +28,7 @@ class PostgresCursorWrapper:
         # 2. 智能转译 sqlite_master 为 PostgreSQL 的 information_schema.tables
         if "sqlite_master" in sql:
             sql = sql.replace("sqlite_master", "information_schema.tables")
-            sql = sql.replace("type = 'table'", "table_schema = 'public'")
+            sql = sql.replace("type = 'table'", "table_schema = current_schema()")
             sql = sql.replace("ORDER BY name", "ORDER BY table_name")
             sql = sql.replace("SELECT name", "SELECT table_name AS name")
 

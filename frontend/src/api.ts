@@ -7,7 +7,7 @@ async function readError(response: Response, path: string): Promise<Error> {
       return new Error(`${path}: ${payload.detail}`);
     }
   } catch {
-    // Keep the network error focused on the failed request when the body is not JSON.
+    // 响应体不是 JSON 时，只保留当前失败请求的关键信息。
   }
   return new Error(`${path} failed with ${response.status}`);
 }

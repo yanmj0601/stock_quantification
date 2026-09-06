@@ -68,3 +68,53 @@ def test_multiple_fills_update_weighted_average_cost(tmp_path):
 
     assert position.quantity == 30
     assert position.average_cost == pytest.approx(106.6666666667)
+
+
+def test_sell_reduces_quantity_without_changing_remaining_cost():
+    service = PaperTradingService(PostgreSQLStore())
+    account = service.create_account("sell", 100_000)
+    buy = service.submit_order(account.id, "AAPL", Market.US, 10, 100)
+    service.fill_order(buy.id, 100, 0)
+    sell = service.submit_order(account.id, "AAPL", Market.US, -4, 120)
+    service.fill_order(sell.id, 120, 0)
+    position = service.list_positions(account.id)[0]
+    assert position.quantity == 6
+    assert position.average_cost == 100
+
+
+def test_full_close_removes_position_and_realizes_cash():
+    service = PaperTradingService(PostgreSQLStore())
+    account = service.create_account("close", 100_000)
+    buy = service.submit_order(account.id, "AAPL", Market.US, 10, 100)
+    service.fill_order(buy.id, 100, 0)
+    sell = service.submit_order(account.id, "AAPL", Market.US, -10, 120)
+    service.fill_order(sell.id, 120, 0)
+    assert service.list_positions(account.id) == []
+    assert service.mark_to_market(account.id, {}).cash == 100_200
+
+
+def test_order_cannot_fill_twice():
+    store = PostgreSQLStore()
+    service = PaperTradingService(store)
+    account = service.create_account("duplicate", 100_000)
+    order = service.submit_order(account.id, "AAPL", Market.US, 10, 100)
+    service.fill_order(order.id, 100, 0)
+    with pytest.raises(RuntimeError, match="already filled"):
+        service.fill_order(order.id, 100, 0)
+    assert service.list_positions(account.id)[0].quantity == 10
+    with store.connection() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM paper_fills").fetchone()[0] == 1
+
+
+def test_submit_order_rejects_insufficient_cash_and_oversell():
+    store = PostgreSQLStore()
+    service = PaperTradingService(store)
+    account = service.create_account("limits", 1_000)
+
+    with pytest.raises(RuntimeError, match="insufficient cash"):
+        service.submit_order(account.id, "AAPL", Market.US, 11, 100)
+    with pytest.raises(RuntimeError, match="cannot sell more than the current position"):
+        service.submit_order(account.id, "AAPL", Market.US, -1, 100)
+
+    with store.connection() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM paper_orders").fetchone()[0] == 0

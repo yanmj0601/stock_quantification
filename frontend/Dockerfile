@@ -1,4 +1,4 @@
-# Stage 1: Build React app
+# 第一阶段：构建 React 应用。
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
@@ -8,7 +8,7 @@ ARG VITE_API_BASE
 ENV VITE_API_BASE=$VITE_API_BASE
 RUN npm run build
 
-# Stage 2: Serve static files with Nginx
+# 第二阶段：使用 Nginx 提供静态文件。
 FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf

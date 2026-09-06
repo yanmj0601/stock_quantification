@@ -1,26 +1,20 @@
-import socket
+"""扫描显式提供的 NAS 主机端口。"""
 import concurrent.futures
+import os
+import socket
 
-def check_port(port):
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(0.3)
-        res = s.connect_ex(('192.168.124.14', port))
-        s.close()
-        if res == 0:
-            return port
-    except Exception:
-        pass
-    return None
 
-print("Scanning all open ports on NAS (192.168.124.14)...")
-open_ports = []
+host = os.environ.get("NAS_HOST")
+if not host:
+    raise SystemExit("Set NAS_HOST before running this script")
+
+
+def check_port(port: int):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as connection:
+        connection.settimeout(0.3)
+        return port if connection.connect_ex((host, port)) == 0 else None
+
+
 with concurrent.futures.ThreadPoolExecutor(max_workers=200) as executor:
-    futures = [executor.submit(check_port, p) for p in range(1, 10000)]
-    for f in concurrent.futures.as_completed(futures):
-        p = f.result()
-        if p:
-            open_ports.append(p)
-            print(f"  FOUND Open Port: {p}")
-
-print("\nNAS Open ports list:", sorted(open_ports))
+    open_ports = [port for port in executor.map(check_port, range(1, 10000)) if port]
+print(open_ports)

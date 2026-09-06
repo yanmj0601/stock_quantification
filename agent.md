@@ -4,5 +4,5 @@
 
 ## 核心架构设计与文档维护规范
 
-- **系统架构主文档**：[ARCHITECTURE.md](file:///Users/juxiantan/ai_agent_project/stock_quantification/ARCHITECTURE.md)
-- **同步更新规则**：每当在项目中修改或新增核心业务代码、底层数据结构、数据存储模式（SQLite/PostgreSQL）、API 路由、策略算法或前端页面时，**必须同时更新 [ARCHITECTURE.md](file:///Users/juxiantan/ai_agent_project/stock_quantification/ARCHITECTURE.md) 文档**，确保系统架构设计与最新实战代码 100% 保持一致。
+- **文档入口**：[docs/README.md](docs/README.md)
+- **同步更新规则**：修改产品流程、架构、数据结构、API、策略算法或前端页面时，必须在同一变更中更新 `docs/` 下对应现行文档及 `docs/openapi.json`、`docs/sql/初始化.sql` 等生成契约。具体映射见 [开发规范](docs/开发规范文档.md)。

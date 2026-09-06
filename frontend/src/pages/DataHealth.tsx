@@ -139,7 +139,7 @@ function DataHealth() {
         <div className="kpi-tile"><DatabaseZap size={18} /><span>Datasets</span><strong>{payload.dataset_count}</strong></div>
         <div className="kpi-tile"><RadioTower size={18} /><span>Bar Jobs</span><strong>{barJobs.length}</strong></div>
         <div className="kpi-tile"><Clock3 size={18} /><span>Schedules</span><strong>{schedules.filter((schedule) => schedule.enabled).length}</strong></div>
-        <div className="kpi-tile"><HardDrive size={18} /><span>Storage</span><strong>SQLite</strong></div>
+        <div className="kpi-tile"><HardDrive size={18} /><span>Storage</span><strong>PostgreSQL</strong></div>
       </div>
       <div className="panel-grid two">
         <section className="panel">

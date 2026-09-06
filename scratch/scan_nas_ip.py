@@ -1,36 +1,19 @@
-import socket
+"""扫描显式提供的 /24 子网中的常见 NAS 服务端口。"""
 import concurrent.futures
+import os
+import socket
 
-def check_target(ip, port):
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(0.4)
-        result = s.connect_ex((ip, port))
-        s.close()
-        if result == 0:
-            return (ip, port)
-    except Exception:
-        pass
-    return None
 
-def main():
-    print("Scanning subnet 192.168.124.X for NAS services...")
-    ips = [f"192.168.124.{i}" for i in range(1, 255) if i != 16]
-    ports = [5432, 5000, 5001, 80, 22]
-    
-    tasks = [(ip, p) for ip in ips for p in ports]
-    found = []
-    
-    with concurrent.futures.ThreadPoolExecutor(max_workers=100) as executor:
-        futures = [executor.submit(check_target, ip, p) for ip, p in tasks]
-        for f in concurrent.futures.as_completed(futures):
-            res = f.result()
-            if res:
-                found.append(res)
-                print(f"  --> FOUND Active Service: IP={res[0]}, Port={res[1]}")
+def check_target(ip: str, port: int):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as connection:
+        connection.settimeout(0.4)
+        return (ip, port) if connection.connect_ex((ip, port)) == 0 else None
 
-    print("\nScan completed!")
-    print("Found active endpoints:", found)
 
-if __name__ == "__main__":
-    main()
+subnet = os.environ.get("NAS_SUBNET")
+if not subnet:
+    raise SystemExit("Set NAS_SUBNET to the first three IPv4 octets, for example 192.0.2")
+targets = [(f"{subnet}.{host}", port) for host in range(1, 255) for port in (5432, 5000, 5001, 80, 22)]
+with concurrent.futures.ThreadPoolExecutor(max_workers=100) as executor:
+    found = [result for result in executor.map(lambda target: check_target(*target), targets) if result]
+print(found)

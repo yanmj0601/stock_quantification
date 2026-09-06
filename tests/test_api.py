@@ -621,7 +621,7 @@ def test_data_sync_api_uses_provider_and_persists_market_data(tmp_path):
             "markets": ["US"],
             "parameters": {
                 "top_n": 1,
-                "hold_rank": 2,
+                "exit_rank": 2,
                 "lookback_long": 1,
                 "lookback_short": 1,
                 "max_weight": 0.08,
@@ -748,7 +748,7 @@ def test_signal_scan_api_uses_latest_sync_coverage_gate(tmp_path):
             "markets": ["US"],
             "parameters": {
                 "top_n": 1,
-                "hold_rank": 2,
+                "exit_rank": 2,
                 "lookback_long": 1,
                 "lookback_short": 1,
                 "max_weight": 0.08,

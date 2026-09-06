@@ -96,6 +96,10 @@ class PaperTradingService:
         quantity: float,
         limit_price: float,
     ) -> PaperOrder:
+        if quantity == 0:
+            raise ValueError("quantity must be non-zero")
+        if limit_price <= 0:
+            raise ValueError("limit_price must be positive")
         created_at = utc_now()
         order = PaperOrder(
             id=new_id("ord"),
@@ -108,8 +112,23 @@ class PaperTradingService:
             created_at=created_at,
         )
         with self.store.connection() as conn:
-            if self._account_row(conn, account_id) is None:
+            account_row = self._account_row(conn, account_id)
+            if account_row is None:
                 raise KeyError(account_id)
+            if order.quantity > 0 and order.quantity * order.limit_price > float(account_row["cash"]):
+                raise RuntimeError("insufficient cash for paper order")
+            if order.quantity < 0:
+                position_row = conn.execute(
+                    """
+                    SELECT quantity
+                    FROM paper_positions
+                    WHERE account_id = ? AND symbol = ? AND market = ?
+                    """,
+                    (account_id, symbol, market.value),
+                ).fetchone()
+                available = float(position_row["quantity"]) if position_row else 0.0
+                if abs(order.quantity) > available:
+                    raise RuntimeError("cannot sell more than the current position")
             conn.execute(
                 """
                 INSERT INTO paper_orders (
@@ -147,7 +166,7 @@ class PaperTradingService:
         with self.store.connection() as conn:
             order_row = conn.execute(
                 """
-                SELECT id, account_id, symbol, market, quantity
+                SELECT id, account_id, symbol, market, quantity, status
                 FROM paper_orders
                 WHERE id = ?
                 """,
@@ -155,6 +174,12 @@ class PaperTradingService:
             ).fetchone()
             if order_row is None:
                 raise KeyError(order_id)
+            if order_row["status"] == "filled":
+                raise RuntimeError("order is already filled")
+            if fill_price <= 0:
+                raise ValueError("fill_price must be positive")
+            if fee < 0:
+                raise ValueError("fee must be non-negative")
 
             fill = PaperFill(
                 id=new_id("fill"),
@@ -313,6 +338,8 @@ class PaperTradingService:
             (fill.account_id, fill.symbol, fill.market.value),
         ).fetchone()
         if row is None:
+            if fill.quantity < 0:
+                raise RuntimeError("paper trading cannot create a short position")
             conn.execute(
                 """
                 INSERT INTO paper_positions (
@@ -333,9 +360,23 @@ class PaperTradingService:
         existing_quantity = float(row["quantity"])
         existing_cost = float(row["average_cost"])
         new_quantity = existing_quantity + fill.quantity
-        new_cost = (
-            (existing_quantity * existing_cost) + (fill.quantity * fill.fill_price)
-        ) / new_quantity
+        if new_quantity < 0:
+            raise RuntimeError("paper trading cannot create a short position")
+        if new_quantity == 0:
+            conn.execute(
+                """
+                DELETE FROM paper_positions
+                WHERE account_id = ? AND symbol = ? AND market = ?
+                """,
+                (fill.account_id, fill.symbol, fill.market.value),
+            )
+            return
+        if fill.quantity < 0:
+            new_cost = existing_cost
+        else:
+            new_cost = (
+                (existing_quantity * existing_cost) + (fill.quantity * fill.fill_price)
+            ) / new_quantity
         conn.execute(
             """
             UPDATE paper_positions

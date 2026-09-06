@@ -7,7 +7,7 @@ import psycopg2.extras
 # 默认的 PostgreSQL DSN 连接串（支持通过环境变量覆盖）
 PG_DSN = os.environ.get(
     "EVOQUANT_DB_URL",
-    "postgresql://postgres:mysecretpassword@localhost:5432/evoquant"
+    "postgresql://localhost:5432/evoquant"
 )
 SQLITE_PATH = "var/evoquant.db"
 

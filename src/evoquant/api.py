@@ -13,6 +13,7 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from evoquant import __version__
 from evoquant.domain import Market, RiskMode, SignalSide, StrategyStatus
 from evoquant.providers.base import MarketDataProvider, ProviderInstrument
 from evoquant.services.auto_sync import AutoBarSyncService
@@ -135,14 +136,15 @@ def create_app(
     provider_factory: ProviderFactory | None = None,
     enable_auto_scheduler: bool = False,
 ) -> FastAPI:
-    app = FastAPI(title="EvoQuant API")
+    app = FastAPI(title="EvoQuant API", version=__version__)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(ADMIN_CONSOLE_ORIGINS),
         allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Content-Type"],
     )
-    app.state.store = store or PostgreSQLStore()
+    app.state.store = store
+    app.state.store_lock = threading.Lock()
     app.state.provider_factory = provider_factory or _default_provider_factory
     app.state.auto_scheduler_stop = threading.Event()
     if enable_auto_scheduler:
@@ -341,7 +343,7 @@ def register_routes(app: FastAPI) -> None:
             service.fill_order(order.id, payload.limit_price, fee=0.0)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="account not found") from exc
-        except RuntimeError as exc:
+        except (RuntimeError, ValueError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {**_jsonable(order), "status": "filled"}
 
@@ -612,7 +614,7 @@ def register_routes(app: FastAPI) -> None:
             master = InstrumentMaster(store)
             existing = master.list_by_market(market)
             
-            # 如果股票池尚未初始化，或者目前还是少于 1000 只股票的标普500旧池，自动自动热升级为全市场
+            # 股票池未初始化或仍是小型旧股票池时，刷新为 provider 的全量股票池。
             if len(existing) < 1000:
                 provider = _provider_factory(app)(market)
                 instruments = provider.sync_instruments(_index_id(market))
@@ -653,15 +655,18 @@ def register_routes(app: FastAPI) -> None:
             if symbols:
                 bars.extend(market_data.list_bars(market, symbols, date(1900, 1, 1), date.today()))
 
-        scan = SignalScanner(store).run_scan(
-            strategy_template=payload.strategy_template,
-            parameters=payload.parameters,
-            market_scope=payload.markets,
-            universe=universe,
-            bars=bars,
-            coverage=coverage,
-            current_positions={},
-        )
+        try:
+            scan = SignalScanner(store).run_scan(
+                strategy_template=payload.strategy_template,
+                parameters=payload.parameters,
+                market_scope=payload.markets,
+                universe=universe,
+                bars=bars,
+                coverage=coverage,
+                current_positions={},
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         if scan.status == "failed":
             raise HTTPException(status_code=400, detail=scan.error_message)
         return _jsonable(scan)
@@ -701,6 +706,8 @@ def register_routes(app: FastAPI) -> None:
 
     @app.patch("/api/schedules/{market}")
     def update_schedule(market: Market, payload: ScheduleUpdate) -> dict[str, Any]:
+        if market not in {Market.US, Market.CN}:
+            raise HTTPException(status_code=400, detail=f"{market.value} schedule is not supported yet")
         return _jsonable(SchedulerService(_store(app)).set_enabled(market, payload.enabled))
 
     @app.get("/api/audit-events")
@@ -726,6 +733,10 @@ def register_routes(app: FastAPI) -> None:
 
 
 def _store(app: FastAPI) -> PostgreSQLStore:
+    if app.state.store is None:
+        with app.state.store_lock:
+            if app.state.store is None:
+                app.state.store = PostgreSQLStore()
     return app.state.store
 
 

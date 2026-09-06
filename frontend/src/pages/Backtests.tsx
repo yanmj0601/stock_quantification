@@ -15,7 +15,7 @@ type BacktestResult = { strategy_id: string; metrics: Record<string, number> };
 type SignalBacktestResult = {
   metrics: Record<string, number>;
   trades: unknown[];
-  equity_curve: Array<{ session: string; equity: number; drawdown: number }>;
+  equity_curve: number[];
 };
 
 const fallbackStrategies: Strategy[] = [
@@ -55,8 +55,8 @@ function Backtests() {
   }, []);
 
   const chartData = useMemo(
-    () => equity.map((value, index) => ({ step: index + 1, equity: value })),
-    [],
+    () => (signalResult?.equity_curve ?? equity).map((value, index) => ({ step: index + 1, equity: value })),
+    [signalResult],
   );
 
   const run = () => {
@@ -106,7 +106,7 @@ function Backtests() {
         lookback_long: 120,
         lookback_short: 20,
         top_n: 20,
-        hold_rank: 50,
+        exit_rank: 50,
         max_weight: 0.08,
       },
       starting_cash: 100000,
@@ -184,7 +184,7 @@ function Backtests() {
         <section className="panel">
           <div className="panel-header">
             <h2>Equity Path</h2>
-            <span>8 observations</span>
+            <span>{chartData.length} observations</span>
           </div>
           <div className="chart-box">
             <ResponsiveContainer width="100%" height="100%" minHeight={240} minWidth={240}>

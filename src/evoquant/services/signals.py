@@ -85,7 +85,7 @@ class SignalScanner:
         instruments = self._instrument_lookup(market_scope)
         results: list[SignalResult] = []
 
-        # Precompute latest closes to avoid O(N * M) search
+        # 预先计算最新收盘价，避免 O(N × M) 的重复查询。
         latest_closes: dict[tuple[Market, str], tuple[object, float]] = {}
         for bar in bars:
             key = (bar.market, bar.symbol)

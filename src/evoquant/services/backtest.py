@@ -81,7 +81,7 @@ class BacktestRunner:
         equity_curve: list[float] = []
         turnover_notional = 0.0
 
-        # Group and sort bars by symbol once
+        # 行情按标的一次性分组和排序，避免每个交易日重复处理。
         bars_by_symbol: dict[str, list[MarketBar]] = {}
         for bar in bars:
             if bar.market is market:

@@ -1,0 +1,1731 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "EvoQuant API",
+    "version": "0.2.0"
+  },
+  "paths": {
+    "/healthz": {
+      "get": {
+        "summary": "Healthz",
+        "operationId": "healthz_healthz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Healthz Healthz Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dashboard": {
+      "get": {
+        "summary": "Dashboard",
+        "operationId": "dashboard_api_dashboard_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Dashboard Api Dashboard Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/strategies": {
+      "get": {
+        "summary": "List Strategies",
+        "operationId": "list_strategies_api_strategies_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response List Strategies Api Strategies Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Strategy",
+        "operationId": "create_strategy_api_strategies_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StrategyCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Create Strategy Api Strategies Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/strategies/{strategy_id}/status": {
+      "patch": {
+        "summary": "Set Strategy Status",
+        "operationId": "set_strategy_status_api_strategies__strategy_id__status_patch",
+        "parameters": [
+          {
+            "name": "strategy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Strategy Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StrategyStatusUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Set Strategy Status Api Strategies  Strategy Id  Status Patch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/backtests": {
+      "post": {
+        "summary": "Run Backtest",
+        "operationId": "run_backtest_api_backtests_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BacktestCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Run Backtest Api Backtests Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/backtests/signal": {
+      "post": {
+        "summary": "Run Signal Backtest",
+        "operationId": "run_signal_backtest_api_backtests_signal_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RealBacktestCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Run Signal Backtest Api Backtests Signal Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/evolution": {
+      "post": {
+        "summary": "Generate Candidates",
+        "operationId": "generate_candidates_api_evolution_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvolutionCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Generate Candidates Api Evolution Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/paper/accounts": {
+      "get": {
+        "summary": "List Paper Accounts",
+        "operationId": "list_paper_accounts_api_paper_accounts_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response List Paper Accounts Api Paper Accounts Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Paper Account",
+        "operationId": "create_paper_account_api_paper_accounts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaperAccountCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Create Paper Account Api Paper Accounts Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/paper/accounts/{account_id}": {
+      "delete": {
+        "summary": "Delete Paper Account",
+        "operationId": "delete_paper_account_api_paper_accounts__account_id__delete",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Account Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/paper/orders": {
+      "get": {
+        "summary": "List Paper Orders",
+        "operationId": "list_paper_orders_api_paper_orders_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response List Paper Orders Api Paper Orders Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Paper Order",
+        "operationId": "create_paper_order_api_paper_orders_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaperOrderCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Create Paper Order Api Paper Orders Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/paper/fills": {
+      "get": {
+        "summary": "List Paper Fills",
+        "operationId": "list_paper_fills_api_paper_fills_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response List Paper Fills Api Paper Fills Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/paper/accounts/{account_id}/positions": {
+      "get": {
+        "summary": "List Paper Positions",
+        "operationId": "list_paper_positions_api_paper_accounts__account_id__positions_get",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Account Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response List Paper Positions Api Paper Accounts  Account Id  Positions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/paper/drafts": {
+      "get": {
+        "summary": "List Paper Drafts",
+        "operationId": "list_paper_drafts_api_paper_drafts_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response List Paper Drafts Api Paper Drafts Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Paper Draft",
+        "operationId": "create_paper_draft_api_paper_drafts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaperDraftCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Create Paper Draft Api Paper Drafts Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/paper/drafts/{draft_id}/approve": {
+      "patch": {
+        "summary": "Approve Paper Draft",
+        "operationId": "approve_paper_draft_api_paper_drafts__draft_id__approve_patch",
+        "parameters": [
+          {
+            "name": "draft_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Draft Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Approve Paper Draft Api Paper Drafts  Draft Id  Approve Patch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/paper/drafts/{draft_id}/cancel": {
+      "patch": {
+        "summary": "Cancel Paper Draft",
+        "operationId": "cancel_paper_draft_api_paper_drafts__draft_id__cancel_patch",
+        "parameters": [
+          {
+            "name": "draft_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Draft Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Cancel Paper Draft Api Paper Drafts  Draft Id  Cancel Patch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/paper/drafts/{draft_id}/submit": {
+      "patch": {
+        "summary": "Submit Paper Draft",
+        "operationId": "submit_paper_draft_api_paper_drafts__draft_id__submit_patch",
+        "parameters": [
+          {
+            "name": "draft_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Draft Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Submit Paper Draft Api Paper Drafts  Draft Id  Submit Patch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/data-health": {
+      "get": {
+        "summary": "Data Health",
+        "operationId": "data_health_api_data_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Data Health Api Data Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/data-sync/jobs": {
+      "get": {
+        "summary": "List Data Sync Jobs",
+        "operationId": "list_data_sync_jobs_api_data_sync_jobs_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response List Data Sync Jobs Api Data Sync Jobs Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/data-sync/bar-jobs": {
+      "get": {
+        "summary": "List Bar Sync Jobs",
+        "operationId": "list_bar_sync_jobs_api_data_sync_bar_jobs_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response List Bar Sync Jobs Api Data Sync Bar Jobs Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/data-sync/bar-jobs/{job_id}/retry": {
+      "post": {
+        "summary": "Retry Bar Sync Job",
+        "operationId": "retry_bar_sync_job_api_data_sync_bar_jobs__job_id__retry_post",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BarSyncRetryCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Retry Bar Sync Job Api Data Sync Bar Jobs  Job Id  Retry Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/instruments": {
+      "get": {
+        "summary": "List Instruments",
+        "operationId": "list_instruments_api_instruments_get",
+        "parameters": [
+          {
+            "name": "market",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Market"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Market"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response List Instruments Api Instruments Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/data-sync/{market}": {
+      "post": {
+        "summary": "Start Data Sync",
+        "operationId": "start_data_sync_api_data_sync__market__post",
+        "parameters": [
+          {
+            "name": "market",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Market"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Start Data Sync Api Data Sync  Market  Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/data-sync/{market}/instruments": {
+      "post": {
+        "summary": "Sync Instruments Only",
+        "operationId": "sync_instruments_only_api_data_sync__market__instruments_post",
+        "parameters": [
+          {
+            "name": "market",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Market"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Sync Instruments Only Api Data Sync  Market  Instruments Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/data-sync/{market}/bars/jobs": {
+      "post": {
+        "summary": "Create Bar Sync Job",
+        "operationId": "create_bar_sync_job_api_data_sync__market__bars_jobs_post",
+        "parameters": [
+          {
+            "name": "market",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Market"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BarSyncJobCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Create Bar Sync Job Api Data Sync  Market  Bars Jobs Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/signals/scans": {
+      "get": {
+        "summary": "List Signal Scans",
+        "operationId": "list_signal_scans_api_signals_scans_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response List Signal Scans Api Signals Scans Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Signal Scan",
+        "operationId": "create_signal_scan_api_signals_scans_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignalScanCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Create Signal Scan Api Signals Scans Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/signals/scans/{scan_id}": {
+      "get": {
+        "summary": "Get Signal Scan",
+        "operationId": "get_signal_scan_api_signals_scans__scan_id__get",
+        "parameters": [
+          {
+            "name": "scan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Scan Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Signal Scan Api Signals Scans  Scan Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/signals/scans/{scan_id}/results": {
+      "get": {
+        "summary": "List Signal Results",
+        "operationId": "list_signal_results_api_signals_scans__scan_id__results_get",
+        "parameters": [
+          {
+            "name": "scan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Scan Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response List Signal Results Api Signals Scans  Scan Id  Results Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/risk": {
+      "get": {
+        "summary": "Get Risk",
+        "operationId": "get_risk_api_risk_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Get Risk Api Risk Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update Risk",
+        "operationId": "update_risk_api_risk_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RiskUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Update Risk Api Risk Patch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/schedules": {
+      "get": {
+        "summary": "List Schedules",
+        "operationId": "list_schedules_api_schedules_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response List Schedules Api Schedules Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/schedules/{market}": {
+      "patch": {
+        "summary": "Update Schedule",
+        "operationId": "update_schedule_api_schedules__market__patch",
+        "parameters": [
+          {
+            "name": "market",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Market"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduleUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Update Schedule Api Schedules  Market  Patch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/audit-events": {
+      "get": {
+        "summary": "List Audit Events",
+        "operationId": "list_audit_events_api_audit_events_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response List Audit Events Api Audit Events Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BacktestCreate": {
+        "properties": {
+          "strategy_id": {
+            "type": "string",
+            "title": "Strategy Id"
+          },
+          "equity": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Equity"
+          },
+          "turnovers": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Turnovers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "strategy_id",
+          "equity"
+        ],
+        "title": "BacktestCreate"
+      },
+      "BarSyncJobCreate": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "title": "Mode",
+            "default": "initial"
+          },
+          "batch_size": {
+            "type": "integer",
+            "title": "Batch Size",
+            "default": 25
+          }
+        },
+        "type": "object",
+        "title": "BarSyncJobCreate"
+      },
+      "BarSyncRetryCreate": {
+        "properties": {
+          "batch_size": {
+            "type": "integer",
+            "title": "Batch Size",
+            "default": 25
+          }
+        },
+        "type": "object",
+        "title": "BarSyncRetryCreate"
+      },
+      "EvolutionCreate": {
+        "properties": {
+          "template_id": {
+            "type": "string",
+            "title": "Template Id"
+          },
+          "parameter_space": {
+            "additionalProperties": {
+              "items": {},
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Parameter Space"
+          },
+          "max_candidates": {
+            "type": "integer",
+            "title": "Max Candidates",
+            "default": 10
+          }
+        },
+        "type": "object",
+        "required": [
+          "template_id",
+          "parameter_space"
+        ],
+        "title": "EvolutionCreate"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Market": {
+        "type": "string",
+        "enum": [
+          "US",
+          "CN",
+          "CRYPTO"
+        ],
+        "title": "Market"
+      },
+      "PaperAccountCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "starting_cash": {
+            "type": "number",
+            "title": "Starting Cash"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "starting_cash"
+        ],
+        "title": "PaperAccountCreate"
+      },
+      "PaperDraftCreate": {
+        "properties": {
+          "scan_id": {
+            "type": "string",
+            "title": "Scan Id"
+          },
+          "account_id": {
+            "type": "string",
+            "title": "Account Id"
+          },
+          "strategy_id": {
+            "type": "string",
+            "title": "Strategy Id"
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "market": {
+            "$ref": "#/components/schemas/Market"
+          },
+          "side": {
+            "$ref": "#/components/schemas/SignalSide"
+          },
+          "target_weight": {
+            "type": "number",
+            "title": "Target Weight"
+          },
+          "current_weight": {
+            "type": "number",
+            "title": "Current Weight"
+          },
+          "reference_price": {
+            "type": "number",
+            "title": "Reference Price"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "risk_flags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Risk Flags"
+          },
+          "trade_session": {
+            "type": "string",
+            "format": "date",
+            "title": "Trade Session"
+          }
+        },
+        "type": "object",
+        "required": [
+          "scan_id",
+          "account_id",
+          "strategy_id",
+          "symbol",
+          "market",
+          "side",
+          "target_weight",
+          "current_weight",
+          "reference_price",
+          "reason",
+          "trade_session"
+        ],
+        "title": "PaperDraftCreate"
+      },
+      "PaperOrderCreate": {
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "title": "Account Id"
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "market": {
+            "$ref": "#/components/schemas/Market"
+          },
+          "quantity": {
+            "type": "number",
+            "title": "Quantity"
+          },
+          "limit_price": {
+            "type": "number",
+            "title": "Limit Price"
+          }
+        },
+        "type": "object",
+        "required": [
+          "account_id",
+          "symbol",
+          "market",
+          "quantity",
+          "limit_price"
+        ],
+        "title": "PaperOrderCreate"
+      },
+      "RealBacktestCreate": {
+        "properties": {
+          "market": {
+            "$ref": "#/components/schemas/Market"
+          },
+          "universe": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Universe"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters"
+          },
+          "starting_cash": {
+            "type": "number",
+            "title": "Starting Cash",
+            "default": 100000.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "market",
+          "universe",
+          "parameters"
+        ],
+        "title": "RealBacktestCreate"
+      },
+      "RiskMode": {
+        "type": "string",
+        "enum": [
+          "research-only",
+          "paper-only",
+          "paused"
+        ],
+        "title": "RiskMode"
+      },
+      "RiskUpdate": {
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/RiskMode"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "live_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Live Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mode",
+          "reason"
+        ],
+        "title": "RiskUpdate"
+      },
+      "ScheduleUpdate": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled"
+        ],
+        "title": "ScheduleUpdate"
+      },
+      "SignalScanCreate": {
+        "properties": {
+          "strategy_template": {
+            "type": "string",
+            "title": "Strategy Template"
+          },
+          "markets": {
+            "items": {
+              "$ref": "#/components/schemas/Market"
+            },
+            "type": "array",
+            "title": "Markets"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters"
+          }
+        },
+        "type": "object",
+        "required": [
+          "strategy_template",
+          "markets",
+          "parameters"
+        ],
+        "title": "SignalScanCreate"
+      },
+      "SignalSide": {
+        "type": "string",
+        "enum": [
+          "buy",
+          "hold",
+          "sell"
+        ],
+        "title": "SignalSide"
+      },
+      "StrategyCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "market": {
+            "$ref": "#/components/schemas/Market"
+          },
+          "asset_class": {
+            "type": "string",
+            "title": "Asset Class"
+          },
+          "template_id": {
+            "type": "string",
+            "title": "Template Id"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "market",
+          "asset_class",
+          "template_id"
+        ],
+        "title": "StrategyCreate"
+      },
+      "StrategyStatus": {
+        "type": "string",
+        "enum": [
+          "research",
+          "candidate",
+          "paper",
+          "small-live-ready",
+          "production-ready",
+          "retired"
+        ],
+        "title": "StrategyStatus"
+      },
+      "StrategyStatusUpdate": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/StrategyStatus"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "reason"
+        ],
+        "title": "StrategyStatusUpdate"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

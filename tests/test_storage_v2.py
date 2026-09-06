@@ -9,7 +9,7 @@ def test_v2_tables_are_initialized(tmp_path):
             """
             SELECT table_name AS name
             FROM information_schema.tables
-            WHERE table_schema = 'public'
+            WHERE table_schema = current_schema()
             ORDER BY table_name
             """
         ).fetchall()

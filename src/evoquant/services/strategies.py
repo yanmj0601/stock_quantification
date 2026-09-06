@@ -106,8 +106,8 @@ class CrossSectionalMomentumStrategy:
                     score=round(item.score, 6),
                     target_weight=round(target_weight, 6),
                     reason=(
-                        f"120日动量 {item.long_return:.2%}; "
-                        f"20日动量 {item.short_return:.2%}; "
+                        f"{self.lookback_long}日动量 {item.long_return:.2%}; "
+                        f"{self.lookback_short}日动量 {item.short_return:.2%}; "
                         f"rank {item.rank}"
                     ),
                     risk_flags=item.risk_flags,
@@ -159,7 +159,7 @@ class CrossSectionalMomentumStrategy:
         long_rank = _rank_percentiles({item.symbol: item.long_return for item in scored})
         short_rank = _rank_percentiles({item.symbol: item.short_return for item in scored})
         volatility_rank = _rank_percentiles(
-            {item.symbol: item.volatility for item in scored}, reverse=False
+            {item.symbol: item.volatility for item in scored}
         )
         drawdown_rank = _rank_percentiles(
             {item.symbol: item.max_drawdown for item in scored}, reverse=False

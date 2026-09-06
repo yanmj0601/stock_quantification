@@ -45,7 +45,7 @@ const defaultParameters = {
   lookback_long: 120,
   lookback_short: 20,
   top_n: 20,
-  hold_rank: 50,
+  exit_rank: 50,
   max_weight: 0.08,
   min_amount: 10000000,
   max_volatility: 0.45,
@@ -260,7 +260,7 @@ function Signals() {
         <button className="primary-button" disabled={state === "running"} type="button" onClick={runScan}>
           <Play size={16} /> Run Scan
         </button>
-        <button className="icon-button" type="button" title="Refresh" onClick={loadScans}>
+        <button className="icon-button" type="button" title="Refresh" onClick={() => loadScans()}>
           <RefreshCw size={16} />
         </button>
       </div>

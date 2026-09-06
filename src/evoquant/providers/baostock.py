@@ -16,11 +16,11 @@ def _is_cn_stock(exchange: str, symbol: str) -> bool:
     if len(symbol) != 6:
         return False
     if exchange == "SH":
-        # 60xxxx (主板), 688xxx (科创板), 900xxx (B股)
-        return symbol.startswith(("60", "688", "900"))
+        # 60xxxx (主板), 688xxx (科创板)；排除外币计价的 B 股。
+        return symbol.startswith(("60", "688"))
     elif exchange == "SZ":
-        # 000xxx, 001xxx, 002xxx, 003xxx (主板/中小板), 300xxx (创业板), 200xxx (B股)
-        return symbol.startswith(("000", "001", "002", "003", "300", "200"))
+        # 000–003 (主板/中小板), 300/301 (创业板)；排除 B 股。
+        return symbol.startswith(("000", "001", "002", "003", "300", "301"))
     return False
 
 

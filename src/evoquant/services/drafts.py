@@ -6,6 +6,7 @@ from datetime import date
 from evoquant.domain import Market, OrderDraftStatus, SignalSide, new_id, utc_now
 from evoquant.services.market_rules import MarketRulesService
 from evoquant.services.paper import PaperTradingService
+from evoquant.services.risk import RiskService
 from evoquant.storage import PostgreSQLStore, dumps, loads
 
 
@@ -56,7 +57,8 @@ class PaperOrderDraftService:
             price=reference_price,
             side=side,
         )
-        blocking_flags = {"limit_up", "limit_down", "suspended", "stale_data"}
+        blocking_flags = {"suspended", "stale_data"}
+        blocking_flags.add("limit_up" if side is SignalSide.BUY else "limit_down")
         status = (
             OrderDraftStatus.BLOCKED
             if quantity <= 0 or any(flag in blocking_flags for flag in risk_flags)
@@ -111,6 +113,9 @@ class PaperOrderDraftService:
         draft = self._get(draft_id)
         if draft.status is not OrderDraftStatus.APPROVED:
             raise RuntimeError("only approved drafts can be submitted")
+        risk = RiskService(self.store)
+        risk.assert_live_disabled()
+        risk.assert_paper_allowed()
         order = self.paper.submit_order(
             draft.account_id,
             draft.symbol,

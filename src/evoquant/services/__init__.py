@@ -1,1 +1,1 @@
-"""Application services for EvoQuant."""
+"""EvoQuant 应用服务。"""
